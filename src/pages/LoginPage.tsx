@@ -53,23 +53,35 @@ export function LoginPage() {
     e.preventDefault();
     if (!email.trim()) return;
 
-    setLoading(true);
-    setError('');
-
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim().toLowerCase(),
-      options: { shouldCreateUser: false },
-    });
-
-    setLoading(false);
-
-    if (error) {
-      setError(error.message);
+    // Check if Supabase is configured
+    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+      setError('Supabase not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env file');
       return;
     }
 
-    setStep('otp');
-    setResendCooldown(30);
+    setLoading(true);
+    setError('');
+
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim().toLowerCase(),
+        options: { shouldCreateUser: false },
+      });
+
+      setLoading(false);
+
+      if (error) {
+        setError(error.message);
+        return;
+      }
+
+      setStep('otp');
+      setResendCooldown(30);
+    } catch (err: any) {
+      setLoading(false);
+      setError('Failed to connect to authentication service. Please check your configuration.');
+      console.error('OTP Error:', err);
+    }
   };
 
   // ─── STEP 2: Verify OTP ──────────────────────────────────
