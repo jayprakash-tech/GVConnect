@@ -200,52 +200,43 @@ export function AuthPage() {
       return;
     }
 
-    // 1. Create the user in Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: verifiedEmail,
-      password: password,
-    });
-
-    if (authError) {
-      console.error("Auth Error:", authError);
-      alert("Failed to create account: " + authError.message);
-      return;
-    }
-
-    if (!authData.user) {
-      alert("No user returned from signup");
-      return;
-    }
-
-    const userId = authData.user.id;
-
-    // 2. UPDATE the profile that the database trigger just created
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .upsert({
-        id: userId,
+    try {
+      // 1. Create user in Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: verifiedEmail,
-        full_name: fullName,
-        admission_number: admissionNumber,
-        class: selectedClass,
-        batch: batchYear, // MUST be 'batch'
+        password: password,
       });
 
-    if (profileError) {
-      console.error("Profile Upsert Error:", profileError);
-      alert("Failed to save profile: " + profileError.message);
-      return;
-    }
+      if (authError) throw authError;
+      if (!authData.user) throw new Error("No user returned from signup");
 
-    // 3. Success!
-    alert("Account created successfully! Please check your email to confirm your account.");
-    
-    // Clear session storage since flow is complete
-    sessionStorage.removeItem('gv_signup_step');
-    sessionStorage.removeItem('gv_verified_email');
-    sessionStorage.removeItem('gv_auth_mode');
-    
-    setMode('login'); // Go to login tab
+      const userId = authData.user.id;
+
+      // 2. UPDATE the profile that the database trigger just created
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: userId,
+          email: verifiedEmail,
+          full_name: fullName,
+          admission_number: admissionNumber,
+          class: selectedClass,
+          batch: batchYear, // MUST be 'batch'
+        });
+
+      if (profileError) {
+        console.error("Profile Upsert Error:", profileError);
+        throw profileError;
+      }
+
+      // 3. Success!
+      alert("Account created successfully! Please check your email to confirm.");
+      setMode('login'); 
+
+    } catch (error: any) {
+      console.error("Signup failed:", error);
+      alert("Failed to create account: " + error.message);
+    }
   };
 
   // ─── LOGIN: Email + Password ─────────────────────────────
