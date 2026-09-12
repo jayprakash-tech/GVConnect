@@ -39,10 +39,14 @@ export function AuthPage() {
   const [resendCooldown, setResendCooldown] = useState(0);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Redirect if already logged in
+  // Redirect if already logged in (but NOT during signup flow)
   useEffect(() => {
-    if (user) navigate('/dashboard');
-  }, [user, navigate]);
+    // Only redirect if user is logged in AND we're at the initial email step
+    // This prevents redirect during OTP verification flow
+    if (user && signupStep === 'email' && !verifiedEmail) {
+      navigate('/dashboard');
+    }
+  }, [user, navigate, signupStep, verifiedEmail]);
 
   // Resend cooldown timer
   useEffect(() => {
@@ -117,6 +121,9 @@ export function AuthPage() {
     // CRITICAL: Sign out immediately to prevent auto-login
     // verifyOtp() creates a session, which would trigger redirect to dashboard
     await supabase.auth.signOut();
+
+    // Small delay to ensure signOut completes and state updates propagate
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     // Check if profile exists for this email
     const { data: profile } = await supabase
