@@ -12,11 +12,19 @@ export function AuthPage() {
   const navigate = useNavigate();
 
   // Mode: signup (new user) or login (returning user)
-  const [mode, setMode] = useState<Mode>('signup');
+  const [mode, setMode] = useState<Mode>(() => {
+    const saved = sessionStorage.getItem('gv_auth_mode');
+    return (saved as Mode) || 'signup';
+  });
   
-  // Signup flow state
-  const [signupStep, setSignupStep] = useState<SignupStep>('email');
-  const [verifiedEmail, setVerifiedEmail] = useState('');
+  // Signup flow state - restore from sessionStorage on mount
+  const [signupStep, setSignupStep] = useState<SignupStep>(() => {
+    const saved = sessionStorage.getItem('gv_signup_step');
+    return (saved as SignupStep) || 'email';
+  });
+  const [verifiedEmail, setVerifiedEmail] = useState(() => {
+    return sessionStorage.getItem('gv_verified_email') || '';
+  });
   
   // Login flow state
   const [loginEmail, setLoginEmail] = useState('');
@@ -47,6 +55,28 @@ export function AuthPage() {
       navigate('/dashboard');
     }
   }, [user, navigate, signupStep, verifiedEmail]);
+
+  // Persist signup flow state to sessionStorage (survives page refresh)
+  useEffect(() => {
+    sessionStorage.setItem('gv_signup_step', signupStep);
+    sessionStorage.setItem('gv_verified_email', verifiedEmail);
+    sessionStorage.setItem('gv_auth_mode', mode);
+    
+    // If we're past email step, restore the email field
+    if (signupStep !== 'email' && verifiedEmail) {
+      setEmail(verifiedEmail);
+    }
+    
+    // Clear storage when flow completes or user switches to login
+    if (mode === 'login' || signupStep === 'email') {
+      // Only clear if we're not in the middle of a flow
+      if (signupStep === 'email' && !verifiedEmail) {
+        sessionStorage.removeItem('gv_signup_step');
+        sessionStorage.removeItem('gv_verified_email');
+        sessionStorage.removeItem('gv_auth_mode');
+      }
+    }
+  }, [signupStep, verifiedEmail, mode]);
 
   // Resend cooldown timer
   useEffect(() => {
@@ -138,23 +168,27 @@ export function AuthPage() {
     // Small delay to ensure signOut completes and state updates propagate
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    // Check if profile exists for this email
+    // Check if profile exists for this email AND has actual data
+    // (The database trigger creates a blank profile, so we need to check if it's populated)
     const { data: profile } = await supabase
       .from('profiles')
-      .select('id')
+      .select('id, full_name, admission_number')
       .eq('email', verifiedEmailValue)
       .maybeSingle();
 
     setLoading(false);
 
-    if (profile) {
-      // Profile exists - this is a returning user, redirect to login tab
+    // Check if profile exists AND has been filled out (not just the blank trigger row)
+    const hasCompleteProfile = profile && profile.full_name && profile.admission_number;
+
+    if (hasCompleteProfile) {
+      // Profile exists with data - this is a returning user, redirect to login tab
       setMode('login');
       setLoginEmail(verifiedEmailValue);
       setSignupStep('email');
       setError('Account already exists. Please login with your password.');
     } else {
-      // No profile - show profile creation form
+      // No profile or blank profile - show profile creation form
       setSignupStep('profile');
     }
   };
@@ -166,44 +200,52 @@ export function AuthPage() {
       return;
     }
 
-    try {
-      // 1. Create the user in Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+    // 1. Create the user in Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: verifiedEmail,
+      password: password,
+    });
+
+    if (authError) {
+      console.error("Auth Error:", authError);
+      alert("Failed to create account: " + authError.message);
+      return;
+    }
+
+    if (!authData.user) {
+      alert("No user returned from signup");
+      return;
+    }
+
+    const userId = authData.user.id;
+
+    // 2. UPDATE the profile that the database trigger just created
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert({
+        id: userId,
         email: verifiedEmail,
-        password: password,
+        full_name: fullName,
+        admission_number: admissionNumber,
+        class: selectedClass,
+        batch: batchYear, // MUST be 'batch'
       });
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error("No user returned");
-
-      const userId = authData.user.id;
-
-      // 2. Insert into profiles table using EXACT column names from schema
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: userId,
-          email: verifiedEmail,
-          full_name: fullName,
-          admission_number: admissionNumber,
-          class: selectedClass,
-          batch: batchYear, // MUST be 'batch', NOT 'batch_year'
-        });
-
-      if (profileError) {
-        console.error("Profile Insert Error:", profileError);
-        throw profileError;
-      }
-
-      // 3. Success
-      alert("Account created! Please check your email to confirm.");
-      // Reset to login tab or success state here
-      setMode('login'); 
-
-    } catch (error: any) {
-      console.error("Signup failed:", error);
-      alert("Failed to create account: " + error.message);
+    if (profileError) {
+      console.error("Profile Upsert Error:", profileError);
+      alert("Failed to save profile: " + profileError.message);
+      return;
     }
+
+    // 3. Success!
+    alert("Account created successfully! Please check your email to confirm your account.");
+    
+    // Clear session storage since flow is complete
+    sessionStorage.removeItem('gv_signup_step');
+    sessionStorage.removeItem('gv_verified_email');
+    sessionStorage.removeItem('gv_auth_mode');
+    
+    setMode('login'); // Go to login tab
   };
 
   // ─── LOGIN: Email + Password ─────────────────────────────
