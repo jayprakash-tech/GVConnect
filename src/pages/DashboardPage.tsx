@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mountain, LogOut, MessageCircle, Users, Bell } from 'lucide-react';
+import { Mountain, LogOut, MessageCircle, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../utils/supabase/client';
 
@@ -9,7 +9,6 @@ interface Profile {
   admission_number: string;
   class: string;
   batch: string;
-  email: string;
 }
 
 export function DashboardPage() {
@@ -19,19 +18,16 @@ export function DashboardPage() {
 
   useEffect(() => {
     if (user) {
-      loadProfile();
+      supabase
+        .from('profiles')
+        .select('full_name, admission_number, class, batch')
+        .eq('id', user.id)
+        .single()
+        .then(({ data }) => {
+          if (data) setProfile(data);
+        });
     }
   }, [user]);
-
-  const loadProfile = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-    if (data) setProfile(data as Profile);
-  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -40,11 +36,11 @@ export function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-clean-50">
-      {/* Subtle background pattern */}
+      {/* Background pattern */}
       <div className="fixed inset-0 opacity-[0.015] pointer-events-none">
         <div className="absolute inset-0" style={{
-          backgroundImage: `radial-gradient(circle at 1px 1px, rgb(107, 18, 48) 1px, transparent 0)`,
-          backgroundSize: '32px 32px'
+          backgroundImage: 'radial-gradient(circle at 1px 1px, rgb(107, 18, 48) 1px, transparent 0)',
+          backgroundSize: '32px 32px',
         }} />
       </div>
 
@@ -53,31 +49,23 @@ export function DashboardPage() {
         <div className="max-w-lg mx-auto px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-maroon-800 to-maroon-950 flex items-center justify-center shadow-sm">
-              <Mountain className="w-4.5 h-4.5 text-amber-warm-400" strokeWidth={1.5} />
+              <Mountain className="w-5 h-5 text-amber-warm-400" strokeWidth={1.5} />
             </div>
-            <div>
-              <h1 className="text-base font-bold tracking-tight">
-                <span className="text-maroon-900">GV</span>
-                <span className="text-amber-warm-600">Connect</span>
-              </h1>
-            </div>
+            <h1 className="text-base font-bold tracking-tight">
+              <span className="text-maroon-900">GV</span>
+              <span className="text-amber-warm-600">Connect</span>
+            </h1>
           </div>
-
-          <div className="flex items-center gap-2">
-            <button className="w-9 h-9 rounded-full flex items-center justify-center text-slate-clean-500 hover:bg-slate-clean-100 transition-colors">
-              <Bell className="w-[18px] h-[18px]" />
-            </button>
-            <button
-              onClick={handleSignOut}
-              className="w-9 h-9 rounded-full flex items-center justify-center text-slate-clean-500 hover:bg-slate-clean-100 transition-colors"
-            >
-              <LogOut className="w-[18px] h-[18px]" />
-            </button>
-          </div>
+          <button
+            onClick={handleSignOut}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-slate-clean-500 hover:bg-slate-clean-100 transition-colors"
+          >
+            <LogOut className="w-[18px] h-[18px]" />
+          </button>
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main */}
       <main className="relative z-10 max-w-lg mx-auto px-5 py-8">
         {/* Welcome Card */}
         <div className="bg-gradient-to-br from-maroon-800 via-maroon-900 to-maroon-950 rounded-2xl p-6 sm:p-8 shadow-xl shadow-maroon-900/20 text-white">
@@ -105,7 +93,7 @@ export function DashboardPage() {
           )}
         </div>
 
-        {/* Feature Cards (Placeholder for Step 3) */}
+        {/* Placeholder cards */}
         <div className="mt-6 space-y-3">
           <div className="bg-white rounded-xl p-5 border border-slate-clean-100 shadow-sm">
             <div className="flex items-center gap-4">
@@ -132,7 +120,7 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {/* Status */}
+        {/* Status badge */}
         <div className="mt-8 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-warm-50 border border-amber-warm-200">
             <div className="w-2 h-2 rounded-full bg-amber-warm-500 animate-pulse" />
