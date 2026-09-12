@@ -63,6 +63,19 @@ export function AuthPage() {
     }
   }, [signupStep]);
 
+  // Auto-redirect to Login tab after success
+  useEffect(() => {
+    if (signupStep === 'success') {
+      const timer = setTimeout(() => {
+        setMode('login');
+        setLoginEmail(verifiedEmail);
+        setSignupStep('email');
+        setError('');
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [signupStep, verifiedEmail]);
+
   // ─── SIGNUP STEP 1: Send OTP ─────────────────────────────
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,42 +179,53 @@ export function AuthPage() {
 
     setLoading(true);
 
-    // Create account with signUp
-    const { data, error: signUpError } = await supabase.auth.signUp({
+    // Step 1: Create the user in Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email: verifiedEmail,
       password: newPassword,
     });
 
-    if (signUpError) {
+    if (authError) {
       setLoading(false);
-      if (signUpError.message.includes('already registered')) {
+      if (authError.message.includes('already registered')) {
         setError('This email is already registered. Please login instead.');
-      } else if (signUpError.message.includes('password')) {
+      } else if (authError.message.includes('password')) {
         setError('Password is too weak. Please use a stronger password.');
       } else {
-        setError(signUpError.message);
+        setError(authError.message);
       }
       return;
     }
 
-    // Insert profile data
-    if (data.user) {
-      const { error: profileError } = await supabase.from('profiles').insert({
-        id: data.user.id,
+    // Step 2: Get the new user's ID
+    const userId = authData.user?.id;
+
+    if (!userId) {
+      setLoading(false);
+      setError('Failed to create user account. Please try again.');
+      return;
+    }
+
+    // Step 3: Insert the profile into the database using the exact schema
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        id: userId,
+        email: verifiedEmail,
         full_name: fullName.trim(),
         admission_number: admissionNumber.trim(),
         class: classLevel,
-        batch,
-        email: verifiedEmail,
+        batch: batch,
       });
 
-      if (profileError) {
-        setLoading(false);
-        setError('Failed to save profile. Please contact support.');
-        return;
-      }
+    if (profileError) {
+      setLoading(false);
+      setError('Failed to save profile. Please contact support.');
+      console.error('Profile insert error:', profileError);
+      return;
     }
 
+    // Step 4: Success - show message and redirect to Login tab
     setLoading(false);
     setSignupStep('success');
   };
@@ -553,10 +577,10 @@ export function AuthPage() {
 
                     <div>
                       <h2 className="text-2xl font-bold text-slate-clean-900 mb-2">
-                        Account created successfully!
+                        Account created!
                       </h2>
                       <p className="text-slate-clean-600 text-[15px] leading-relaxed">
-                        Please check your email and click the confirmation link to activate your account.
+                        Please check your email to confirm your account.
                       </p>
                     </div>
 
