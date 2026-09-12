@@ -29,9 +29,9 @@ export function AuthPage() {
   // Profile fields
   const [fullName, setFullName] = useState('');
   const [admissionNumber, setAdmissionNumber] = useState('');
-  const [classLevel, setClassLevel] = useState('');
-  const [batch, setBatch] = useState('');
-  const [newPassword, setNewPassword] = useState('');
+  const [selectedClass, setSelectedClass] = useState('');
+  const [batchYear, setBatchYear] = useState('');
+  const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   
   const [loading, setLoading] = useState(false);
@@ -160,74 +160,50 @@ export function AuthPage() {
   };
 
   // ─── SIGNUP STEP 3: Create Profile ───────────────────────
-  const handleCreateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    if (!fullName.trim() || !admissionNumber.trim() || !classLevel || !batch) {
-      setError('Please fill all fields');
-      return;
-    }
-    if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match');
+  const handleCreateAccount = async () => {
+    if (password !== confirmPassword) {
+      alert("Passwords do not match");
       return;
     }
 
-    setLoading(true);
-
-    // Step 1: Create the user in Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: verifiedEmail,
-      password: newPassword,
-    });
-
-    if (authError) {
-      setLoading(false);
-      if (authError.message.includes('already registered')) {
-        setError('This email is already registered. Please login instead.');
-      } else if (authError.message.includes('password')) {
-        setError('Password is too weak. Please use a stronger password.');
-      } else {
-        setError(authError.message);
-      }
-      return;
-    }
-
-    // Step 2: Get the new user's ID
-    const userId = authData.user?.id;
-
-    if (!userId) {
-      setLoading(false);
-      setError('Failed to create user account. Please try again.');
-      return;
-    }
-
-    // Step 3: Insert the profile into the database using the exact schema
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .insert({
-        id: userId,
+    try {
+      // 1. Create the user in Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: verifiedEmail,
-        full_name: fullName.trim(),
-        admission_number: admissionNumber.trim(),
-        class: classLevel,
-        batch: batch,
+        password: password,
       });
 
-    if (profileError) {
-      setLoading(false);
-      setError('Failed to save profile. Please contact support.');
-      console.error('Profile insert error:', profileError);
-      return;
-    }
+      if (authError) throw authError;
+      if (!authData.user) throw new Error("No user returned");
 
-    // Step 4: Success - show message and redirect to Login tab
-    setLoading(false);
-    setSignupStep('success');
+      const userId = authData.user.id;
+
+      // 2. Insert into profiles table using EXACT column names from schema
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: userId,
+          email: verifiedEmail,
+          full_name: fullName,
+          admission_number: admissionNumber,
+          class: selectedClass,
+          batch: batchYear, // MUST be 'batch', NOT 'batch_year'
+        });
+
+      if (profileError) {
+        console.error("Profile Insert Error:", profileError);
+        throw profileError;
+      }
+
+      // 3. Success
+      alert("Account created! Please check your email to confirm.");
+      // Reset to login tab or success state here
+      setMode('login'); 
+
+    } catch (error: any) {
+      console.error("Signup failed:", error);
+      alert("Failed to create account: " + error.message);
+    }
   };
 
   // ─── LOGIN: Email + Password ─────────────────────────────
@@ -468,7 +444,7 @@ export function AuthPage() {
 
                 {/* ─── SIGNUP STEP 3: Profile Form ────────── */}
                 {signupStep === 'profile' && (
-                  <form onSubmit={handleCreateProfile} className="space-y-4">
+                  <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Full Name</label>
                       <input
@@ -497,8 +473,8 @@ export function AuthPage() {
                       <div>
                         <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Class</label>
                         <select
-                          value={classLevel}
-                          onChange={(e) => setClassLevel(e.target.value)}
+                          value={selectedClass}
+                          onChange={(e) => setSelectedClass(e.target.value)}
                           className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
                           required
                         >
@@ -509,8 +485,8 @@ export function AuthPage() {
                       <div>
                         <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Batch Year</label>
                         <select
-                          value={batch}
-                          onChange={(e) => setBatch(e.target.value)}
+                          value={batchYear}
+                          onChange={(e) => setBatchYear(e.target.value)}
                           className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
                           required
                         >
@@ -530,8 +506,8 @@ export function AuthPage() {
                       <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Password</label>
                       <input
                         type="password"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
                         placeholder="Min. 8 characters"
                         className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 placeholder:text-slate-clean-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
                         required
@@ -553,7 +529,8 @@ export function AuthPage() {
                     {error && <p className="text-sm text-red-500 font-medium">{error}</p>}
 
                     <button
-                      type="submit"
+                      type="button"
+                      onClick={handleCreateAccount}
                       disabled={loading}
                       className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-white hover:bg-maroon-900 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
                     >
@@ -565,7 +542,7 @@ export function AuthPage() {
                         </>
                       )}
                     </button>
-                  </form>
+                  </div>
                 )}
 
                 {/* ─── SIGNUP STEP 4: Success ─────────────── */}
