@@ -104,16 +104,39 @@ export function AuthPage() {
       type: 'email',
     });
 
-    setLoading(false);
-
     if (error) {
+      setLoading(false);
       setError(error.message);
       return;
     }
 
-    // OTP verified - store email and move to profile form
-    setVerifiedEmail(email.trim().toLowerCase());
-    setSignupStep('profile');
+    // OTP verified - store email
+    const verifiedEmailValue = email.trim().toLowerCase();
+    setVerifiedEmail(verifiedEmailValue);
+
+    // CRITICAL: Sign out immediately to prevent auto-login
+    // verifyOtp() creates a session, which would trigger redirect to dashboard
+    await supabase.auth.signOut();
+
+    // Check if profile exists for this email
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', verifiedEmailValue)
+      .maybeSingle();
+
+    setLoading(false);
+
+    if (profile) {
+      // Profile exists - this is a returning user, redirect to login tab
+      setMode('login');
+      setLoginEmail(verifiedEmailValue);
+      setSignupStep('email');
+      setError('Account already exists. Please login with your password.');
+    } else {
+      // No profile - show profile creation form
+      setSignupStep('profile');
+    }
   };
 
   // ─── SIGNUP STEP 3: Create Profile ───────────────────────
