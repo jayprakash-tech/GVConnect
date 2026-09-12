@@ -1,20 +1,31 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, ArrowRight, RefreshCw, Mountain, UserPlus, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, ArrowRight, RefreshCw, Mountain, UserPlus, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../utils/supabase/client';
 import { useAuth } from '../context/AuthContext';
 
-type Step = 'email' | 'otp' | 'profile' | 'password';
+type Mode = 'signup' | 'login';
+type SignupStep = 'email' | 'otp' | 'profile' | 'success';
 
 export function AuthPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [step, setStep] = useState<Step>('email');
+  // Mode: signup (new user) or login (returning user)
+  const [mode, setMode] = useState<Mode>('signup');
+  
+  // Signup flow state
+  const [signupStep, setSignupStep] = useState<SignupStep>('email');
+  const [verifiedEmail, setVerifiedEmail] = useState('');
+  
+  // Login flow state
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  
+  // Shared state
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [password, setPassword] = useState('');
-
+  
   // Profile fields
   const [fullName, setFullName] = useState('');
   const [admissionNumber, setAdmissionNumber] = useState('');
@@ -22,7 +33,7 @@ export function AuthPage() {
   const [batch, setBatch] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -43,12 +54,12 @@ export function AuthPage() {
 
   // Focus first OTP input
   useEffect(() => {
-    if (step === 'otp') {
+    if (signupStep === 'otp') {
       setTimeout(() => otpRefs.current[0]?.focus(), 100);
     }
-  }, [step]);
+  }, [signupStep]);
 
-  // ─── STEP 1: Send OTP ────────────────────────────────────
+  // ─── SIGNUP STEP 1: Send OTP ─────────────────────────────
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) return;
@@ -58,21 +69,24 @@ export function AuthPage() {
 
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim().toLowerCase(),
-      options: { shouldCreateUser: false },
     });
 
     setLoading(false);
 
     if (error) {
-      setError(error.message);
+      if (error.message.includes('already registered')) {
+        setError('This email is already registered. Please login instead.');
+      } else {
+        setError(error.message);
+      }
       return;
     }
 
-    setStep('otp');
+    setSignupStep('otp');
     setResendCooldown(30);
   };
 
-  // ─── STEP 2: Verify OTP ──────────────────────────────────
+  // ─── SIGNUP STEP 2: Verify OTP ───────────────────────────
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = otp.join('');
@@ -84,7 +98,7 @@ export function AuthPage() {
     setLoading(true);
     setError('');
 
-    const { data, error } = await supabase.auth.verifyOtp({
+    const { error } = await supabase.auth.verifyOtp({
       email: email.trim().toLowerCase(),
       token: code,
       type: 'email',
@@ -97,26 +111,12 @@ export function AuthPage() {
       return;
     }
 
-    // Check if user has a profile
-    if (data.user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', data.user.id)
-        .maybeSingle();
-
-      if (profile) {
-        // Existing user — sign out, ask for password
-        await supabase.auth.signOut();
-        setStep('password');
-      } else {
-        // New user — show profile setup
-        setStep('profile');
-      }
-    }
+    // OTP verified - store email and move to profile form
+    setVerifiedEmail(email.trim().toLowerCase());
+    setSignupStep('profile');
   };
 
-  // ─── STEP 3a: Create Profile (New User) ──────────────────
+  // ─── SIGNUP STEP 3: Create Profile ───────────────────────
   const handleCreateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -136,59 +136,69 @@ export function AuthPage() {
 
     setLoading(true);
 
-    // Set password for the user
-    const { error: pwdErr } = await supabase.auth.updateUser({ password: newPassword });
-    if (pwdErr) {
-      setError(pwdErr.message);
-      setLoading(false);
-      return;
-    }
-
-    // Get current user
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-    if (!currentUser) {
-      setError('Session expired. Please start over.');
-      setLoading(false);
-      return;
-    }
-
-    // Create profile record
-    const { error: profileErr } = await supabase.from('profiles').insert({
-      id: currentUser.id,
-      full_name: fullName.trim(),
-      admission_number: admissionNumber.trim(),
-      class: classLevel,
-      batch,
-      email: email.trim().toLowerCase(),
+    // Create account with signUp
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email: verifiedEmail,
+      password: newPassword,
     });
 
-    setLoading(false);
-
-    if (profileErr) {
-      setError(profileErr.message);
+    if (signUpError) {
+      setLoading(false);
+      if (signUpError.message.includes('already registered')) {
+        setError('This email is already registered. Please login instead.');
+      } else if (signUpError.message.includes('password')) {
+        setError('Password is too weak. Please use a stronger password.');
+      } else {
+        setError(signUpError.message);
+      }
       return;
     }
 
-    navigate('/dashboard');
+    // Insert profile data
+    if (data.user) {
+      const { error: profileError } = await supabase.from('profiles').insert({
+        id: data.user.id,
+        full_name: fullName.trim(),
+        admission_number: admissionNumber.trim(),
+        class: classLevel,
+        batch,
+        email: verifiedEmail,
+      });
+
+      if (profileError) {
+        setLoading(false);
+        setError('Failed to save profile. Please contact support.');
+        return;
+      }
+    }
+
+    setLoading(false);
+    setSignupStep('success');
   };
 
-  // ─── STEP 3b: Password Login (Existing User) ─────────────
-  const handlePasswordLogin = async (e: React.FormEvent) => {
+  // ─── LOGIN: Email + Password ─────────────────────────────
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!password) return;
+    if (!loginEmail || !loginPassword) return;
 
     setLoading(true);
     setError('');
 
     const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password,
+      email: loginEmail.trim().toLowerCase(),
+      password: loginPassword,
     });
 
     setLoading(false);
 
     if (error) {
-      setError(error.message);
+      if (error.message.includes('Email not confirmed')) {
+        setError('Please confirm your email first. Check your inbox for the confirmation link.');
+      } else if (error.message.includes('Invalid login credentials')) {
+        setError('Invalid email or password. Please try again.');
+      } else {
+        setError(error.message);
+      }
       return;
     }
 
@@ -226,7 +236,6 @@ export function AuthPage() {
     if (resendCooldown > 0) return;
     await supabase.auth.signInWithOtp({
       email: email.trim().toLowerCase(),
-      options: { shouldCreateUser: false },
     });
     setOtp(['', '', '', '', '', '']);
     setResendCooldown(30);
@@ -236,32 +245,6 @@ export function AuthPage() {
   // ─── Class & Batch Options ───────────────────────────────
   const classes = ['Nursery', 'LKG', 'UKG', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th', '11th', '12th'];
   const batches = Array.from({ length: 25 }, (_, i) => String(new Date().getFullYear() - i));
-
-  // ─── Step Label ──────────────────────────────────────────
-  const stepLabels: Record<Step, { num: string; title: string; subtitle: string }> = {
-    email: {
-      num: 'Step 1 of 3',
-      title: 'Welcome back',
-      subtitle: 'Enter your email to receive a verification code.',
-    },
-    otp: {
-      num: 'Step 2 of 3',
-      title: 'Verify your email',
-      subtitle: `We sent a 6-digit code to ${email}`,
-    },
-    profile: {
-      num: 'Step 3 of 3',
-      title: 'Create your profile',
-      subtitle: 'Welcome to the Grizzly Vidyalya family!',
-    },
-    password: {
-      num: 'Step 3 of 3',
-      title: 'Enter your password',
-      subtitle: `Welcome back! Enter your password for ${email}`,
-    },
-  };
-
-  const current = stepLabels[step];
 
   // ─── Render ──────────────────────────────────────────────
   return (
@@ -292,35 +275,301 @@ export function AuthPage() {
       {/* Main */}
       <main className="relative z-10 flex-1 flex flex-col justify-center px-6 pb-12">
         <div className="w-full max-w-md mx-auto">
-          {/* Back button */}
-          {step !== 'email' && (
+          {/* Mode Tabs */}
+          <div className="flex gap-2 mb-8 bg-slate-clean-100 p-1 rounded-xl">
             <button
-              onClick={() => {
-                if (step === 'otp') { setStep('email'); setError(''); setOtp(['', '', '', '', '', '']); }
-                else if (step === 'profile' || step === 'password') { setStep('otp'); setError(''); }
-              }}
-              className="inline-flex items-center gap-1 text-sm text-slate-clean-500 hover:text-slate-clean-700 mb-4 transition-colors"
+              onClick={() => { setMode('signup'); setError(''); }}
+              className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
+                mode === 'signup'
+                  ? 'bg-white text-maroon-800 shadow-sm'
+                  : 'text-slate-clean-500 hover:text-slate-clean-700'
+              }`}
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Back
+              New User
             </button>
+            <button
+              onClick={() => { setMode('login'); setError(''); }}
+              className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
+                mode === 'login'
+                  ? 'bg-white text-maroon-800 shadow-sm'
+                  : 'text-slate-clean-500 hover:text-slate-clean-700'
+              }`}
+            >
+              Returning User
+            </button>
+          </div>
+
+          {/* ─── SIGNUP MODE ─────────────────────────────── */}
+          {mode === 'signup' && (
+            <>
+              {/* Step indicator */}
+              {signupStep !== 'success' && (
+                <>
+                  <p className="text-xs font-semibold tracking-widest uppercase text-amber-warm-600 mb-2">
+                    {signupStep === 'email' && 'Step 1 of 3'}
+                    {signupStep === 'otp' && 'Step 2 of 3'}
+                    {signupStep === 'profile' && 'Step 3 of 3'}
+                  </p>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-slate-clean-900 tracking-tight">
+                    {signupStep === 'email' && 'Create your account'}
+                    {signupStep === 'otp' && 'Verify your email'}
+                    {signupStep === 'profile' && 'Complete your profile'}
+                  </h1>
+                  <p className="mt-2 text-slate-clean-500 text-[15px]">
+                    {signupStep === 'email' && 'Enter your email to receive a verification code.'}
+                    {signupStep === 'otp' && `We sent a 6-digit code to ${email}`}
+                    {signupStep === 'profile' && 'Tell us about yourself to join the community.'}
+                  </p>
+                </>
+              )}
+
+              <div className="mt-8">
+                {/* ─── SIGNUP STEP 1: Email ───────────────── */}
+                {signupStep === 'email' && (
+                  <form onSubmit={handleSendOTP} className="space-y-5">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">
+                        Email Address
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="you@example.com"
+                          className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 placeholder:text-slate-clean-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
+                          required
+                          autoComplete="email"
+                        />
+                        <Mail className="absolute right-4 top-3.5 w-4 h-4 text-slate-clean-400 pointer-events-none" />
+                      </div>
+                    </div>
+
+                    {error && <p className="text-sm text-red-500 font-medium">{error}</p>}
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-white hover:bg-maroon-900 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                    >
+                      {loading ? 'Sending...' : 'Send Verification Code'}
+                      {!loading && <ArrowRight className="w-4 h-4" />}
+                    </button>
+                  </form>
+                )}
+
+                {/* ─── SIGNUP STEP 2: OTP ─────────────────── */}
+                {signupStep === 'otp' && (
+                  <form onSubmit={handleVerifyOTP} className="space-y-6">
+                    <div className="flex justify-center gap-2.5 sm:gap-3">
+                      {otp.map((digit, i) => (
+                        <input
+                          key={i}
+                          ref={(el) => { otpRefs.current[i] = el; }}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={6}
+                          value={digit}
+                          onChange={(e) => handleOtpChange(i, e.target.value)}
+                          onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                          className="w-12 h-14 sm:w-14 sm:h-16 text-center text-xl sm:text-2xl font-bold rounded-xl border-2 border-slate-clean-200 bg-white text-slate-clean-900 focus:outline-none focus:border-maroon-700 focus:ring-4 focus:ring-maroon-700/10 transition-all"
+                        />
+                      ))}
+                    </div>
+
+                    {error && <p className="text-sm text-red-500 font-medium text-center">{error}</p>}
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-white hover:bg-maroon-900 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                    >
+                      {loading ? 'Verifying...' : 'Verify Code'}
+                      {!loading && <ArrowRight className="w-4 h-4" />}
+                    </button>
+
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        onClick={handleResend}
+                        disabled={resendCooldown > 0}
+                        className="inline-flex items-center gap-1.5 text-sm text-maroon-700 font-medium hover:text-maroon-900 disabled:text-slate-clean-400 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
+                      </button>
+                    </div>
+
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        onClick={() => { setSignupStep('email'); setError(''); setOtp(['', '', '', '', '', '']); }}
+                        className="text-sm text-slate-clean-500 hover:text-slate-clean-700 transition-colors"
+                      >
+                        ← Use a different email
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* ─── SIGNUP STEP 3: Profile Form ────────── */}
+                {signupStep === 'profile' && (
+                  <form onSubmit={handleCreateProfile} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Full Name</label>
+                      <input
+                        type="text"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        placeholder="e.g., Rahul Sharma"
+                        className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 placeholder:text-slate-clean-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Admission Number</label>
+                      <input
+                        type="text"
+                        value={admissionNumber}
+                        onChange={(e) => setAdmissionNumber(e.target.value)}
+                        placeholder="e.g., GV-2018-045"
+                        className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 placeholder:text-slate-clean-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Class</label>
+                        <select
+                          value={classLevel}
+                          onChange={(e) => setClassLevel(e.target.value)}
+                          className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
+                          required
+                        >
+                          <option value="">Select</option>
+                          {classes.map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Batch Year</label>
+                        <select
+                          value={batch}
+                          onChange={(e) => setBatch(e.target.value)}
+                          className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
+                          required
+                        >
+                          <option value="">Select</option>
+                          {batches.map((y) => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-clean-100">
+                      <p className="text-xs text-slate-clean-500 mb-3 font-medium uppercase tracking-wide">
+                        Create a password
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Password</label>
+                      <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Min. 8 characters"
+                        className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 placeholder:text-slate-clean-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Confirm Password</label>
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Re-enter password"
+                        className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 placeholder:text-slate-clean-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
+                        required
+                      />
+                    </div>
+
+                    {error && <p className="text-sm text-red-500 font-medium">{error}</p>}
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-white hover:bg-maroon-900 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                    >
+                      {loading ? 'Creating account...' : (
+                        <>
+                          <UserPlus className="w-4 h-4" />
+                          Create Account
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                      )}
+                    </button>
+                  </form>
+                )}
+
+                {/* ─── SIGNUP STEP 4: Success ─────────────── */}
+                {signupStep === 'success' && (
+                  <div className="text-center space-y-6">
+                    <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mx-auto">
+                      <CheckCircle2 className="w-8 h-8 text-green-600" />
+                    </div>
+
+                    <div>
+                      <h2 className="text-2xl font-bold text-slate-clean-900 mb-2">
+                        Account created successfully!
+                      </h2>
+                      <p className="text-slate-clean-600 text-[15px] leading-relaxed">
+                        Please check your email and click the confirmation link to activate your account.
+                      </p>
+                    </div>
+
+                    <div className="bg-amber-warm-50 border border-amber-warm-200 rounded-xl p-4 text-left">
+                      <p className="text-sm text-amber-warm-800 font-medium mb-1">
+                        What's next?
+                      </p>
+                      <ol className="text-sm text-amber-warm-700 space-y-1 list-decimal list-inside">
+                        <li>Check your email inbox</li>
+                        <li>Click the confirmation link</li>
+                        <li>Return here to login</li>
+                      </ol>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setMode('login');
+                        setLoginEmail(verifiedEmail);
+                        setSignupStep('email');
+                        setError('');
+                      }}
+                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-white hover:bg-maroon-900 active:scale-[0.98] shadow-lg shadow-maroon-900/20 transition-all flex items-center justify-center gap-2"
+                    >
+                      Go to Login
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
           )}
 
-          {/* Step indicator */}
-          <p className="text-xs font-semibold tracking-widest uppercase text-amber-warm-600 mb-2">
-            {current.num}
-          </p>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-clean-900 tracking-tight">
-            {current.title}
-          </h1>
-          <p className="mt-2 text-slate-clean-500 text-[15px]">
-            {current.subtitle}
-          </p>
+          {/* ─── LOGIN MODE ──────────────────────────────── */}
+          {mode === 'login' && (
+            <>
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-clean-900 tracking-tight">
+                Welcome back
+              </h1>
+              <p className="mt-2 text-slate-clean-500 text-[15px]">
+                Sign in to your GVConnect account
+              </p>
 
-          <div className="mt-8">
-            {/* ─── STEP: Email ──────────────────────────── */}
-            {step === 'email' && (
-              <form onSubmit={handleSendOTP} className="space-y-5">
+              <form onSubmit={handleLogin} className="mt-8 space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">
                     Email Address
@@ -328,8 +577,8 @@ export function AuthPage() {
                   <div className="relative">
                     <input
                       type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
                       placeholder="you@example.com"
                       className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 placeholder:text-slate-clean-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
                       required
@@ -339,175 +588,15 @@ export function AuthPage() {
                   </div>
                 </div>
 
-                {error && <p className="text-sm text-red-500 font-medium">{error}</p>}
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-white hover:bg-maroon-900 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-                >
-                  {loading ? 'Sending...' : 'Send Verification Code'}
-                  {!loading && <ArrowRight className="w-4 h-4" />}
-                </button>
-              </form>
-            )}
-
-            {/* ─── STEP: OTP ────────────────────────────── */}
-            {step === 'otp' && (
-              <form onSubmit={handleVerifyOTP} className="space-y-6">
-                <div className="flex justify-center gap-2.5 sm:gap-3">
-                  {otp.map((digit, i) => (
-                    <input
-                      key={i}
-                      ref={(el) => { otpRefs.current[i] = el; }}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={6}
-                      value={digit}
-                      onChange={(e) => handleOtpChange(i, e.target.value)}
-                      onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                      className="w-12 h-14 sm:w-14 sm:h-16 text-center text-xl sm:text-2xl font-bold rounded-xl border-2 border-slate-clean-200 bg-white text-slate-clean-900 focus:outline-none focus:border-maroon-700 focus:ring-4 focus:ring-maroon-700/10 transition-all"
-                    />
-                  ))}
-                </div>
-
-                {error && <p className="text-sm text-red-500 font-medium text-center">{error}</p>}
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-white hover:bg-maroon-900 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-                >
-                  {loading ? 'Verifying...' : 'Verify Code'}
-                  {!loading && <ArrowRight className="w-4 h-4" />}
-                </button>
-
-                <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={handleResend}
-                    disabled={resendCooldown > 0}
-                    className="inline-flex items-center gap-1.5 text-sm text-maroon-700 font-medium hover:text-maroon-900 disabled:text-slate-clean-400 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* ─── STEP: Profile Setup (New User) ──────── */}
-            {step === 'profile' && (
-              <form onSubmit={handleCreateProfile} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Full Name</label>
-                  <input
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="e.g., Rahul Sharma"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 placeholder:text-slate-clean-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Admission Number</label>
-                  <input
-                    type="text"
-                    value={admissionNumber}
-                    onChange={(e) => setAdmissionNumber(e.target.value)}
-                    placeholder="e.g., GV-2018-045"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 placeholder:text-slate-clean-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Class</label>
-                    <select
-                      value={classLevel}
-                      onChange={(e) => setClassLevel(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
-                      required
-                    >
-                      <option value="">Select</option>
-                      {classes.map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Batch Year</label>
-                    <select
-                      value={batch}
-                      onChange={(e) => setBatch(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
-                      required
-                    >
-                      <option value="">Select</option>
-                      {batches.map((y) => <option key={y} value={y}>{y}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="pt-3 border-t border-slate-clean-100">
-                  <p className="text-xs text-slate-clean-500 mb-3 font-medium uppercase tracking-wide">
-                    Create a password for future logins
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Password</label>
-                  <input
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Min. 8 characters"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 placeholder:text-slate-clean-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Confirm Password</label>
-                  <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Re-enter password"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 placeholder:text-slate-clean-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
-                    required
-                  />
-                </div>
-
-                {error && <p className="text-sm text-red-500 font-medium">{error}</p>}
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-white hover:bg-maroon-900 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-                >
-                  {loading ? 'Creating...' : (
-                    <>
-                      <UserPlus className="w-4 h-4" />
-                      Create Profile & Join
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-              </form>
-            )}
-
-            {/* ─── STEP: Password Login (Existing User) ── */}
-            {step === 'password' && (
-              <form onSubmit={handlePasswordLogin} className="space-y-5">
-                <div>
-                  <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Password</label>
+                  <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">
+                    Password
+                  </label>
                   <div className="relative">
                     <input
                       type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
                       placeholder="Enter your password"
                       className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 placeholder:text-slate-clean-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
                       required
@@ -531,9 +620,20 @@ export function AuthPage() {
                     </>
                   )}
                 </button>
+
+                <p className="text-center text-sm text-slate-clean-500">
+                  Don't have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={() => { setMode('signup'); setError(''); }}
+                    className="text-maroon-700 font-semibold hover:text-maroon-900 transition-colors"
+                  >
+                    Sign up
+                  </button>
+                </p>
               </form>
-            )}
-          </div>
+            </>
+          )}
         </div>
       </main>
 
