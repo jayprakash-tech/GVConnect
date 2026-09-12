@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, ArrowRight, RefreshCw, Mountain, UserPlus } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Mail, Lock, ArrowRight, RefreshCw, Mountain, UserPlus, ArrowLeft } from 'lucide-react';
 import { supabase } from '../utils/supabase/client';
 import { useAuth } from '../context/AuthContext';
 
 type Step = 'email' | 'otp' | 'profile' | 'password';
 
-export function LoginPage() {
+export function AuthPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -41,7 +41,7 @@ export function LoginPage() {
     }
   }, [resendCooldown]);
 
-  // Focus first OTP input when step changes
+  // Focus first OTP input
   useEffect(() => {
     if (step === 'otp') {
       setTimeout(() => otpRefs.current[0]?.focus(), 100);
@@ -53,35 +53,23 @@ export function LoginPage() {
     e.preventDefault();
     if (!email.trim()) return;
 
-    // Check if Supabase is configured
-    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-      setError('Supabase not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env file');
-      return;
-    }
-
     setLoading(true);
     setError('');
 
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: email.trim().toLowerCase(),
-        options: { shouldCreateUser: false },
-      });
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim().toLowerCase(),
+      options: { shouldCreateUser: false },
+    });
 
-      setLoading(false);
+    setLoading(false);
 
-      if (error) {
-        setError(error.message);
-        return;
-      }
-
-      setStep('otp');
-      setResendCooldown(30);
-    } catch (err: any) {
-      setLoading(false);
-      setError('Failed to connect to authentication service. Please check your configuration.');
-      console.error('OTP Error:', err);
+    if (error) {
+      setError(error.message);
+      return;
     }
+
+    setStep('otp');
+    setResendCooldown(30);
   };
 
   // ─── STEP 2: Verify OTP ──────────────────────────────────
@@ -109,7 +97,7 @@ export function LoginPage() {
       return;
     }
 
-    // OTP verified — check if user has a profile
+    // Check if user has a profile
     if (data.user) {
       const { data: profile } = await supabase
         .from('profiles')
@@ -213,7 +201,6 @@ export function LoginPage() {
     const newOtp = [...otp];
 
     if (value.length > 1) {
-      // Handle paste
       const digits = value.replace(/\D/g, '').slice(0, 6).split('');
       digits.forEach((d, i) => {
         if (index + i < 6) newOtp[index + i] = d;
@@ -250,6 +237,32 @@ export function LoginPage() {
   const classes = ['Nursery', 'LKG', 'UKG', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th', '11th', '12th'];
   const batches = Array.from({ length: 25 }, (_, i) => String(new Date().getFullYear() - i));
 
+  // ─── Step Label ──────────────────────────────────────────
+  const stepLabels: Record<Step, { num: string; title: string; subtitle: string }> = {
+    email: {
+      num: 'Step 1 of 3',
+      title: 'Welcome back',
+      subtitle: 'Enter your email to receive a verification code.',
+    },
+    otp: {
+      num: 'Step 2 of 3',
+      title: 'Verify your email',
+      subtitle: `We sent a 6-digit code to ${email}`,
+    },
+    profile: {
+      num: 'Step 3 of 3',
+      title: 'Create your profile',
+      subtitle: 'Welcome to the Grizzly Vidyalya family!',
+    },
+    password: {
+      num: 'Step 3 of 3',
+      title: 'Enter your password',
+      subtitle: `Welcome back! Enter your password for ${email}`,
+    },
+  };
+
+  const current = stepLabels[step];
+
   // ─── Render ──────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-clean-50 flex flex-col">
@@ -264,34 +277,50 @@ export function LoginPage() {
       {/* Header */}
       <header className="relative z-10 pt-8 pb-4 px-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-maroon-800 to-maroon-950 flex items-center justify-center shadow-md shadow-maroon-900/20">
-            <Mountain className="w-5 h-5 text-amber-warm-400" strokeWidth={1.5} />
-          </div>
-          <h2 className="text-lg font-bold tracking-tight">
-            <span className="text-maroon-900">GV</span>
-            <span className="text-amber-warm-600">Connect</span>
-          </h2>
+          <Link to="/" className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-maroon-800 to-maroon-950 flex items-center justify-center shadow-md shadow-maroon-900/20">
+              <Mountain className="w-5 h-5 text-amber-warm-400" strokeWidth={1.5} />
+            </div>
+            <h2 className="text-lg font-bold tracking-tight">
+              <span className="text-maroon-900">GV</span>
+              <span className="text-amber-warm-600">Connect</span>
+            </h2>
+          </Link>
         </div>
       </header>
 
       {/* Main */}
       <main className="relative z-10 flex-1 flex flex-col justify-center px-6 pb-12">
         <div className="w-full max-w-md mx-auto">
+          {/* Back button */}
+          {step !== 'email' && (
+            <button
+              onClick={() => {
+                if (step === 'otp') { setStep('email'); setError(''); setOtp(['', '', '', '', '', '']); }
+                else if (step === 'profile' || step === 'password') { setStep('otp'); setError(''); }
+              }}
+              className="inline-flex items-center gap-1 text-sm text-slate-clean-500 hover:text-slate-clean-700 mb-4 transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Back
+            </button>
+          )}
 
-          {/* ─── STEP: Email ──────────────────────────── */}
-          {step === 'email' && (
-            <>
-              <p className="text-xs font-semibold tracking-widest uppercase text-amber-warm-600 mb-2">
-                Step 1 of 3
-              </p>
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-clean-900 tracking-tight">
-                Welcome back
-              </h1>
-              <p className="mt-2 text-slate-clean-500 text-[15px]">
-                Enter your email to receive a verification code.
-              </p>
+          {/* Step indicator */}
+          <p className="text-xs font-semibold tracking-widest uppercase text-amber-warm-600 mb-2">
+            {current.num}
+          </p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-clean-900 tracking-tight">
+            {current.title}
+          </h1>
+          <p className="mt-2 text-slate-clean-500 text-[15px]">
+            {current.subtitle}
+          </p>
 
-              <form onSubmit={handleSendOTP} className="mt-8 space-y-5">
+          <div className="mt-8">
+            {/* ─── STEP: Email ──────────────────────────── */}
+            {step === 'email' && (
+              <form onSubmit={handleSendOTP} className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">
                     Email Address
@@ -321,24 +350,11 @@ export function LoginPage() {
                   {!loading && <ArrowRight className="w-4 h-4" />}
                 </button>
               </form>
-            </>
-          )}
+            )}
 
-          {/* ─── STEP: OTP ────────────────────────────── */}
-          {step === 'otp' && (
-            <>
-              <p className="text-xs font-semibold tracking-widest uppercase text-amber-warm-600 mb-2">
-                Step 2 of 3
-              </p>
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-clean-900 tracking-tight">
-                Enter verification code
-              </h1>
-              <p className="mt-2 text-slate-clean-500 text-[15px]">
-                We sent a 6-digit code to <span className="font-medium text-slate-clean-700">{email}</span>
-              </p>
-
-              <form onSubmit={handleVerifyOTP} className="mt-8 space-y-6">
-                {/* OTP Inputs */}
+            {/* ─── STEP: OTP ────────────────────────────── */}
+            {step === 'otp' && (
+              <form onSubmit={handleVerifyOTP} className="space-y-6">
                 <div className="flex justify-center gap-2.5 sm:gap-3">
                   {otp.map((digit, i) => (
                     <input
@@ -366,7 +382,6 @@ export function LoginPage() {
                   {!loading && <ArrowRight className="w-4 h-4" />}
                 </button>
 
-                {/* Resend */}
                 <div className="text-center">
                   <button
                     type="button"
@@ -374,38 +389,16 @@ export function LoginPage() {
                     disabled={resendCooldown > 0}
                     className="inline-flex items-center gap-1.5 text-sm text-maroon-700 font-medium hover:text-maroon-900 disabled:text-slate-clean-400 disabled:cursor-not-allowed transition-colors"
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${resendCooldown > 0 ? '' : ''}`} />
+                    <RefreshCw className="w-3.5 h-3.5" />
                     {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
                   </button>
                 </div>
-
-                <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={() => { setStep('email'); setError(''); setOtp(['', '', '', '', '', '']); }}
-                    className="text-sm text-slate-clean-500 hover:text-slate-clean-700 transition-colors"
-                  >
-                    ← Use a different email
-                  </button>
-                </div>
               </form>
-            </>
-          )}
+            )}
 
-          {/* ─── STEP: Profile Setup (New User) ──────── */}
-          {step === 'profile' && (
-            <>
-              <p className="text-xs font-semibold tracking-widest uppercase text-amber-warm-600 mb-2">
-                Step 3 of 3
-              </p>
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-clean-900 tracking-tight">
-                Create your profile
-              </h1>
-              <p className="mt-2 text-slate-clean-500 text-[15px]">
-                Welcome to the Grizzly Vidyalya family!
-              </p>
-
-              <form onSubmit={handleCreateProfile} className="mt-8 space-y-4">
+            {/* ─── STEP: Profile Setup (New User) ──────── */}
+            {step === 'profile' && (
+              <form onSubmit={handleCreateProfile} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Full Name</label>
                   <input
@@ -503,23 +496,11 @@ export function LoginPage() {
                   )}
                 </button>
               </form>
-            </>
-          )}
+            )}
 
-          {/* ─── STEP: Password Login (Existing User) ── */}
-          {step === 'password' && (
-            <>
-              <p className="text-xs font-semibold tracking-widest uppercase text-amber-warm-600 mb-2">
-                Step 3 of 3
-              </p>
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-clean-900 tracking-tight">
-                Enter your password
-              </h1>
-              <p className="mt-2 text-slate-clean-500 text-[15px]">
-                Welcome back! Enter the password for <span className="font-medium text-slate-clean-700">{email}</span>
-              </p>
-
-              <form onSubmit={handlePasswordLogin} className="mt-8 space-y-5">
+            {/* ─── STEP: Password Login (Existing User) ── */}
+            {step === 'password' && (
+              <form onSubmit={handlePasswordLogin} className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Password</label>
                   <div className="relative">
@@ -550,20 +531,9 @@ export function LoginPage() {
                     </>
                   )}
                 </button>
-
-                <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={() => { setStep('email'); setError(''); setPassword(''); }}
-                    className="text-sm text-slate-clean-500 hover:text-slate-clean-700 transition-colors"
-                  >
-                    ← Use a different email
-                  </button>
-                </div>
               </form>
-            </>
-          )}
-
+            )}
+          </div>
         </div>
       </main>
 

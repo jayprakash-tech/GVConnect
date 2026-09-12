@@ -7,13 +7,16 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-clean-50 flex items-center justify-center">
-        <div className="w-8 h-8 rounded-lg bg-maroon-800 animate-pulse" />
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-maroon-800 to-maroon-950 flex items-center justify-center animate-pulse" />
+          <p className="text-sm text-slate-clean-400 font-medium">Loading...</p>
+        </div>
       </div>
     );
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/auth" replace />;
   }
 
   return <>{children}</>;
