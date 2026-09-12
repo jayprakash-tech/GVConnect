@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LandingPage } from './pages/LandingPage';
 import { AuthPage } from './pages/AuthPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { DashboardPage } from './pages/DashboardPage';
 
 function App() {
@@ -15,6 +16,9 @@ function App() {
           
           {/* Auth page (multi-step) */}
           <Route path="/auth" element={<AuthPage />} />
+          
+          {/* Profile page (after OTP verification) */}
+          <Route path="/profile" element={<ProfilePage />} />
           
           {/* Protected dashboard */}
           <Route

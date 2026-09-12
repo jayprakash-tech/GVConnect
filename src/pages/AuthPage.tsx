@@ -188,54 +188,8 @@ export function AuthPage() {
       setSignupStep('email');
       setError('Account already exists. Please login with your password.');
     } else {
-      // No profile or blank profile - show profile creation form
-      setSignupStep('profile');
-    }
-  };
-
-  // ─── SIGNUP STEP 3: Create Profile ───────────────────────
-  const handleCreateAccount = async () => {
-    if (password !== confirmPassword) {
-      alert("Passwords do not match");
-      return;
-    }
-
-    try {
-      // 1. Create user in Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: verifiedEmail,
-        password: password,
-      });
-
-      if (authError) throw authError;
-      if (!authData.user) throw new Error("No user returned from signup");
-
-      const userId = authData.user.id;
-
-      // 2. UPDATE the profile that the database trigger just created
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: userId,
-          email: verifiedEmail,
-          full_name: fullName,
-          admission_number: admissionNumber,
-          class: selectedClass,
-          batch: batchYear, // MUST be 'batch'
-        });
-
-      if (profileError) {
-        console.error("Profile Upsert Error:", profileError);
-        throw profileError;
-      }
-
-      // 3. Success!
-      alert("Account created successfully! Please check your email to confirm.");
-      setMode('login'); 
-
-    } catch (error: any) {
-      console.error("Signup failed:", error);
-      alert("Failed to create account: " + error.message);
+      // No profile or blank profile - navigate to profile page
+      navigate('/profile');
     }
   };
 
@@ -369,19 +323,16 @@ export function AuthPage() {
               {signupStep !== 'success' && (
                 <>
                   <p className="text-xs font-semibold tracking-widest uppercase text-amber-warm-600 mb-2">
-                    {signupStep === 'email' && 'Step 1 of 3'}
-                    {signupStep === 'otp' && 'Step 2 of 3'}
-                    {signupStep === 'profile' && 'Step 3 of 3'}
+                    {signupStep === 'email' && 'Step 1 of 2'}
+                    {signupStep === 'otp' && 'Step 2 of 2'}
                   </p>
                   <h1 className="text-2xl sm:text-3xl font-bold text-slate-clean-900 tracking-tight">
                     {signupStep === 'email' && 'Create your account'}
                     {signupStep === 'otp' && 'Verify your email'}
-                    {signupStep === 'profile' && 'Complete your profile'}
                   </h1>
                   <p className="mt-2 text-slate-clean-500 text-[15px]">
                     {signupStep === 'email' && 'Enter your email to receive a verification code.'}
                     {signupStep === 'otp' && `We sent a 6-digit code to ${email}`}
-                    {signupStep === 'profile' && 'Tell us about yourself to join the community.'}
                   </p>
                 </>
               )}
@@ -473,109 +424,6 @@ export function AuthPage() {
                       </button>
                     </div>
                   </form>
-                )}
-
-                {/* ─── SIGNUP STEP 3: Profile Form ────────── */}
-                {signupStep === 'profile' && (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Full Name</label>
-                      <input
-                        type="text"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        placeholder="e.g., Rahul Sharma"
-                        className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 placeholder:text-slate-clean-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Admission Number</label>
-                      <input
-                        type="text"
-                        value={admissionNumber}
-                        onChange={(e) => setAdmissionNumber(e.target.value)}
-                        placeholder="e.g., GV-2018-045"
-                        className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 placeholder:text-slate-clean-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
-                        required
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Class</label>
-                        <select
-                          value={selectedClass}
-                          onChange={(e) => setSelectedClass(e.target.value)}
-                          className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
-                          required
-                        >
-                          <option value="">Select</option>
-                          {classes.map((c) => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Batch Year</label>
-                        <select
-                          value={batchYear}
-                          onChange={(e) => setBatchYear(e.target.value)}
-                          className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
-                          required
-                        >
-                          <option value="">Select</option>
-                          {batches.map((y) => <option key={y} value={y}>{y}</option>)}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="pt-3 border-t border-slate-clean-100">
-                      <p className="text-xs text-slate-clean-500 mb-3 font-medium uppercase tracking-wide">
-                        Create a password
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Password</label>
-                      <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Min. 8 characters"
-                        className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 placeholder:text-slate-clean-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-clean-700 mb-1.5">Confirm Password</label>
-                      <input
-                        type="password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="Re-enter password"
-                        className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 placeholder:text-slate-clean-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
-                        required
-                      />
-                    </div>
-
-                    {error && <p className="text-sm text-red-500 font-medium">{error}</p>}
-
-                    <button
-                      type="button"
-                      onClick={handleCreateAccount}
-                      disabled={loading}
-                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-white hover:bg-maroon-900 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-                    >
-                      {loading ? 'Creating account...' : (
-                        <>
-                          <UserPlus className="w-4 h-4" />
-                          Create Account
-                          <ArrowRight className="w-4 h-4" />
-                        </>
-                      )}
-                    </button>
-                  </div>
                 )}
 
                 {/* ─── SIGNUP STEP 4: Success ─────────────── */}
