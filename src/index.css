@@ -1,1 +1,55 @@
 @import "tailwindcss";
+
+@theme {
+  --color-maroon-50: #fdf2f4;
+  --color-maroon-100: #fce4e8;
+  --color-maroon-200: #f9ced6;
+  --color-maroon-300: #f3a7b6;
+  --color-maroon-400: #ea7490;
+  --color-maroon-500: #dc4569;
+  --color-maroon-600: #c82554;
+  --color-maroon-700: #a81943;
+  --color-maroon-800: #8b1639;
+  --color-maroon-900: #6b1230;
+  --color-maroon-950: #4a0820;
+
+  --color-amber-warm-50: #fefbf0;
+  --color-amber-warm-100: #fdf3d0;
+  --color-amber-warm-200: #fae69d;
+  --color-amber-warm-300: #f6d364;
+  --color-amber-warm-400: #f0bc34;
+  --color-amber-warm-500: #d4a017;
+  --color-amber-warm-600: #b8830f;
+  --color-amber-warm-700: #936210;
+  --color-amber-warm-800: #7a4e15;
+  --color-amber-warm-900: #684018;
+  --color-amber-warm-950: #3d210a;
+
+  --color-slate-clean-50: #faf9f7;
+  --color-slate-clean-100: #f5f3f0;
+  --color-slate-clean-200: #eae7e2;
+  --color-slate-clean-300: #d9d4cc;
+  --color-slate-clean-400: #b8b0a4;
+  --color-slate-clean-500: #9a9082;
+  --color-slate-clean-600: #7d7368;
+  --color-slate-clean-700: #655c54;
+  --color-slate-clean-800: #544c46;
+  --color-slate-clean-900: #48423d;
+  --color-slate-clean-950: #2a2521;
+
+  --font-sans: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: var(--color-slate-clean-50);
+    color: var(--color-slate-clean-900);
+  }
+}
