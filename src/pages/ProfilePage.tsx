@@ -50,75 +50,56 @@ export function ProfilePage() {
 
       const userId = authData.user.id;
 
-      // Wait a moment for the database trigger to create the blank profile
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // 2. Poll for the profile to be created by the database trigger
+      // The trigger fires after the user is created in auth.users
+      let profileReady = false;
+      let pollAttempts = 0;
+      const maxPollAttempts = 20; // 20 attempts * 500ms = 10 seconds max
 
-      // 2. Check if profile exists (created by trigger), then UPDATE it
-      const { data: existingProfile, error: checkError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (checkError) {
-        console.error("Error checking profile:", checkError);
-        throw checkError;
-      }
-
-      let profileError = null;
-
-      if (existingProfile) {
-        // Profile exists (created by trigger) - UPDATE it
-        const { error } = await supabase
-          .from('profiles')
-          .update({
-            email: verifiedEmail,
-            full_name: fullName,
-            admission_number: admissionNumber,
-            class: selectedClass,
-            batch: batchYear,
-          })
-          .eq('id', userId);
-
-        profileError = error;
-      } else {
-        // Profile doesn't exist yet - INSERT it
-        // Retry mechanism to handle timing issues
-        let retries = 3;
+      while (!profileReady && pollAttempts < maxPollAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 500));
         
-        while (retries > 0) {
-          const { error } = await supabase
-            .from('profiles')
-            .insert({
-              id: userId,
-              email: verifiedEmail,
-              full_name: fullName,
-              admission_number: admissionNumber,
-              class: selectedClass,
-              batch: batchYear,
-            });
+        const { data: checkProfile, error: checkError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', userId)
+          .maybeSingle();
 
-          profileError = error;
-          
-          if (!profileError) break;
-          
-          // If it's a foreign key constraint error, wait and retry
-          if (profileError.message.includes('foreign key constraint') && retries > 1) {
-            console.log(`Foreign key constraint error, retrying... (${retries - 1} attempts left)`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            retries--;
-          } else {
-            break;
-          }
+        if (checkError) {
+          console.error("Error checking profile:", checkError);
+          throw checkError;
         }
+
+        if (checkProfile) {
+          profileReady = true;
+          console.log(`Profile found after ${pollAttempts + 1} attempts`);
+        }
+        
+        pollAttempts++;
       }
+
+      if (!profileReady) {
+        throw new Error("Database trigger did not create profile. Please contact support.");
+      }
+
+      // 3. UPDATE the profile that the trigger created
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          email: verifiedEmail,
+          full_name: fullName,
+          admission_number: admissionNumber,
+          class: selectedClass,
+          batch: batchYear,
+        })
+        .eq('id', userId);
 
       if (profileError) {
-        console.error("Profile Error:", profileError);
+        console.error("Profile Update Error:", profileError);
         throw profileError;
       }
 
-      // 3. Success!
+      // 4. Success!
       alert("Account created successfully! Please check your email to confirm.");
       
       // Clear session storage
