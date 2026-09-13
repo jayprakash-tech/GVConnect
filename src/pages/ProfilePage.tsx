@@ -50,56 +50,76 @@ export function ProfilePage() {
 
       const userId = authData.user.id;
 
-      // 2. Poll for the profile to be created by the database trigger
-      // The trigger fires after the user is created in auth.users
-      let profileReady = false;
-      let pollAttempts = 0;
-      const maxPollAttempts = 20; // 20 attempts * 500ms = 10 seconds max
-
-      while (!profileReady && pollAttempts < maxPollAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        const { data: checkProfile, error: checkError } = await supabase
+      // 2. Try to INSERT the profile
+      // If trigger created a blank profile, this will fail with duplicate key error
+      // If no trigger, this will succeed
+      // If foreign key error, we retry
+      let profileError: any = null;
+      let retries = 3;
+      
+      while (retries > 0) {
+        const { error } = await supabase
           .from('profiles')
-          .select('id')
-          .eq('id', userId)
-          .maybeSingle();
+          .insert({
+            id: userId,
+            email: verifiedEmail,
+            full_name: fullName,
+            admission_number: admissionNumber,
+            class: selectedClass,
+            batch: batchYear,
+          });
 
-        if (checkError) {
-          console.error("Error checking profile:", checkError);
-          throw checkError;
-        }
-
-        if (checkProfile) {
-          profileReady = true;
-          console.log(`Profile found after ${pollAttempts + 1} attempts`);
+        profileError = error;
+        
+        if (!profileError) {
+          // INSERT succeeded - no trigger exists, we're done!
+          console.log("Profile created via INSERT (no trigger)");
+          break;
         }
         
-        pollAttempts++;
-      }
+        // Check if it's a duplicate key error (trigger created blank profile)
+        if (profileError.message.includes('duplicate key') || profileError.code === '23505') {
+          console.log("Duplicate key error - trigger created blank profile, switching to UPDATE");
+          
+          // UPDATE the existing blank profile
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({
+              email: verifiedEmail,
+              full_name: fullName,
+              admission_number: admissionNumber,
+              class: selectedClass,
+              batch: batchYear,
+            })
+            .eq('id', userId);
 
-      if (!profileReady) {
-        throw new Error("Database trigger did not create profile. Please contact support.");
+          if (updateError) {
+            console.error("Profile Update Error:", updateError);
+            throw updateError;
+          }
+          
+          console.log("Profile updated successfully");
+          profileError = null; // Clear error since UPDATE succeeded
+          break;
+        }
+        
+        // Check if it's a foreign key constraint error
+        if (profileError.message.includes('foreign key constraint') && retries > 1) {
+          console.log(`Foreign key constraint error, retrying... (${retries - 1} attempts left)`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          retries--;
+        } else {
+          // Some other error, stop retrying
+          break;
+        }
       }
-
-      // 3. UPDATE the profile that the trigger created
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          email: verifiedEmail,
-          full_name: fullName,
-          admission_number: admissionNumber,
-          class: selectedClass,
-          batch: batchYear,
-        })
-        .eq('id', userId);
 
       if (profileError) {
-        console.error("Profile Update Error:", profileError);
+        console.error("Profile Error:", profileError);
         throw profileError;
       }
 
-      // 4. Success!
+      // 3. Success!
       alert("Account created successfully! Please check your email to confirm.");
       
       // Clear session storage
