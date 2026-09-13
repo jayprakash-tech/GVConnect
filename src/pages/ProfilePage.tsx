@@ -50,20 +50,71 @@ export function ProfilePage() {
 
       const userId = authData.user.id;
 
-      // 2. UPDATE the profile that the database trigger just created
-      const { error: profileError } = await supabase
+      // Wait a moment for the database trigger to create the blank profile
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // 2. Check if profile exists (created by trigger), then UPDATE it
+      const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
-        .upsert({
-          id: userId,
-          email: verifiedEmail,
-          full_name: fullName,
-          admission_number: admissionNumber,
-          class: selectedClass,
-          batch: batchYear,
-        });
+        .select('id')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error("Error checking profile:", checkError);
+        throw checkError;
+      }
+
+      let profileError = null;
+
+      if (existingProfile) {
+        // Profile exists (created by trigger) - UPDATE it
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            email: verifiedEmail,
+            full_name: fullName,
+            admission_number: admissionNumber,
+            class: selectedClass,
+            batch: batchYear,
+          })
+          .eq('id', userId);
+
+        profileError = error;
+      } else {
+        // Profile doesn't exist yet - INSERT it
+        // Retry mechanism to handle timing issues
+        let retries = 3;
+        
+        while (retries > 0) {
+          const { error } = await supabase
+            .from('profiles')
+            .insert({
+              id: userId,
+              email: verifiedEmail,
+              full_name: fullName,
+              admission_number: admissionNumber,
+              class: selectedClass,
+              batch: batchYear,
+            });
+
+          profileError = error;
+          
+          if (!profileError) break;
+          
+          // If it's a foreign key constraint error, wait and retry
+          if (profileError.message.includes('foreign key constraint') && retries > 1) {
+            console.log(`Foreign key constraint error, retrying... (${retries - 1} attempts left)`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            retries--;
+          } else {
+            break;
+          }
+        }
+      }
 
       if (profileError) {
-        console.error("Profile Upsert Error:", profileError);
+        console.error("Profile Error:", profileError);
         throw profileError;
       }
 
