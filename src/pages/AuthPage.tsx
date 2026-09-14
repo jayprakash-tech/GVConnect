@@ -61,14 +61,13 @@ export function AuthPage() {
 
   // Persist signup flow state to sessionStorage (survives page refresh)
   useEffect(() => {
+    console.log("Current step:", signupStep);
+    console.log("Email state:", email);
+    console.log("Verified email:", verifiedEmail);
+    
     sessionStorage.setItem('gv_signup_step', signupStep);
     sessionStorage.setItem('gv_verified_email', verifiedEmail);
     sessionStorage.setItem('gv_auth_mode', mode);
-    
-    // If we're past email step, restore the email field
-    if (signupStep !== 'email' && verifiedEmail) {
-      setEmail(verifiedEmail);
-    }
     
     // Clear storage when flow completes or user switches to login
     if (mode === 'login' || signupStep === 'email') {
@@ -101,6 +100,9 @@ export function AuthPage() {
     e.preventDefault();
     if (!email.trim()) return;
 
+    console.log("Email input changed to:", email);
+    console.log("Sending OTP to:", email);
+
     setLoading(true);
     setError('');
 
@@ -131,6 +133,8 @@ export function AuthPage() {
       setError('Enter the full 6-digit code');
       return;
     }
+
+    console.log("Verifying OTP for email:", email);
 
     setLoading(true);
     setError('');
@@ -322,7 +326,19 @@ export function AuthPage() {
             {/* Mode Tabs */}
             <div className="flex gap-2 mb-8 bg-neutral-100 p-1 rounded-xl">
               <button
-                onClick={() => { setMode('signup'); setError(''); }}
+                onClick={() => { 
+                  setMode('signup'); 
+                  setError('');
+                  setEmail('');
+                  setOtp(['', '', '', '', '', '']);
+                  setSignupStep('email');
+                  setVerifiedEmail('');
+                  setLoginEmail('');
+                  setLoginPassword('');
+                  sessionStorage.removeItem('gv_signup_step');
+                  sessionStorage.removeItem('gv_verified_email');
+                  sessionStorage.removeItem('gv_auth_mode');
+                }}
                 className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
                   mode === 'signup'
                     ? 'bg-maroon-800 text-gold-500 shadow-md'
@@ -332,7 +348,19 @@ export function AuthPage() {
                 New User
               </button>
               <button
-                onClick={() => { setMode('login'); setError(''); }}
+                onClick={() => { 
+                  setMode('login'); 
+                  setError('');
+                  setEmail('');
+                  setOtp(['', '', '', '', '', '']);
+                  setSignupStep('email');
+                  setVerifiedEmail('');
+                  setLoginEmail('');
+                  setLoginPassword('');
+                  sessionStorage.removeItem('gv_signup_step');
+                  sessionStorage.removeItem('gv_verified_email');
+                  sessionStorage.removeItem('gv_auth_mode');
+                }}
                 className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
                   mode === 'login'
                     ? 'bg-maroon-800 text-gold-500 shadow-md'
@@ -376,7 +404,10 @@ export function AuthPage() {
                         <input
                           type="email"
                           value={email}
-                          onChange={(e) => setEmail(e.target.value)}
+                          onChange={(e) => {
+                            console.log("Email input changed to:", e.target.value);
+                            setEmail(e.target.value);
+                          }}
                           placeholder="you@example.com"
                           className="w-full px-4 py-3 rounded-xl border border-neutral-200 bg-white text-neutral-900 placeholder:text-neutral-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all"
                           required
