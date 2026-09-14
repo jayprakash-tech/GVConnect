@@ -5,6 +5,7 @@ import { LandingPage } from './pages/LandingPage';
 import { AuthPage } from './pages/AuthPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { DashboardPage } from './pages/DashboardPage';
+import { DirectoryPage } from './pages/DirectoryPage';
 
 function App() {
   return (
@@ -19,6 +20,9 @@ function App() {
           
           {/* Profile page (after OTP verification) */}
           <Route path="/profile" element={<ProfilePage />} />
+          
+          {/* Alumni Directory */}
+          <Route path="/directory" element={<DirectoryPage />} />
           
           {/* Protected dashboard */}
           <Route
