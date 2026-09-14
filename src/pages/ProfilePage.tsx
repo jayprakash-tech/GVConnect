@@ -40,28 +40,36 @@ export function ProfilePage() {
     }
 
     try {
-      console.log("STEP 1: Attempting signUp with email:", verifiedEmail);
+      console.log("STEP 1: Getting current user session...");
       
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: verifiedEmail,
+      // Get the current user (created during OTP verification)
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        console.error("STEP 1 FAILED - No user found:", userError);
+        throw new Error("No user session found. Please start over.");
+      }
+
+      const userId = user.id;
+      console.log("STEP 2: User found! User ID is:", userId);
+
+      console.log("STEP 3: Updating password for user...");
+      
+      // Update the user's password
+      const { error: passwordError } = await supabase.auth.updateUser({
         password: password,
       });
 
-      if (authError) {
-        console.error("STEP 1 FAILED - Auth Error:", authError);
-        throw new Error("Auth failed: " + authError.message);
+      if (passwordError) {
+        console.error("STEP 3 FAILED - Password Update Error:", passwordError);
+        throw new Error("Failed to set password: " + passwordError.message);
       }
 
-      if (!authData || !authData.user) {
-        console.error("STEP 1 FAILED - No user returned:", authData);
-        throw new Error("No user returned from signup.");
-      }
+      console.log("STEP 4: Password updated successfully!");
 
-      const userId = authData.user.id;
-      console.log("STEP 2: SignUp successful! User ID is:", userId);
-
-      console.log("STEP 3: Attempting to upsert profile for userId:", userId);
+      console.log("STEP 5: Attempting to upsert profile for userId:", userId);
       
+      // Insert profile data
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -75,11 +83,11 @@ export function ProfilePage() {
         .select();
 
       if (profileError) {
-        console.error("STEP 3 FAILED - Profile Upsert Error:", profileError);
+        console.error("STEP 5 FAILED - Profile Upsert Error:", profileError);
         throw new Error("Profile save failed: " + profileError.message);
       }
 
-      console.log("STEP 4: SUCCESS! Profile data saved:", profileData);
+      console.log("STEP 6: SUCCESS! Profile data saved:", profileData);
       
       // Store success state and email for the success screen
       sessionStorage.setItem('gv_signup_step', 'success');
