@@ -79,13 +79,12 @@ export function ProfilePage() {
       }
 
       console.log("STEP 4: SUCCESS! Profile data saved:", profileData);
-      alert("Account created successfully! Please check your email to confirm.");
       
-      // Clear session storage
-      sessionStorage.removeItem('gv_verified_email');
-      sessionStorage.removeItem('gv_signup_step');
-      sessionStorage.removeItem('gv_auth_mode');
+      // Store success state and email for the success screen
+      sessionStorage.setItem('gv_signup_step', 'success');
+      sessionStorage.setItem('gv_success_email', verifiedEmail);
       
+      // Navigate to auth page which will show the success screen
       navigate('/auth');
 
     } catch (error: any) {

@@ -25,6 +25,9 @@ export function AuthPage() {
   const [verifiedEmail, setVerifiedEmail] = useState(() => {
     return sessionStorage.getItem('gv_verified_email') || '';
   });
+  const [successEmail, setSuccessEmail] = useState(() => {
+    return sessionStorage.getItem('gv_success_email') || '';
+  });
   
   // Login flow state
   const [loginEmail, setLoginEmail] = useState('');
@@ -92,19 +95,6 @@ export function AuthPage() {
       setTimeout(() => otpRefs.current[0]?.focus(), 100);
     }
   }, [signupStep]);
-
-  // Auto-redirect to Login tab after success
-  useEffect(() => {
-    if (signupStep === 'success') {
-      const timer = setTimeout(() => {
-        setMode('login');
-        setLoginEmail(verifiedEmail);
-        setSignupStep('email');
-        setError('');
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [signupStep, verifiedEmail]);
 
   // ─── SIGNUP STEP 1: Send OTP ─────────────────────────────
   const handleSendOTP = async (e: React.FormEvent) => {
@@ -429,35 +419,68 @@ export function AuthPage() {
                 {/* ─── SIGNUP STEP 4: Success ─────────────── */}
                 {signupStep === 'success' && (
                   <div className="text-center space-y-6">
-                    <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mx-auto">
-                      <CheckCircle2 className="w-8 h-8 text-green-600" />
+                    {/* Icon with mail and checkmark */}
+                    <div className="relative w-20 h-20 mx-auto">
+                      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-green-400 to-green-600 opacity-20 animate-pulse" />
+                      <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center mx-auto border-2 border-green-200">
+                        <div className="relative">
+                          <Mail className="w-10 h-10 text-green-600" strokeWidth={1.5} />
+                          <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-green-500 flex items-center justify-center border-2 border-white">
+                            <CheckCircle2 className="w-4 h-4 text-white" strokeWidth={2.5} />
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
+                    {/* Heading and message */}
                     <div>
-                      <h2 className="text-2xl font-bold text-slate-clean-900 mb-2">
-                        Account created!
+                      <h2 className="text-2xl sm:text-3xl font-bold text-slate-clean-900 mb-3">
+                        Account Created Successfully!
                       </h2>
-                      <p className="text-slate-clean-600 text-[15px] leading-relaxed">
-                        Please check your email to confirm your account.
+                      <p className="text-slate-clean-600 text-[15px] leading-relaxed max-w-sm mx-auto">
+                        We have sent a confirmation link to{' '}
+                        <span className="font-semibold text-slate-clean-900">{successEmail || verifiedEmail}</span>.
+                        Please check your inbox and click the link to activate your account.
                       </p>
                     </div>
 
-                    <div className="bg-amber-warm-50 border border-amber-warm-200 rounded-xl p-4 text-left">
-                      <p className="text-sm text-amber-warm-800 font-medium mb-1">
+                    {/* What's next section */}
+                    <div className="bg-amber-warm-50 border border-amber-warm-200 rounded-xl p-5 text-left">
+                      <p className="text-sm text-amber-warm-800 font-semibold mb-2 flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-full bg-amber-warm-200 flex items-center justify-center text-xs font-bold">?</span>
                         What's next?
                       </p>
-                      <ol className="text-sm text-amber-warm-700 space-y-1 list-decimal list-inside">
-                        <li>Check your email inbox</li>
-                        <li>Click the confirmation link</li>
-                        <li>Return here to login</li>
+                      <ol className="text-sm text-amber-warm-700 space-y-2">
+                        <li className="flex items-start gap-2">
+                          <span className="font-bold text-amber-warm-600 mt-0.5">1.</span>
+                          <span>Check your email inbox (and spam folder)</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="font-bold text-amber-warm-600 mt-0.5">2.</span>
+                          <span>Click the confirmation link in the email</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="font-bold text-amber-warm-600 mt-0.5">3.</span>
+                          <span>Return here and login with your credentials</span>
+                        </li>
                       </ol>
                     </div>
 
+                    {/* Go to Login button */}
                     <button
                       onClick={() => {
+                        // Clear success state
+                        sessionStorage.removeItem('gv_success_email');
+                        sessionStorage.removeItem('gv_signup_step');
+                        sessionStorage.removeItem('gv_verified_email');
+                        sessionStorage.removeItem('gv_auth_mode');
+                        
+                        // Switch to login tab with email pre-filled
                         setMode('login');
-                        setLoginEmail(verifiedEmail);
+                        setLoginEmail(successEmail || verifiedEmail);
                         setSignupStep('email');
+                        setSuccessEmail('');
+                        setVerifiedEmail('');
                         setError('');
                       }}
                       className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-white hover:bg-maroon-900 active:scale-[0.98] shadow-lg shadow-maroon-900/20 transition-all flex items-center justify-center gap-2"
