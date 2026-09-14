@@ -106,10 +106,6 @@ export function AuthPage() {
 
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim().toLowerCase(),
-      options: {
-        shouldCreateUser: false,
-        emailRedirectTo: window.location.origin + '/auth'
-      }
     });
 
     setLoading(false);
@@ -247,10 +243,6 @@ export function AuthPage() {
     if (resendCooldown > 0) return;
     await supabase.auth.signInWithOtp({
       email: email.trim().toLowerCase(),
-      options: {
-        shouldCreateUser: false,
-        emailRedirectTo: window.location.origin + '/auth'
-      }
     });
     setOtp(['', '', '', '', '', '']);
     setResendCooldown(30);
