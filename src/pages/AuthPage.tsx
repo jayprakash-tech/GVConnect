@@ -255,65 +255,86 @@ export function AuthPage() {
 
   // ─── Render ──────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-slate-clean-50 flex flex-col">
-      {/* Background pattern */}
-      <div className="fixed inset-0 opacity-[0.03] pointer-events-none">
-        <div className="absolute inset-0" style={{
-          backgroundImage: 'radial-gradient(circle at 1px 1px, #D4AF37 1px, transparent 0)',
-          backgroundSize: '40px 40px',
-        }} />
-      </div>
-
-      {/* Header */}
-      <header className="relative z-10 pt-8 pb-4 px-6">
-        <div className="flex flex-col items-center gap-4">
-          {/* Logo */}
+    <div className="min-h-screen flex">
+      {/* Left Panel - Gradient with Logo (Hidden on mobile) */}
+      <div className="hidden lg:flex lg:w-2/5 bg-gradient-to-br from-maroon-800 via-maroon-900 to-maroon-950 relative overflow-hidden">
+        {/* Background Image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-20"
+          style={{
+            backgroundImage: 'url(/assembly.jpg)',
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-maroon-800/90 to-maroon-950/90" />
+        
+        {/* Content */}
+        <div className="relative z-10 flex flex-col items-center justify-center w-full p-12 text-center">
           <img
             src="/gvlogo.png"
             alt="GVConnect Logo"
-            width={80}
-            height={80}
-            className="rounded-full border-4 border-gold-500 shadow-lg"
+            width={120}
+            height={120}
+            className="rounded-full border-4 border-gold-500 shadow-2xl mb-8"
             onError={(e) => {
               e.currentTarget.style.display = 'none';
             }}
           />
-          <Link to="/" className="text-center">
-            <h2 className="text-2xl font-serif font-bold tracking-tight">
-              <span className="text-maroon-800">GV</span>
-              <span className="text-gold-500">Connect</span>
-            </h2>
-            <p className="text-sm text-neutral-600 mt-1">Grizzly Vidyalya Alumni</p>
-          </Link>
+          <h2 className="text-4xl font-serif font-bold text-gold-500 mb-4">
+            Welcome Back, Grizzly!
+          </h2>
+          <p className="text-white/80 text-lg leading-relaxed max-w-sm">
+            Reconnect with your batchmates, relive the memories, and stay connected to Grizzly Vidyalya.
+          </p>
         </div>
-      </header>
+      </div>
 
-      {/* Main */}
-      <main className="relative z-10 flex-1 flex flex-col justify-center px-6 pb-12">
-        <div className="w-full max-w-md mx-auto">
-          {/* Mode Tabs */}
-          <div className="flex gap-2 mb-8 bg-neutral-100 p-1 rounded-xl">
-            <button
-              onClick={() => { setMode('signup'); setError(''); }}
-              className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
-                mode === 'signup'
-                  ? 'bg-maroon-800 text-gold-500 shadow-md'
-                  : 'text-neutral-500 hover:text-maroon-800'
-              }`}
-            >
-              New User
-            </button>
-            <button
-              onClick={() => { setMode('login'); setError(''); }}
-              className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
-                mode === 'login'
-                  ? 'bg-maroon-800 text-gold-500 shadow-md'
-                  : 'text-neutral-500 hover:text-maroon-800'
-              }`}
-            >
-              Returning User
-            </button>
+      {/* Right Panel - Form */}
+      <div className="flex-1 flex flex-col bg-white">
+        {/* Mobile Header */}
+        <header className="lg:hidden pt-8 pb-4 px-6 bg-gradient-to-r from-maroon-800 to-maroon-900">
+          <div className="flex flex-col items-center gap-3">
+            <img
+              src="/gvlogo.png"
+              alt="GVConnect Logo"
+              width={60}
+              height={60}
+              className="rounded-full border-2 border-gold-500"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+            <h2 className="text-xl font-serif font-bold text-gold-500">
+              GVConnect
+            </h2>
           </div>
+        </header>
+
+        {/* Main Form Area */}
+        <main className="flex-1 flex flex-col justify-center px-6 py-12 lg:px-12">
+          <div className="w-full max-w-md mx-auto">
+            {/* Mode Tabs */}
+            <div className="flex gap-2 mb-8 bg-neutral-100 p-1 rounded-xl">
+              <button
+                onClick={() => { setMode('signup'); setError(''); }}
+                className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
+                  mode === 'signup'
+                    ? 'bg-maroon-800 text-gold-500 shadow-md'
+                    : 'text-neutral-500 hover:text-maroon-800'
+                }`}
+              >
+                New User
+              </button>
+              <button
+                onClick={() => { setMode('login'); setError(''); }}
+                className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
+                  mode === 'login'
+                    ? 'bg-maroon-800 text-gold-500 shadow-md'
+                    : 'text-neutral-500 hover:text-maroon-800'
+                }`}
+              >
+                Login
+              </button>
+            </div>
 
           {/* ─── SIGNUP MODE ─────────────────────────────── */}
           {mode === 'signup' && (
@@ -578,15 +599,16 @@ export function AuthPage() {
               </form>
             </>
           )}
-        </div>
-      </main>
+          </div>
+        </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 pb-6 text-center">
-        <p className="text-neutral-500 text-[11px] tracking-wide">
-          Grizzly Vidyalya Alumni Network
-        </p>
-      </footer>
+        {/* Footer */}
+        <footer className="pb-6 text-center">
+          <p className="text-neutral-500 text-[11px] tracking-wide">
+            Grizzly Vidyalya Alumni Network
+          </p>
+        </footer>
+      </div>
     </div>
   );
 }
