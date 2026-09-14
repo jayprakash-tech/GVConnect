@@ -89,10 +89,14 @@ export function LandingPage() {
       {/* Hero Section */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden">
         {/* Background Image */}
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{
-            backgroundImage: 'url(/assembly.jpg)',
+        <img
+          src="/assembly.jpg"
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          loading="eager"
+          decoding="async"
+          onError={(e) => {
+            e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080"%3E%3Crect fill="%23800020" width="1920" height="1080"/%3E%3C/svg%3E';
           }}
         />
         
@@ -107,7 +111,7 @@ export function LandingPage() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="text-5xl md:text-7xl font-serif font-bold text-gold-500 mb-6 leading-tight"
           >
-            Welcome Home, Grizzly!
+            Welcome Home, Grizzlian!
           </motion.h1>
           
           <motion.p
@@ -204,8 +208,11 @@ export function LandingPage() {
                   alt={image.title}
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                   style={{ minHeight: image.size === 'large' ? '400px' : '200px' }}
+                  loading="lazy"
+                  decoding="async"
                   onError={(e) => {
-                    e.currentTarget.src = 'https://via.placeholder.com/600x400/800020/D4AF37?text=GV+Connect';
+                    // Fallback to a simple colored placeholder
+                    e.currentTarget.src = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='400'%3E%3Crect fill='%23800020' width='600' height='400'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='serif' font-size='24' fill='%23D4AF37'%3E${image.title}%3C/text%3E%3C/svg%3E`;
                   }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-maroon-900/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-6">
@@ -278,8 +285,10 @@ export function LandingPage() {
                   src={activity.image}
                   alt={activity.title}
                   className="w-full h-48 object-cover"
+                  loading="lazy"
+                  decoding="async"
                   onError={(e) => {
-                    e.currentTarget.src = 'https://via.placeholder.com/400x300/800020/D4AF37?text=GV+Connect';
+                    e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23800020" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="serif" font-size="20" fill="%23D4AF37"%3E' + activity.title + '%3C/text%3E%3C/svg%3E';
                   }}
                 />
                 <div className="p-6">
@@ -370,8 +379,18 @@ export function LandingPage() {
                   src="/gvlogo.png"
                   alt="GVConnect Logo"
                   className="h-12 w-auto rounded-full border-2 border-gold-500/50"
+                  loading="lazy"
+                  decoding="async"
                   onError={(e) => {
+                    // Fallback to text if logo fails
                     e.currentTarget.style.display = 'none';
+                    const parent = e.currentTarget.parentElement;
+                    if (parent) {
+                      const text = document.createElement('div');
+                      text.className = 'text-gold-500 font-serif text-2xl font-bold';
+                      text.textContent = 'GV';
+                      parent.insertBefore(text, e.currentTarget.nextSibling);
+                    }
                   }}
                 />
                 <div>

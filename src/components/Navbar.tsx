@@ -39,8 +39,18 @@ export function Navbar() {
               src="/gvlogo.png"
               alt="GVConnect Logo"
               className="h-[60px] w-auto rounded-full border-2 border-gold-500/50 group-hover:border-gold-500 transition-all duration-300"
+              loading="eager"
+              decoding="async"
               onError={(e) => {
+                // Fallback to text if logo fails
                 e.currentTarget.style.display = 'none';
+                const parent = e.currentTarget.parentElement;
+                if (parent) {
+                  const text = document.createElement('div');
+                  text.className = 'w-[60px] h-[60px] rounded-full bg-gradient-to-br from-maroon-800 to-maroon-950 flex items-center justify-center text-gold-500 font-serif text-2xl font-bold border-2 border-gold-500/50';
+                  text.textContent = 'GV';
+                  parent.insertBefore(text, e.currentTarget.nextSibling);
+                }
               }}
             />
             <div className="flex flex-col">

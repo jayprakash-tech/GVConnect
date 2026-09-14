@@ -71,7 +71,7 @@ export function DashboardPage() {
                 Welcome Back
               </p>
               <h1 className="text-3xl md:text-4xl font-serif font-bold text-white mb-2">
-                {profile?.full_name || 'Grizzly'}!
+                {profile?.full_name || 'Grizzlian'}!
               </h1>
               {profile && (
                 <p className="text-white/70">

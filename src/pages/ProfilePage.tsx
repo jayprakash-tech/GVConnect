@@ -103,10 +103,14 @@ export function ProfilePage() {
       {/* Left Panel - Gradient with Logo (Hidden on mobile) */}
       <div className="hidden lg:flex lg:w-2/5 bg-gradient-to-br from-maroon-800 via-maroon-900 to-maroon-950 relative overflow-hidden">
         {/* Background Image */}
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-20"
-          style={{
-            backgroundImage: 'url(/assembly.jpg)',
+        <img
+          src="/assembly.jpg"
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover opacity-20"
+          loading="lazy"
+          decoding="async"
+          onError={(e) => {
+            e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="1200"%3E%3Crect fill="%23800020" width="800" height="1200"/%3E%3C/svg%3E';
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-br from-maroon-800/90 to-maroon-950/90" />
@@ -119,8 +123,18 @@ export function ProfilePage() {
             width={120}
             height={120}
             className="rounded-full border-4 border-gold-500 shadow-2xl mb-8"
+            loading="eager"
+            decoding="async"
             onError={(e) => {
+              // Fallback to text
               e.currentTarget.style.display = 'none';
+              const parent = e.currentTarget.parentElement;
+              if (parent) {
+                const text = document.createElement('div');
+                text.className = 'w-[120px] h-[120px] rounded-full bg-gradient-to-br from-maroon-800 to-maroon-950 flex items-center justify-center text-gold-500 font-serif text-4xl font-bold border-4 border-gold-500 shadow-2xl mb-8';
+                text.textContent = 'GV';
+                parent.insertBefore(text, e.currentTarget.nextSibling);
+              }
             }}
           />
           <h2 className="text-4xl font-serif font-bold text-gold-500 mb-4">
@@ -143,8 +157,18 @@ export function ProfilePage() {
               width={60}
               height={60}
               className="rounded-full border-2 border-gold-500"
+              loading="eager"
+              decoding="async"
               onError={(e) => {
+                // Fallback to text
                 e.currentTarget.style.display = 'none';
+                const parent = e.currentTarget.parentElement;
+                if (parent) {
+                  const text = document.createElement('div');
+                  text.className = 'w-[60px] h-[60px] rounded-full bg-gradient-to-br from-maroon-800 to-maroon-950 flex items-center justify-center text-gold-500 font-serif text-xl font-bold border-2 border-gold-500';
+                  text.textContent = 'GV';
+                  parent.insertBefore(text, e.currentTarget.nextSibling);
+                }
               }}
             />
             <h2 className="text-xl font-serif font-bold text-gold-500">
