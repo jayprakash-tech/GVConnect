@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, ArrowRight, RefreshCw, Mountain, UserPlus, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, ArrowRight, RefreshCw, UserPlus, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../utils/supabase/client';
 import { useAuth } from '../context/AuthContext';
 
@@ -257,24 +257,33 @@ export function AuthPage() {
   return (
     <div className="min-h-screen bg-slate-clean-50 flex flex-col">
       {/* Background pattern */}
-      <div className="fixed inset-0 opacity-[0.02] pointer-events-none">
+      <div className="fixed inset-0 opacity-[0.03] pointer-events-none">
         <div className="absolute inset-0" style={{
-          backgroundImage: 'radial-gradient(circle at 1px 1px, rgb(107, 18, 48) 1px, transparent 0)',
-          backgroundSize: '32px 32px',
+          backgroundImage: 'radial-gradient(circle at 1px 1px, #D4AF37 1px, transparent 0)',
+          backgroundSize: '40px 40px',
         }} />
       </div>
 
       {/* Header */}
       <header className="relative z-10 pt-8 pb-4 px-6">
-        <div className="flex items-center gap-3">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-maroon-800 to-maroon-950 flex items-center justify-center shadow-md shadow-maroon-900/20">
-              <Mountain className="w-5 h-5 text-amber-warm-400" strokeWidth={1.5} />
-            </div>
-            <h2 className="text-lg font-bold tracking-tight">
-              <span className="text-maroon-900">GV</span>
-              <span className="text-amber-warm-600">Connect</span>
+        <div className="flex flex-col items-center gap-4">
+          {/* Logo */}
+          <img
+            src="/gvlogo.png"
+            alt="GVConnect Logo"
+            width={80}
+            height={80}
+            className="rounded-full border-4 border-gold-500 shadow-lg"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+          <Link to="/" className="text-center">
+            <h2 className="text-2xl font-serif font-bold tracking-tight">
+              <span className="text-maroon-800">GV</span>
+              <span className="text-gold-500">Connect</span>
             </h2>
+            <p className="text-sm text-neutral-600 mt-1">Grizzly Vidyalya Alumni</p>
           </Link>
         </div>
       </header>
@@ -283,13 +292,13 @@ export function AuthPage() {
       <main className="relative z-10 flex-1 flex flex-col justify-center px-6 pb-12">
         <div className="w-full max-w-md mx-auto">
           {/* Mode Tabs */}
-          <div className="flex gap-2 mb-8 bg-slate-clean-100 p-1 rounded-xl">
+          <div className="flex gap-2 mb-8 bg-neutral-100 p-1 rounded-xl">
             <button
               onClick={() => { setMode('signup'); setError(''); }}
               className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
                 mode === 'signup'
-                  ? 'bg-white text-maroon-800 shadow-sm'
-                  : 'text-slate-clean-500 hover:text-slate-clean-700'
+                  ? 'bg-maroon-800 text-gold-500 shadow-md'
+                  : 'text-neutral-500 hover:text-maroon-800'
               }`}
             >
               New User
@@ -298,8 +307,8 @@ export function AuthPage() {
               onClick={() => { setMode('login'); setError(''); }}
               className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
                 mode === 'login'
-                  ? 'bg-white text-maroon-800 shadow-sm'
-                  : 'text-slate-clean-500 hover:text-slate-clean-700'
+                  ? 'bg-maroon-800 text-gold-500 shadow-md'
+                  : 'text-neutral-500 hover:text-maroon-800'
               }`}
             >
               Returning User
@@ -312,15 +321,15 @@ export function AuthPage() {
               {/* Step indicator */}
               {signupStep !== 'success' && (
                 <>
-                  <p className="text-xs font-semibold tracking-widest uppercase text-amber-warm-600 mb-2">
+                  <p className="text-xs font-semibold tracking-widest uppercase text-gold-600 mb-2">
                     {signupStep === 'email' && 'Step 1 of 2'}
                     {signupStep === 'otp' && 'Step 2 of 2'}
                   </p>
-                  <h1 className="text-2xl sm:text-3xl font-bold text-slate-clean-900 tracking-tight">
+                  <h1 className="text-2xl sm:text-3xl font-serif font-bold text-maroon-800 tracking-tight">
                     {signupStep === 'email' && 'Create your account'}
                     {signupStep === 'otp' && 'Verify your email'}
                   </h1>
-                  <p className="mt-2 text-slate-clean-500 text-[15px]">
+                  <p className="mt-2 text-neutral-600 text-[15px]">
                     {signupStep === 'email' && 'Enter your email to receive a verification code.'}
                     {signupStep === 'otp' && `We sent a 6-digit code to ${email}`}
                   </p>
@@ -341,7 +350,7 @@ export function AuthPage() {
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           placeholder="you@example.com"
-                          className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 placeholder:text-slate-clean-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
+                          className="w-full px-4 py-3 rounded-xl border border-neutral-200 bg-white text-neutral-900 placeholder:text-neutral-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all"
                           required
                           autoComplete="email"
                         />
@@ -354,7 +363,7 @@ export function AuthPage() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-white hover:bg-maroon-900 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-gold-500 hover:bg-maroon-700 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2 border-2 border-gold-500/30 hover:border-gold-500/50"
                     >
                       {loading ? 'Sending...' : 'Send Verification Code'}
                       {!loading && <ArrowRight className="w-4 h-4" />}
@@ -376,7 +385,7 @@ export function AuthPage() {
                           value={digit}
                           onChange={(e) => handleOtpChange(i, e.target.value)}
                           onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                          className="w-12 h-14 sm:w-14 sm:h-16 text-center text-xl sm:text-2xl font-bold rounded-xl border-2 border-slate-clean-200 bg-white text-slate-clean-900 focus:outline-none focus:border-maroon-700 focus:ring-4 focus:ring-maroon-700/10 transition-all"
+                          className="w-12 h-14 sm:w-14 sm:h-16 text-center text-xl sm:text-2xl font-bold rounded-xl border-2 border-neutral-200 bg-white text-neutral-900 focus:outline-none focus:border-gold-500 focus:ring-4 focus:ring-gold-500/10 transition-all"
                         />
                       ))}
                     </div>
@@ -386,7 +395,7 @@ export function AuthPage() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-white hover:bg-maroon-900 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-gold-500 hover:bg-maroon-700 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2 border-2 border-gold-500/30 hover:border-gold-500/50"
                     >
                       {loading ? 'Verifying...' : 'Verify Code'}
                       {!loading && <ArrowRight className="w-4 h-4" />}
@@ -483,7 +492,7 @@ export function AuthPage() {
                         setVerifiedEmail('');
                         setError('');
                       }}
-                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-white hover:bg-maroon-900 active:scale-[0.98] shadow-lg shadow-maroon-900/20 transition-all flex items-center justify-center gap-2"
+                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-gold-500 hover:bg-maroon-700 active:scale-[0.98] shadow-lg shadow-maroon-900/20 transition-all flex items-center justify-center gap-2 border-2 border-gold-500/30 hover:border-gold-500/50"
                     >
                       Go to Login
                       <ArrowRight className="w-4 h-4" />
@@ -497,10 +506,10 @@ export function AuthPage() {
           {/* ─── LOGIN MODE ──────────────────────────────── */}
           {mode === 'login' && (
             <>
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-clean-900 tracking-tight">
+              <h1 className="text-2xl sm:text-3xl font-serif font-bold text-maroon-800 tracking-tight">
                 Welcome back
               </h1>
-              <p className="mt-2 text-slate-clean-500 text-[15px]">
+              <p className="mt-2 text-neutral-600 text-[15px]">
                 Sign in to your GVConnect account
               </p>
 
@@ -546,7 +555,7 @@ export function AuthPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-white hover:bg-maroon-900 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-gold-500 hover:bg-maroon-700 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2 border-2 border-gold-500/30 hover:border-gold-500/50"
                 >
                   {loading ? 'Signing in...' : (
                     <>
@@ -574,7 +583,7 @@ export function AuthPage() {
 
       {/* Footer */}
       <footer className="relative z-10 pb-6 text-center">
-        <p className="text-slate-clean-400 text-[11px] tracking-wide">
+        <p className="text-neutral-500 text-[11px] tracking-wide">
           Grizzly Vidyalya Alumni Network
         </p>
       </footer>

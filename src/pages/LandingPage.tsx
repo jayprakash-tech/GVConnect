@@ -1,119 +1,224 @@
 import { Link } from 'react-router-dom';
-import { Mountain, ArrowRight, Users, MessageCircle, GraduationCap } from 'lucide-react';
+import { Navbar } from '../components/Navbar';
+import { ArrowRight, Users, Calendar, BookOpen, Heart } from 'lucide-react';
 
 export function LandingPage() {
   return (
-    <div className="min-h-screen bg-slate-clean-50">
-      {/* Subtle background pattern */}
-      <div className="fixed inset-0 opacity-[0.02] pointer-events-none">
-        <div className="absolute inset-0" style={{
-          backgroundImage: 'radial-gradient(circle at 1px 1px, rgb(107, 18, 48) 1px, transparent 0)',
-          backgroundSize: '32px 32px',
-        }} />
-      </div>
+    <div className="min-h-screen bg-neutral-50">
+      <Navbar />
 
-      {/* Header */}
-      <header className="relative z-10 px-6 py-5">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-maroon-800 to-maroon-950 flex items-center justify-center shadow-md shadow-maroon-900/20">
-              <Mountain className="w-5 h-5 text-amber-warm-400" strokeWidth={1.5} />
-            </div>
-            <h1 className="text-lg font-bold tracking-tight">
-              <span className="text-maroon-900">GV</span>
-              <span className="text-amber-warm-600">Connect</span>
-            </h1>
-          </div>
+      {/* Hero Section with School Building Background */}
+      <section className="relative h-[90vh] min-h-[600px] flex items-center justify-center overflow-hidden">
+        {/* Background Image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: 'url(https://image.qwenlm.ai/generated-images/46dafc73-b57a-4dc0-ad93-e08f3f6af677/_result.png)',
+          }}
+        />
+        
+        {/* Dark Maroon Overlay */}
+        <div className="absolute inset-0 bg-maroon-800/70" />
+
+        {/* Content */}
+        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
+          <h1 className="text-5xl md:text-7xl font-serif font-bold text-gold-500 mb-6 leading-tight">
+            Welcome Home, Grizzly!
+          </h1>
+          <p className="text-xl md:text-2xl text-white mb-10 leading-relaxed max-w-3xl mx-auto">
+            Reconnect with your batchmates, relive the memories, and stay connected to Grizzly Vidyalya.
+          </p>
           <Link
             to="/auth"
-            className="text-sm font-semibold text-maroon-800 hover:text-maroon-950 transition-colors"
+            className="inline-flex items-center gap-3 px-10 py-4 bg-gold-500 text-maroon-800 rounded-full font-bold text-lg hover:bg-gold-400 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 group"
           >
-            Sign in →
+            Join the Community
+            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </Link>
         </div>
-      </header>
 
-      {/* Hero */}
-      <main className="relative z-10 px-6 pt-12 sm:pt-20 pb-20">
-        <div className="max-w-4xl mx-auto text-center">
-          {/* Decorative badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-warm-50 border border-amber-warm-200 mb-8">
-            <div className="w-1.5 h-1.5 rounded-full bg-amber-warm-500" />
-            <span className="text-xs font-semibold text-amber-warm-700 tracking-widest uppercase">
-              Grizzly Vidyalya Alumni
-            </span>
+        {/* Scroll Indicator */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+          <div className="w-6 h-10 border-2 border-gold-500 rounded-full flex items-start justify-center p-2">
+            <div className="w-1 h-2 bg-gold-500 rounded-full" />
+          </div>
+        </div>
+      </section>
+
+      {/* Nostalgia Section */}
+      <section className="py-20 px-4 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            {/* Image */}
+            <div className="relative group">
+              <div className="absolute -inset-4 bg-gradient-to-br from-maroon-800 to-gold-500 rounded-2xl opacity-20 blur-xl group-hover:opacity-30 transition-opacity duration-500" />
+              <img
+                src="https://image.qwenlm.ai/generated-images/112a7ad0-1821-4460-8bfb-bdf0a03ed7d5/_result.png"
+                alt="School Gate"
+                className="relative rounded-2xl shadow-2xl w-full h-[500px] object-cover group-hover:scale-[1.02] transition-transform duration-500"
+              />
+            </div>
+
+            {/* Text Content */}
+            <div className="space-y-6">
+              <h2 className="text-4xl md:text-5xl font-serif font-bold text-maroon-800 leading-tight">
+                Remember the days?
+              </h2>
+              <p className="text-lg text-neutral-700 leading-relaxed">
+                Your school, your friends, your memories. All in one place. Join GVConnect to reconnect with your batchmates and relive the golden moments of your school life.
+              </p>
+              <div className="pt-4">
+                <Link
+                  to="/auth"
+                  className="inline-flex items-center gap-2 px-8 py-3 bg-maroon-800 text-gold-500 rounded-full font-semibold hover:bg-maroon-700 transition-all duration-300 shadow-lg hover:shadow-xl"
+                >
+                  Start Your Journey
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-20 px-4 bg-gradient-to-br from-maroon-50 to-gold-50">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-serif font-bold text-maroon-800 mb-4">
+              What Awaits You
+            </h2>
+            <p className="text-lg text-neutral-600 max-w-2xl mx-auto">
+              Everything you need to stay connected with your Grizzly Vidyalya family
+            </p>
           </div>
 
-          {/* Main heading */}
-          <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-slate-clean-900 leading-[1.1]">
-            Welcome back to{' '}
-            <span className="relative inline-block">
-              <span className="relative z-10 bg-gradient-to-r from-maroon-800 to-maroon-950 bg-clip-text text-transparent">
-                Grizzly Vidyalya.
-              </span>
-              <span className="absolute bottom-1 left-0 right-0 h-3 bg-amber-warm-200/60 -z-0 rounded" />
-            </span>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {/* Feature 1 */}
+            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 group">
+              <div className="w-16 h-16 bg-gradient-to-br from-maroon-800 to-maroon-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <Users className="w-8 h-8 text-gold-500" />
+              </div>
+              <h3 className="text-xl font-bold text-maroon-800 mb-3">Connect with Batchmates</h3>
+              <p className="text-neutral-600 leading-relaxed">
+                Find and reconnect with friends from your batch. Share updates and stay in touch.
+              </p>
+            </div>
+
+            {/* Feature 2 */}
+            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 group">
+              <div className="w-16 h-16 bg-gradient-to-br from-gold-500 to-gold-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <Calendar className="w-8 h-8 text-maroon-800" />
+              </div>
+              <h3 className="text-xl font-bold text-maroon-800 mb-3">Events & Reunions</h3>
+              <p className="text-neutral-600 leading-relaxed">
+                Stay updated on alumni events, reunions, and school functions. Never miss a gathering.
+              </p>
+            </div>
+
+            {/* Feature 3 */}
+            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 group">
+              <div className="w-16 h-16 bg-gradient-to-br from-maroon-800 to-maroon-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <BookOpen className="w-8 h-8 text-gold-500" />
+              </div>
+              <h3 className="text-xl font-bold text-maroon-800 mb-3">Memory Lane</h3>
+              <p className="text-neutral-600 leading-relaxed">
+                Share and relive memories through photos, stories, and nostalgic conversations.
+              </p>
+            </div>
+
+            {/* Feature 4 */}
+            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 group">
+              <div className="w-16 h-16 bg-gradient-to-br from-gold-500 to-gold-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <Heart className="w-8 h-8 text-maroon-800" />
+              </div>
+              <h3 className="text-xl font-bold text-maroon-800 mb-3">Give Back</h3>
+              <p className="text-neutral-600 leading-relaxed">
+                Contribute to your alma mater and help current students through alumni initiatives.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 px-4 bg-maroon-800 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{
+            backgroundImage: 'radial-gradient(circle at 2px 2px, #D4AF37 1px, transparent 0)',
+            backgroundSize: '40px 40px',
+          }} />
+        </div>
+        
+        <div className="relative z-10 max-w-4xl mx-auto text-center">
+          <h2 className="text-4xl md:text-5xl font-serif font-bold text-gold-500 mb-6">
+            Ready to Reconnect?
           </h2>
-
-          {/* Subheading */}
-          <p className="mt-6 text-lg sm:text-xl text-slate-clean-600 max-w-2xl mx-auto leading-relaxed">
-            Reconnect with your batchmates, share memories, and stay updated.
+          <p className="text-xl text-white/90 mb-10 max-w-2xl mx-auto">
+            Join thousands of Grizzly Vidyalya alumni who are already connected. Your batchmates are waiting for you!
           </p>
-
-          {/* CTA Button */}
-          <div className="mt-10">
-            <Link
-              to="/auth"
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-br from-maroon-800 to-maroon-950 text-white font-semibold text-base shadow-xl shadow-maroon-900/25 hover:shadow-2xl hover:shadow-maroon-900/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
-            >
-              Join / Login
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-
-          {/* Trust line */}
-          <p className="mt-6 text-xs text-slate-clean-400 tracking-wide">
-            For verified alumni of Grizzly Vidyalya
-          </p>
+          <Link
+            to="/auth"
+            className="inline-flex items-center gap-3 px-12 py-5 bg-gold-500 text-maroon-800 rounded-full font-bold text-lg hover:bg-gold-400 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 group"
+          >
+            Join GVConnect Today
+            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+          </Link>
         </div>
-
-        {/* Feature cards */}
-        <div className="max-w-4xl mx-auto mt-20 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white rounded-2xl p-6 border border-slate-clean-100 shadow-sm hover:shadow-md transition-shadow">
-            <div className="w-11 h-11 rounded-xl bg-maroon-50 flex items-center justify-center mb-4">
-              <MessageCircle className="w-5 h-5 text-maroon-700" />
-            </div>
-            <h3 className="font-semibold text-slate-clean-900 mb-1">Group Chat</h3>
-            <p className="text-sm text-slate-clean-500">Catch up with your batch in real-time conversations.</p>
-          </div>
-
-          <div className="bg-white rounded-2xl p-6 border border-slate-clean-100 shadow-sm hover:shadow-md transition-shadow">
-            <div className="w-11 h-11 rounded-xl bg-amber-warm-50 flex items-center justify-center mb-4">
-              <Users className="w-5 h-5 text-amber-warm-600" />
-            </div>
-            <h3 className="font-semibold text-slate-clean-900 mb-1">Alumni Directory</h3>
-            <p className="text-sm text-slate-clean-500">Find and connect with old friends from every batch.</p>
-          </div>
-
-          <div className="bg-white rounded-2xl p-6 border border-slate-clean-100 shadow-sm hover:shadow-md transition-shadow">
-            <div className="w-11 h-11 rounded-xl bg-maroon-50 flex items-center justify-center mb-4">
-              <GraduationCap className="w-5 h-5 text-maroon-700" />
-            </div>
-            <h3 className="font-semibold text-slate-clean-900 mb-1">Memories</h3>
-            <p className="text-sm text-slate-clean-500">Relive the moments that made school unforgettable.</p>
-          </div>
-        </div>
-      </main>
+      </section>
 
       {/* Footer */}
-      <footer className="relative z-10 px-6 py-8 border-t border-slate-clean-100">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-slate-clean-400 tracking-wide">
-            © {new Date().getFullYear()} Grizzly Vidyalya Alumni Network
-          </p>
-          <p className="text-xs text-slate-clean-400">
-            Built with care for the Grizzly family
-          </p>
+      <footer className="bg-maroon-900 text-white py-12 px-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-4 gap-8 mb-8">
+            <div className="md:col-span-2">
+              <div className="flex items-center gap-3 mb-4">
+                <img
+                  src="/gvlogo.png"
+                  alt="GVConnect Logo"
+                  width={40}
+                  height={40}
+                  className="rounded-full border-2 border-gold-500"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+                <div>
+                  <h3 className="text-gold-500 font-serif text-xl font-bold">GVConnect</h3>
+                  <p className="text-white/60 text-sm">Grizzly Vidyalya Alumni Network</p>
+                </div>
+              </div>
+              <p className="text-white/70 leading-relaxed max-w-md">
+                Connecting Grizzly Vidyalya alumni across the globe. Relive memories, build connections, and stay part of the family.
+              </p>
+            </div>
+
+            <div>
+              <h4 className="text-gold-500 font-semibold mb-4">Quick Links</h4>
+              <ul className="space-y-2">
+                <li><Link to="/" className="text-white/70 hover:text-gold-400 transition-colors">Home</Link></li>
+                <li><Link to="/about" className="text-white/70 hover:text-gold-400 transition-colors">About</Link></li>
+                <li><Link to="/events" className="text-white/70 hover:text-gold-400 transition-colors">Events</Link></li>
+                <li><Link to="/gallery" className="text-white/70 hover:text-gold-400 transition-colors">Gallery</Link></li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="text-gold-500 font-semibold mb-4">Connect</h4>
+              <ul className="space-y-2">
+                <li><a href="#" className="text-white/70 hover:text-gold-400 transition-colors">Facebook</a></li>
+                <li><a href="#" className="text-white/70 hover:text-gold-400 transition-colors">Instagram</a></li>
+                <li><a href="#" className="text-white/70 hover:text-gold-400 transition-colors">LinkedIn</a></li>
+                <li><a href="#" className="text-white/70 hover:text-gold-400 transition-colors">Twitter</a></li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="border-t border-white/10 pt-8 text-center">
+            <p className="text-white/60 text-sm">
+              © {new Date().getFullYear()} GVConnect - Grizzly Vidyalya Alumni Network. All rights reserved.
+            </p>
+          </div>
         </div>
       </footer>
     </div>
