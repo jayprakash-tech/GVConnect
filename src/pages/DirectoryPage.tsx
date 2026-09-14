@@ -1,0 +1,187 @@
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Navbar } from '../components/Navbar';
+import { Search, Filter, Users } from 'lucide-react';
+
+interface Alumni {
+  id: string;
+  full_name: string;
+  batch: string;
+  class: string;
+}
+
+export function DirectoryPage() {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedBatch, setSelectedBatch] = useState('');
+  const [selectedClass, setSelectedClass] = useState('');
+
+  // Placeholder for alumni data - will be populated from database
+  const alumni: Alumni[] = [];
+
+  const batches = Array.from({ length: 25 }, (_, i) => String(new Date().getFullYear() - i));
+  const classes = ['Nursery', 'LKG', 'UKG', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th', '11th', '12th'];
+
+  const filteredAlumni = alumni.filter((alum) => {
+    const matchesSearch = alum.full_name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesBatch = !selectedBatch || alum.batch === selectedBatch;
+    const matchesClass = !selectedClass || alum.class === selectedClass;
+    return matchesSearch && matchesBatch && matchesClass;
+  });
+
+  return (
+    <div className="min-h-screen bg-white">
+      <Navbar />
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-12"
+        >
+          <h1 className="text-4xl md:text-5xl font-serif font-bold text-maroon-800 mb-4">
+            Alumni Directory
+          </h1>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            Connect with fellow Grizzlians from across all batches
+          </p>
+        </motion.div>
+
+        {/* Search and Filters */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white rounded-lg shadow-md p-6 mb-8"
+        >
+          <div className="grid md:grid-cols-3 gap-4">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all"
+              />
+            </div>
+
+            {/* Batch Filter */}
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <select
+                value={selectedBatch}
+                onChange={(e) => setSelectedBatch(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all appearance-none bg-white"
+              >
+                <option value="">All Batches</option>
+                {batches.map((batch) => (
+                  <option key={batch} value={batch}>
+                    Batch of {batch}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Class Filter */}
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <select
+                value={selectedClass}
+                onChange={(e) => setSelectedClass(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all appearance-none bg-white"
+              >
+                <option value="">All Classes</option>
+                {classes.map((cls) => (
+                  <option key={cls} value={cls}>
+                    {cls}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Results Count */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="mb-6"
+        >
+          <p className="text-gray-600">
+            {filteredAlumni.length === 0 ? (
+              'No alumni found'
+            ) : (
+              <>Showing {filteredAlumni.length} {filteredAlumni.length === 1 ? 'alumnus' : 'alumni'}</>
+            )}
+          </p>
+        </motion.div>
+
+        {/* Alumni Grid */}
+        {filteredAlumni.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredAlumni.map((alum, index) => (
+              <motion.div
+                key={alum.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow p-6 border-t-4 border-gold-500"
+              >
+                <div className="flex items-start gap-4">
+                  {/* Avatar */}
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-maroon-800 to-maroon-900 flex items-center justify-center text-gold-500 font-serif text-2xl font-bold flex-shrink-0">
+                    {alum.full_name.charAt(0)}
+                  </div>
+                  
+                  {/* Info */}
+                  <div className="flex-1">
+                    <h3 className="text-lg font-serif font-bold text-maroon-800 mb-1">
+                      {alum.full_name}
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-1">
+                      Batch of {alum.batch}
+                    </p>
+                    <p className="text-sm text-gray-600 mb-3">
+                      Class {alum.class}
+                    </p>
+                    <button className="w-full py-2 px-4 bg-maroon-800 text-gold-500 rounded-lg font-semibold text-sm hover:bg-maroon-700 transition-colors">
+                      Connect
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="text-center py-16"
+          >
+            <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-xl font-serif font-bold text-gray-600 mb-2">
+              No Alumni Found
+            </h3>
+            <p className="text-gray-500 mb-6">
+              {searchQuery || selectedBatch || selectedClass
+                ? 'Try adjusting your search or filters'
+                : 'Be the first to join the directory!'}
+            </p>
+            {!searchQuery && !selectedBatch && !selectedClass && (
+              <a
+                href="/auth"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gold-500 text-maroon-800 rounded-full font-semibold hover:bg-gold-400 transition-colors"
+              >
+                Join GVConnect
+              </a>
+            )}
+          </motion.div>
+        )}
+      </main>
+    </div>
+  );
+}

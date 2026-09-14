@@ -103,10 +103,14 @@ export function ProfilePage() {
       {/* Left Panel - Gradient with Logo (Hidden on mobile) */}
       <div className="hidden lg:flex lg:w-2/5 bg-gradient-to-br from-maroon-800 via-maroon-900 to-maroon-950 relative overflow-hidden">
         {/* Background Image */}
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-20"
-          style={{
-            backgroundImage: 'url(/assembly.jpg)',
+        <img
+          src="/prayer.png"
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover opacity-20"
+          loading="lazy"
+          decoding="async"
+          onError={(e) => {
+            e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="1200"%3E%3Crect fill="%23800020" width="800" height="1200"/%3E%3C/svg%3E';
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-br from-maroon-800/90 to-maroon-950/90" />
@@ -118,7 +122,9 @@ export function ProfilePage() {
             alt="GVConnect Logo"
             width={120}
             height={120}
-            className="rounded-full border-4 border-gold-500 shadow-2xl mb-8"
+            className="mb-8"
+            loading="eager"
+            decoding="async"
             onError={(e) => {
               e.currentTarget.style.display = 'none';
             }}
@@ -142,7 +148,8 @@ export function ProfilePage() {
               alt="GVConnect Logo"
               width={60}
               height={60}
-              className="rounded-full border-2 border-gold-500"
+              loading="eager"
+              decoding="async"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
               }}

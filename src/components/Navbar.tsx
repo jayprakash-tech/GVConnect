@@ -26,25 +26,25 @@ export function Navbar() {
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? 'bg-gradient-to-r from-maroon-800 to-maroon-900 shadow-lg'
-          : 'bg-gradient-to-r from-maroon-800 to-maroon-900'
+        scrolled ? 'bg-maroon-800 shadow-lg' : 'bg-maroon-800'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
-          {/* Logo */}
+          {/* Logo - Clean, no modifications */}
           <Link to="/" className="flex items-center gap-3 group">
             <img
               src="/gvlogo.png"
               alt="GVConnect Logo"
-              className="h-[60px] w-auto rounded-full border-2 border-gold-500/50 group-hover:border-gold-500 transition-all duration-300"
+              className="h-[60px] w-auto group-hover:opacity-90 transition-opacity"
+              loading="eager"
+              decoding="async"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
               }}
             />
             <div className="flex flex-col">
-              <span className="text-gold-500 font-serif text-2xl font-bold tracking-wide group-hover:text-gold-400 transition-colors">
+              <span className="text-gold-500 font-serif text-2xl font-bold tracking-wide">
                 GVConnect
               </span>
               <span className="text-white/60 text-xs">Grizzly Vidyalya Alumni</span>
