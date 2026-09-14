@@ -245,7 +245,7 @@ export function LandingPage() {
             to="/auth"
             className="inline-flex items-center gap-3 px-12 py-5 bg-gold-500 text-maroon-800 rounded-full font-bold text-lg hover:bg-gold-400 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 group"
           >
-            Create Free Account
+            Join Us
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </Link>
         </motion.div>
@@ -255,18 +255,24 @@ export function LandingPage() {
       <footer className="py-16 px-4" style={{ backgroundColor: '#600018' }}>
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-4 gap-8 mb-12">
-            {/* Column 1: Logo & Description */}
+            {/* Column 1: Logo & School Info */}
             <div className="md:col-span-1">
-              <img
-                src="/gvlogo.png"
-                alt="GVConnect Logo"
-                className="h-[60px] w-auto mb-4"
-                loading="lazy"
-                decoding="async"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
+              <div className="flex items-center gap-3 mb-4">
+                <img
+                  src="/gvlogo.png"
+                  alt="GVConnect Logo"
+                  className="h-[60px] w-auto"
+                  loading="lazy"
+                  decoding="async"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+                <div className="flex flex-col">
+                  <h3 className="text-xl font-bold text-gold-500 leading-tight">GVConnect</h3>
+                  <p className="text-sm text-white/90 leading-tight">Telaiya Dam, Koderma</p>
+                </div>
+              </div>
               <p className="text-white/70 leading-relaxed text-sm">
                 Reconnecting Grizzly Vidyalya alumni worldwide
               </p>
