@@ -17,9 +17,12 @@ export function DashboardPage() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [connections, setConnections] = useState<number>(0);
+  const [messages, setMessages] = useState<number>(0);
 
   useEffect(() => {
     if (user) {
+      // Fetch user profile
       supabase
         .from('profiles')
         .select('full_name, admission_number, class, batch')
@@ -28,6 +31,55 @@ export function DashboardPage() {
         .then(({ data }) => {
           if (data) setProfile(data);
         });
+
+      // Fetch connections count (alumni in same batch)
+      const fetchConnections = async () => {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('batch')
+          .eq('id', user.id)
+          .single();
+
+        if (profileData?.batch) {
+          const { count } = await supabase
+            .from('profiles')
+            .select('*', { count: 'exact', head: true })
+            .eq('batch', profileData.batch)
+            .neq('id', user.id);
+
+          setConnections(count || 0);
+        }
+      };
+
+      // Fetch messages count
+      const fetchMessages = async () => {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('batch')
+          .eq('id', user.id)
+          .single();
+
+        if (profileData?.batch) {
+          // Get all user IDs in the same batch
+          const { data: batchUsers } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('batch', profileData.batch);
+
+          if (batchUsers && batchUsers.length > 0) {
+            const userIds = batchUsers.map(u => u.id);
+            const { count } = await supabase
+              .from('messages')
+              .select('*', { count: 'exact', head: true })
+              .in('user_id', userIds);
+
+            setMessages(count || 0);
+          }
+        }
+      };
+
+      fetchConnections();
+      fetchMessages();
     }
   }, [user]);
 
@@ -38,23 +90,12 @@ export function DashboardPage() {
 
   const stats = [
     { label: 'Your Batch', value: profile?.batch || 'N/A', icon: Users },
-    { label: 'Connections', value: '24', icon: TrendingUp },
-    { label: 'Messages', value: '12', icon: MessageCircle },
-  ];
-
-  const recentActivity = [
-    { type: 'message', text: 'New message from Rahul Sharma', time: '2 hours ago' },
-    { type: 'event', text: 'Batch of 2015 reunion planned', time: '1 day ago' },
-    { type: 'connection', text: 'Priya Mehta joined your network', time: '2 days ago' },
-  ];
-
-  const upcomingEvents = [
-    { title: 'Annual Alumni Meet', date: 'April 20, 2026', location: 'School Campus' },
-    { title: 'Batch of 2010 Reunion', date: 'May 15, 2026', location: 'City Hotel' },
+    { label: 'Connections', value: connections.toString(), icon: TrendingUp },
+    { label: 'Messages', value: messages.toString(), icon: MessageCircle },
   ];
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="min-h-screen bg-[#fafafa]">
       <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -62,7 +103,8 @@ export function DashboardPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-maroon-800 to-maroon-900 rounded-2xl p-8 mb-8 relative overflow-hidden shadow-premium"
+          className="bg-gradient-to-br from-maroon-800 via-maroon-800 to-maroon-900 rounded-2xl p-8 mb-8 relative overflow-hidden"
+          style={{ boxShadow: '0 4px 6px -1px rgba(128, 0, 32, 0.1)' }}
         >
           <div className="absolute top-0 right-0 w-64 h-64 bg-gold-500/10 rounded-full -translate-y-32 translate-x-32" />
           <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -97,7 +139,7 @@ export function DashboardPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="bg-white rounded-xl p-6 shadow-sm hover:shadow-lg transition-shadow border-t-4 border-gold-500"
+              className="bg-white rounded-xl p-6 border border-[#f0f0f0] hover:border-gold-500/30 transition-all"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="w-12 h-12 bg-maroon-100 rounded-xl flex items-center justify-center">
@@ -116,29 +158,16 @@ export function DashboardPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm"
+            className="lg:col-span-2 bg-white rounded-xl p-6 border border-[#f0f0f0]"
           >
             <h2 className="text-xl font-serif font-bold text-maroon-800 mb-6 flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-gold-500" />
               Recent Activity
             </h2>
-            <div className="space-y-4">
-              {recentActivity.map((activity, index) => (
-                <div
-                  key={index}
-                  className="flex items-start gap-4 p-4 rounded-lg hover:bg-neutral-50 transition-colors"
-                >
-                  <div className="w-10 h-10 bg-gold-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    {activity.type === 'message' && <MessageCircle className="w-5 h-5 text-gold-600" />}
-                    {activity.type === 'event' && <Calendar className="w-5 h-5 text-gold-600" />}
-                    {activity.type === 'connection' && <Users className="w-5 h-5 text-gold-600" />}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-neutral-900 font-medium">{activity.text}</p>
-                    <p className="text-neutral-500 text-sm">{activity.time}</p>
-                  </div>
-                </div>
-              ))}
+            <div className="text-center py-12">
+              <MessageCircle className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
+              <p className="text-neutral-500 text-sm">No recent activity yet</p>
+              <p className="text-neutral-400 text-xs mt-1">Start connecting with fellow Grizzlians!</p>
             </div>
           </motion.div>
 
@@ -147,23 +176,16 @@ export function DashboardPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="bg-white rounded-xl p-6 shadow-sm"
+            className="bg-white rounded-xl p-6 border border-[#f0f0f0]"
           >
             <h2 className="text-xl font-serif font-bold text-maroon-800 mb-6 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-gold-500" />
               Upcoming Events
             </h2>
-            <div className="space-y-4">
-              {upcomingEvents.map((event, index) => (
-                <div
-                  key={index}
-                  className="p-4 rounded-lg border border-neutral-200 hover:border-gold-500 transition-colors"
-                >
-                  <h3 className="font-semibold text-neutral-900 mb-2">{event.title}</h3>
-                  <p className="text-sm text-neutral-600 mb-1">{event.date}</p>
-                  <p className="text-sm text-neutral-500">{event.location}</p>
-                </div>
-              ))}
+            <div className="text-center py-12">
+              <Calendar className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
+              <p className="text-neutral-500 text-sm">No upcoming events</p>
+              <p className="text-neutral-400 text-xs mt-1">Stay tuned for alumni reunions!</p>
             </div>
           </motion.div>
         </div>
@@ -175,19 +197,19 @@ export function DashboardPage() {
           transition={{ delay: 0.5 }}
           className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4"
         >
-          <button className="p-6 bg-white rounded-xl shadow-sm hover:shadow-lg transition-all hover:-translate-y-1 text-center group">
+          <button className="p-6 bg-white rounded-xl border border-[#f0f0f0] hover:border-gold-500/30 transition-all hover:-translate-y-1 text-center group">
             <Users className="w-8 h-8 text-maroon-800 mx-auto mb-2 group-hover:scale-110 transition-transform" />
             <p className="font-semibold text-neutral-900 text-sm">Directory</p>
           </button>
-          <button className="p-6 bg-white rounded-xl shadow-sm hover:shadow-lg transition-all hover:-translate-y-1 text-center group">
+          <button className="p-6 bg-white rounded-xl border border-[#f0f0f0] hover:border-gold-500/30 transition-all hover:-translate-y-1 text-center group">
             <MessageCircle className="w-8 h-8 text-maroon-800 mx-auto mb-2 group-hover:scale-110 transition-transform" />
             <p className="font-semibold text-neutral-900 text-sm">Messages</p>
           </button>
-          <button className="p-6 bg-white rounded-xl shadow-sm hover:shadow-lg transition-all hover:-translate-y-1 text-center group">
+          <button className="p-6 bg-white rounded-xl border border-[#f0f0f0] hover:border-gold-500/30 transition-all hover:-translate-y-1 text-center group">
             <Calendar className="w-8 h-8 text-maroon-800 mx-auto mb-2 group-hover:scale-110 transition-transform" />
             <p className="font-semibold text-neutral-900 text-sm">Events</p>
           </button>
-          <button className="p-6 bg-white rounded-xl shadow-sm hover:shadow-lg transition-all hover:-translate-y-1 text-center group">
+          <button className="p-6 bg-white rounded-xl border border-[#f0f0f0] hover:border-gold-500/30 transition-all hover:-translate-y-1 text-center group">
             <TrendingUp className="w-8 h-8 text-maroon-800 mx-auto mb-2 group-hover:scale-110 transition-transform" />
             <p className="font-semibold text-neutral-900 text-sm">Activity</p>
           </button>
