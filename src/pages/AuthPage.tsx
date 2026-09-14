@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, ArrowRight, RefreshCw, Mountain, UserPlus, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, ArrowRight, RefreshCw, UserPlus, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../utils/supabase/client';
 import { useAuth } from '../context/AuthContext';
 
@@ -24,6 +24,9 @@ export function AuthPage() {
   });
   const [verifiedEmail, setVerifiedEmail] = useState(() => {
     return sessionStorage.getItem('gv_verified_email') || '';
+  });
+  const [successEmail, setSuccessEmail] = useState(() => {
+    return sessionStorage.getItem('gv_success_email') || '';
   });
   
   // Login flow state
@@ -92,19 +95,6 @@ export function AuthPage() {
       setTimeout(() => otpRefs.current[0]?.focus(), 100);
     }
   }, [signupStep]);
-
-  // Auto-redirect to Login tab after success
-  useEffect(() => {
-    if (signupStep === 'success') {
-      const timer = setTimeout(() => {
-        setMode('login');
-        setLoginEmail(verifiedEmail);
-        setSignupStep('email');
-        setError('');
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [signupStep, verifiedEmail]);
 
   // ─── SIGNUP STEP 1: Send OTP ─────────────────────────────
   const handleSendOTP = async (e: React.FormEvent) => {
@@ -265,56 +255,86 @@ export function AuthPage() {
 
   // ─── Render ──────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-slate-clean-50 flex flex-col">
-      {/* Background pattern */}
-      <div className="fixed inset-0 opacity-[0.02] pointer-events-none">
-        <div className="absolute inset-0" style={{
-          backgroundImage: 'radial-gradient(circle at 1px 1px, rgb(107, 18, 48) 1px, transparent 0)',
-          backgroundSize: '32px 32px',
-        }} />
+    <div className="min-h-screen flex">
+      {/* Left Panel - Gradient with Logo (Hidden on mobile) */}
+      <div className="hidden lg:flex lg:w-2/5 bg-gradient-to-br from-maroon-800 via-maroon-900 to-maroon-950 relative overflow-hidden">
+        {/* Background Image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-20"
+          style={{
+            backgroundImage: 'url(/assembly.jpg)',
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-maroon-800/90 to-maroon-950/90" />
+        
+        {/* Content */}
+        <div className="relative z-10 flex flex-col items-center justify-center w-full p-12 text-center">
+          <img
+            src="/gvlogo.png"
+            alt="GVConnect Logo"
+            width={120}
+            height={120}
+            className="rounded-full border-4 border-gold-500 shadow-2xl mb-8"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+          <h2 className="text-4xl font-serif font-bold text-gold-500 mb-4">
+            Welcome Back, Grizzly!
+          </h2>
+          <p className="text-white/80 text-lg leading-relaxed max-w-sm">
+            Reconnect with your batchmates, relive the memories, and stay connected to Grizzly Vidyalya.
+          </p>
+        </div>
       </div>
 
-      {/* Header */}
-      <header className="relative z-10 pt-8 pb-4 px-6">
-        <div className="flex items-center gap-3">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-maroon-800 to-maroon-950 flex items-center justify-center shadow-md shadow-maroon-900/20">
-              <Mountain className="w-5 h-5 text-amber-warm-400" strokeWidth={1.5} />
-            </div>
-            <h2 className="text-lg font-bold tracking-tight">
-              <span className="text-maroon-900">GV</span>
-              <span className="text-amber-warm-600">Connect</span>
+      {/* Right Panel - Form */}
+      <div className="flex-1 flex flex-col bg-white">
+        {/* Mobile Header */}
+        <header className="lg:hidden pt-8 pb-4 px-6 bg-gradient-to-r from-maroon-800 to-maroon-900">
+          <div className="flex flex-col items-center gap-3">
+            <img
+              src="/gvlogo.png"
+              alt="GVConnect Logo"
+              width={60}
+              height={60}
+              className="rounded-full border-2 border-gold-500"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+            <h2 className="text-xl font-serif font-bold text-gold-500">
+              GVConnect
             </h2>
-          </Link>
-        </div>
-      </header>
-
-      {/* Main */}
-      <main className="relative z-10 flex-1 flex flex-col justify-center px-6 pb-12">
-        <div className="w-full max-w-md mx-auto">
-          {/* Mode Tabs */}
-          <div className="flex gap-2 mb-8 bg-slate-clean-100 p-1 rounded-xl">
-            <button
-              onClick={() => { setMode('signup'); setError(''); }}
-              className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
-                mode === 'signup'
-                  ? 'bg-white text-maroon-800 shadow-sm'
-                  : 'text-slate-clean-500 hover:text-slate-clean-700'
-              }`}
-            >
-              New User
-            </button>
-            <button
-              onClick={() => { setMode('login'); setError(''); }}
-              className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
-                mode === 'login'
-                  ? 'bg-white text-maroon-800 shadow-sm'
-                  : 'text-slate-clean-500 hover:text-slate-clean-700'
-              }`}
-            >
-              Returning User
-            </button>
           </div>
+        </header>
+
+        {/* Main Form Area */}
+        <main className="flex-1 flex flex-col justify-center px-6 py-12 lg:px-12">
+          <div className="w-full max-w-md mx-auto">
+            {/* Mode Tabs */}
+            <div className="flex gap-2 mb-8 bg-neutral-100 p-1 rounded-xl">
+              <button
+                onClick={() => { setMode('signup'); setError(''); }}
+                className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
+                  mode === 'signup'
+                    ? 'bg-maroon-800 text-gold-500 shadow-md'
+                    : 'text-neutral-500 hover:text-maroon-800'
+                }`}
+              >
+                New User
+              </button>
+              <button
+                onClick={() => { setMode('login'); setError(''); }}
+                className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
+                  mode === 'login'
+                    ? 'bg-maroon-800 text-gold-500 shadow-md'
+                    : 'text-neutral-500 hover:text-maroon-800'
+                }`}
+              >
+                Login
+              </button>
+            </div>
 
           {/* ─── SIGNUP MODE ─────────────────────────────── */}
           {mode === 'signup' && (
@@ -322,15 +342,15 @@ export function AuthPage() {
               {/* Step indicator */}
               {signupStep !== 'success' && (
                 <>
-                  <p className="text-xs font-semibold tracking-widest uppercase text-amber-warm-600 mb-2">
+                  <p className="text-xs font-semibold tracking-widest uppercase text-gold-600 mb-2">
                     {signupStep === 'email' && 'Step 1 of 2'}
                     {signupStep === 'otp' && 'Step 2 of 2'}
                   </p>
-                  <h1 className="text-2xl sm:text-3xl font-bold text-slate-clean-900 tracking-tight">
+                  <h1 className="text-2xl sm:text-3xl font-serif font-bold text-maroon-800 tracking-tight">
                     {signupStep === 'email' && 'Create your account'}
                     {signupStep === 'otp' && 'Verify your email'}
                   </h1>
-                  <p className="mt-2 text-slate-clean-500 text-[15px]">
+                  <p className="mt-2 text-neutral-600 text-[15px]">
                     {signupStep === 'email' && 'Enter your email to receive a verification code.'}
                     {signupStep === 'otp' && `We sent a 6-digit code to ${email}`}
                   </p>
@@ -351,7 +371,7 @@ export function AuthPage() {
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           placeholder="you@example.com"
-                          className="w-full px-4 py-3 rounded-xl border border-slate-clean-200 bg-white text-slate-clean-900 placeholder:text-slate-clean-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-maroon-700/20 focus:border-maroon-700 transition-all"
+                          className="w-full px-4 py-3 rounded-xl border border-neutral-200 bg-white text-neutral-900 placeholder:text-neutral-400 text-[15px] focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all"
                           required
                           autoComplete="email"
                         />
@@ -364,7 +384,7 @@ export function AuthPage() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-white hover:bg-maroon-900 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-gold-500 hover:bg-maroon-700 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2 border-2 border-gold-500/30 hover:border-gold-500/50"
                     >
                       {loading ? 'Sending...' : 'Send Verification Code'}
                       {!loading && <ArrowRight className="w-4 h-4" />}
@@ -386,7 +406,7 @@ export function AuthPage() {
                           value={digit}
                           onChange={(e) => handleOtpChange(i, e.target.value)}
                           onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                          className="w-12 h-14 sm:w-14 sm:h-16 text-center text-xl sm:text-2xl font-bold rounded-xl border-2 border-slate-clean-200 bg-white text-slate-clean-900 focus:outline-none focus:border-maroon-700 focus:ring-4 focus:ring-maroon-700/10 transition-all"
+                          className="w-12 h-14 sm:w-14 sm:h-16 text-center text-xl sm:text-2xl font-bold rounded-xl border-2 border-neutral-200 bg-white text-neutral-900 focus:outline-none focus:border-gold-500 focus:ring-4 focus:ring-gold-500/10 transition-all"
                         />
                       ))}
                     </div>
@@ -396,7 +416,7 @@ export function AuthPage() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-white hover:bg-maroon-900 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-gold-500 hover:bg-maroon-700 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2 border-2 border-gold-500/30 hover:border-gold-500/50"
                     >
                       {loading ? 'Verifying...' : 'Verify Code'}
                       {!loading && <ArrowRight className="w-4 h-4" />}
@@ -429,38 +449,71 @@ export function AuthPage() {
                 {/* ─── SIGNUP STEP 4: Success ─────────────── */}
                 {signupStep === 'success' && (
                   <div className="text-center space-y-6">
-                    <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mx-auto">
-                      <CheckCircle2 className="w-8 h-8 text-green-600" />
+                    {/* Icon with mail and checkmark */}
+                    <div className="relative w-20 h-20 mx-auto">
+                      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-green-400 to-green-600 opacity-20 animate-pulse" />
+                      <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center mx-auto border-2 border-green-200">
+                        <div className="relative">
+                          <Mail className="w-10 h-10 text-green-600" strokeWidth={1.5} />
+                          <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-green-500 flex items-center justify-center border-2 border-white">
+                            <CheckCircle2 className="w-4 h-4 text-white" strokeWidth={2.5} />
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
+                    {/* Heading and message */}
                     <div>
-                      <h2 className="text-2xl font-bold text-slate-clean-900 mb-2">
-                        Account created!
+                      <h2 className="text-2xl sm:text-3xl font-bold text-slate-clean-900 mb-3">
+                        Account Created Successfully!
                       </h2>
-                      <p className="text-slate-clean-600 text-[15px] leading-relaxed">
-                        Please check your email to confirm your account.
+                      <p className="text-slate-clean-600 text-[15px] leading-relaxed max-w-sm mx-auto">
+                        We have sent a confirmation link to{' '}
+                        <span className="font-semibold text-slate-clean-900">{successEmail || verifiedEmail}</span>.
+                        Please check your inbox and click the link to activate your account.
                       </p>
                     </div>
 
-                    <div className="bg-amber-warm-50 border border-amber-warm-200 rounded-xl p-4 text-left">
-                      <p className="text-sm text-amber-warm-800 font-medium mb-1">
+                    {/* What's next section */}
+                    <div className="bg-amber-warm-50 border border-amber-warm-200 rounded-xl p-5 text-left">
+                      <p className="text-sm text-amber-warm-800 font-semibold mb-2 flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-full bg-amber-warm-200 flex items-center justify-center text-xs font-bold">?</span>
                         What's next?
                       </p>
-                      <ol className="text-sm text-amber-warm-700 space-y-1 list-decimal list-inside">
-                        <li>Check your email inbox</li>
-                        <li>Click the confirmation link</li>
-                        <li>Return here to login</li>
+                      <ol className="text-sm text-amber-warm-700 space-y-2">
+                        <li className="flex items-start gap-2">
+                          <span className="font-bold text-amber-warm-600 mt-0.5">1.</span>
+                          <span>Check your email inbox (and spam folder)</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="font-bold text-amber-warm-600 mt-0.5">2.</span>
+                          <span>Click the confirmation link in the email</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="font-bold text-amber-warm-600 mt-0.5">3.</span>
+                          <span>Return here and login with your credentials</span>
+                        </li>
                       </ol>
                     </div>
 
+                    {/* Go to Login button */}
                     <button
                       onClick={() => {
+                        // Clear success state
+                        sessionStorage.removeItem('gv_success_email');
+                        sessionStorage.removeItem('gv_signup_step');
+                        sessionStorage.removeItem('gv_verified_email');
+                        sessionStorage.removeItem('gv_auth_mode');
+                        
+                        // Switch to login tab with email pre-filled
                         setMode('login');
-                        setLoginEmail(verifiedEmail);
+                        setLoginEmail(successEmail || verifiedEmail);
                         setSignupStep('email');
+                        setSuccessEmail('');
+                        setVerifiedEmail('');
                         setError('');
                       }}
-                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-white hover:bg-maroon-900 active:scale-[0.98] shadow-lg shadow-maroon-900/20 transition-all flex items-center justify-center gap-2"
+                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-gold-500 hover:bg-maroon-700 active:scale-[0.98] shadow-lg shadow-maroon-900/20 transition-all flex items-center justify-center gap-2 border-2 border-gold-500/30 hover:border-gold-500/50"
                     >
                       Go to Login
                       <ArrowRight className="w-4 h-4" />
@@ -474,10 +527,10 @@ export function AuthPage() {
           {/* ─── LOGIN MODE ──────────────────────────────── */}
           {mode === 'login' && (
             <>
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-clean-900 tracking-tight">
+              <h1 className="text-2xl sm:text-3xl font-serif font-bold text-maroon-800 tracking-tight">
                 Welcome back
               </h1>
-              <p className="mt-2 text-slate-clean-500 text-[15px]">
+              <p className="mt-2 text-neutral-600 text-[15px]">
                 Sign in to your GVConnect account
               </p>
 
@@ -523,7 +576,7 @@ export function AuthPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-white hover:bg-maroon-900 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-gold-500 hover:bg-maroon-700 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2 border-2 border-gold-500/30 hover:border-gold-500/50"
                 >
                   {loading ? 'Signing in...' : (
                     <>
@@ -546,15 +599,16 @@ export function AuthPage() {
               </form>
             </>
           )}
-        </div>
-      </main>
+          </div>
+        </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 pb-6 text-center">
-        <p className="text-slate-clean-400 text-[11px] tracking-wide">
-          Grizzly Vidyalya Alumni Network
-        </p>
-      </footer>
+        {/* Footer */}
+        <footer className="pb-6 text-center">
+          <p className="text-neutral-500 text-[11px] tracking-wide">
+            Grizzly Vidyalya Alumni Network
+          </p>
+        </footer>
+      </div>
     </div>
   );
 }
