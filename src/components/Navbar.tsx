@@ -54,6 +54,7 @@ export function Navbar() {
   const navLinks = [
     { name: 'Home', path: '/' },
     { name: 'Directory', path: '/directory' },
+    { name: 'Chat', path: '/chat' },
     { name: 'Events', path: '/events' },
     { name: 'About', path: '/about' },
   ];

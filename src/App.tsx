@@ -6,6 +6,7 @@ import { AuthPage } from './pages/AuthPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DirectoryPage } from './pages/DirectoryPage';
+import { ChatPage } from './pages/ChatPage';
 
 function App() {
   return (
@@ -23,6 +24,16 @@ function App() {
           
           {/* Alumni Directory */}
           <Route path="/directory" element={<DirectoryPage />} />
+          
+          {/* Chat */}
+          <Route
+            path="/chat"
+            element={
+              <ProtectedRoute>
+                <ChatPage />
+              </ProtectedRoute>
+            }
+          />
           
           {/* Protected dashboard */}
           <Route
