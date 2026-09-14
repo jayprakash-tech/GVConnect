@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Navbar } from '../components/Navbar';
 import { Search, Filter, Users } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface Alumni {
   id: string;
@@ -11,6 +12,7 @@ interface Alumni {
 }
 
 export function DirectoryPage() {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBatch, setSelectedBatch] = useState('');
   const [selectedClass, setSelectedClass] = useState('');
@@ -32,7 +34,7 @@ export function DirectoryPage() {
     <div className="min-h-screen bg-white">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-12">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -52,7 +54,7 @@ export function DirectoryPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-lg shadow-md p-6 mb-8"
+          className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 mb-8"
         >
           <div className="grid md:grid-cols-3 gap-4">
             {/* Search */}
@@ -104,20 +106,18 @@ export function DirectoryPage() {
         </motion.div>
 
         {/* Results Count */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="mb-6"
-        >
-          <p className="text-gray-600">
-            {filteredAlumni.length === 0 ? (
-              'No alumni found'
-            ) : (
-              <>Showing {filteredAlumni.length} {filteredAlumni.length === 1 ? 'alumnus' : 'alumni'}</>
-            )}
-          </p>
-        </motion.div>
+        {filteredAlumni.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="mb-6"
+          >
+            <p className="text-gray-600">
+              Showing {filteredAlumni.length} {filteredAlumni.length === 1 ? 'alumnus' : 'alumni'}
+            </p>
+          </motion.div>
+        )}
 
         {/* Alumni Grid */}
         {filteredAlumni.length > 0 ? (
@@ -169,9 +169,11 @@ export function DirectoryPage() {
             <p className="text-gray-500 mb-6">
               {searchQuery || selectedBatch || selectedClass
                 ? 'Try adjusting your search or filters'
-                : 'Be the first to join the directory!'}
+                : user
+                  ? 'You are the first Grizzlian here! Invite your batchmates to join the directory.'
+                  : 'Be the first to join the directory!'}
             </p>
-            {!searchQuery && !selectedBatch && !selectedClass && (
+            {!searchQuery && !selectedBatch && !selectedClass && !user && (
               <a
                 href="/auth"
                 className="inline-flex items-center gap-2 px-6 py-3 bg-gold-500 text-maroon-800 rounded-full font-semibold hover:bg-gold-400 transition-colors"
