@@ -39,87 +39,46 @@ export function ProfilePage() {
     }
 
     try {
-      // 1. Create user in Auth
+      console.log("STEP 1: Attempting signUp with email:", verifiedEmail);
+      
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: verifiedEmail,
         password: password,
       });
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error("No user returned from signup");
+      if (authError) {
+        console.error("STEP 1 FAILED - Auth Error:", authError);
+        throw new Error("Auth failed: " + authError.message);
+      }
+
+      if (!authData || !authData.user) {
+        console.error("STEP 1 FAILED - No user returned:", authData);
+        throw new Error("No user returned from signup.");
+      }
 
       const userId = authData.user.id;
+      console.log("STEP 2: SignUp successful! User ID is:", userId);
 
-      // 2. Try to INSERT the profile
-      // If trigger created a blank profile, this will fail with duplicate key error
-      // If no trigger, this will succeed
-      // If foreign key error, we retry
-      let profileError: any = null;
-      let retries = 3;
+      console.log("STEP 3: Attempting to upsert profile for userId:", userId);
       
-      while (retries > 0) {
-        const { error } = await supabase
-          .from('profiles')
-          .insert({
-            id: userId,
-            email: verifiedEmail,
-            full_name: fullName,
-            admission_number: admissionNumber,
-            class: selectedClass,
-            batch: batchYear,
-          });
-
-        profileError = error;
-        
-        if (!profileError) {
-          // INSERT succeeded - no trigger exists, we're done!
-          console.log("Profile created via INSERT (no trigger)");
-          break;
-        }
-        
-        // Check if it's a duplicate key error (trigger created blank profile)
-        if (profileError.message.includes('duplicate key') || profileError.code === '23505') {
-          console.log("Duplicate key error - trigger created blank profile, switching to UPDATE");
-          
-          // UPDATE the existing blank profile
-          const { error: updateError } = await supabase
-            .from('profiles')
-            .update({
-              email: verifiedEmail,
-              full_name: fullName,
-              admission_number: admissionNumber,
-              class: selectedClass,
-              batch: batchYear,
-            })
-            .eq('id', userId);
-
-          if (updateError) {
-            console.error("Profile Update Error:", updateError);
-            throw updateError;
-          }
-          
-          console.log("Profile updated successfully");
-          profileError = null; // Clear error since UPDATE succeeded
-          break;
-        }
-        
-        // Check if it's a foreign key constraint error
-        if (profileError.message.includes('foreign key constraint') && retries > 1) {
-          console.log(`Foreign key constraint error, retrying... (${retries - 1} attempts left)`);
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          retries--;
-        } else {
-          // Some other error, stop retrying
-          break;
-        }
-      }
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: userId,
+          email: verifiedEmail,
+          full_name: fullName,
+          admission_number: admissionNumber,
+          class: selectedClass,
+          batch: batchYear, // MUST be 'batch'
+        })
+        .select();
 
       if (profileError) {
-        console.error("Profile Error:", profileError);
-        throw profileError;
+        console.error("STEP 3 FAILED - Profile Upsert Error:", profileError);
+        throw new Error("Profile save failed: " + profileError.message);
       }
 
-      // 3. Success!
+      console.log("STEP 4: SUCCESS! Profile data saved:", profileData);
       alert("Account created successfully! Please check your email to confirm.");
       
       // Clear session storage
@@ -130,7 +89,7 @@ export function ProfilePage() {
       navigate('/auth');
 
     } catch (error: any) {
-      console.error("Signup failed:", error);
+      console.error("CRITICAL FAILURE:", error);
       alert("Failed to create account: " + error.message);
     }
   };
