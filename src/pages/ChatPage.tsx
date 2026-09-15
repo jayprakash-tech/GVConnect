@@ -132,9 +132,9 @@ export function ChatPage() {
       <Navbar />
 
       {/* Header */}
-      <div className="bg-maroon-800 pt-24 pb-6 px-4">
+      <div className="bg-[#800020] pt-24 pb-6 px-4">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl md:text-3xl font-serif font-bold text-gold-500 mb-1">
+          <h1 className="text-2xl md:text-3xl font-serif font-bold text-[#D4AF37] mb-1">
             Batch Main Chat
           </h1>
           <p className="text-white/80 text-sm">
@@ -149,15 +149,15 @@ export function ChatPage() {
         <div className="flex-1 overflow-y-auto mb-4 space-y-4">
           {loading ? (
             <div className="flex items-center justify-center h-full">
-              <div className="text-gray-500">Loading messages...</div>
+              <div className="text-[#666666]">Loading messages...</div>
             </div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center py-16">
-              <MessageCircle className="w-16 h-16 text-gray-300 mb-4" />
-              <p className="text-gray-500 text-lg font-medium">
+              <MessageCircle className="w-16 h-16 text-[#e5e5e5] mb-4" />
+              <p className="text-[#666666] text-lg font-medium">
                 No messages yet
               </p>
-              <p className="text-gray-400 text-sm mt-1">
+              <p className="text-[#999999] text-sm mt-1">
                 Be the first Grizzlian to say hello!
               </p>
             </div>
@@ -175,7 +175,7 @@ export function ChatPage() {
                   <div className={`max-w-[70%] ${isOwnMessage ? 'order-2' : 'order-1'}`}>
                     {/* Sender Name (only for others' messages) */}
                     {!isOwnMessage && (
-                      <p className="text-sm font-bold text-gold-600 mb-1 ml-1">
+                      <p className="text-sm font-bold text-[#D4AF37] mb-1 ml-1">
                         {message.profiles.full_name}
                       </p>
                     )}
@@ -184,15 +184,15 @@ export function ChatPage() {
                     <div
                       className={`rounded-2xl px-4 py-2 ${
                         isOwnMessage
-                          ? 'bg-maroon-800 text-white rounded-br-sm'
-                          : 'bg-white text-gray-800 border border-gray-200 rounded-bl-sm'
+                          ? 'bg-[#800020] text-white rounded-br-sm'
+                          : 'bg-white text-[#1a1a1a] border border-[#e5e5e5] rounded-bl-sm'
                       }`}
                     >
                       <p className="text-sm leading-relaxed">{message.content}</p>
                     </div>
 
                     {/* Timestamp */}
-                    <p className={`text-xs text-gray-400 mt-1 ${isOwnMessage ? 'text-right mr-1' : 'ml-1'}`}>
+                    <p className={`text-xs text-[#999999] mt-1 ${isOwnMessage ? 'text-right mr-1' : 'ml-1'}`}>
                       {formatTime(message.created_at)}
                     </p>
                   </div>
@@ -206,7 +206,7 @@ export function ChatPage() {
         {/* Input Area */}
         <form
           onSubmit={handleSendMessage}
-          className="bg-white border-t border-gray-200 rounded-xl p-4 shadow-sm"
+          className="bg-white border-t border-[#e5e5e5] rounded-xl p-4 shadow-sm"
         >
           <div className="flex gap-3">
             <input
@@ -214,12 +214,12 @@ export function ChatPage() {
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Type a message..."
-              className="flex-1 px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all"
+              className="flex-1 px-4 py-3 border border-[#e5e5e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
             />
             <button
               type="submit"
               disabled={!newMessage.trim()}
-              className="px-6 py-3 bg-maroon-800 text-gold-500 rounded-lg font-semibold hover:bg-maroon-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-6 py-3 bg-[#800020] text-[#D4AF37] rounded-lg font-semibold hover:bg-[#600018] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <Send className="w-4 h-4" />
               Send

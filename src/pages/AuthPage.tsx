@@ -229,7 +229,7 @@ export function AuthPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left Panel - Professional Gradient */}
-      <div className="hidden lg:flex lg:w-2/5 bg-gradient-to-br from-maroon-800 via-maroon-900 to-maroon-950 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-2/5 bg-gradient-to-br from-[#800020] via-[#600018] to-[#800020] relative overflow-hidden">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0" style={{
@@ -253,7 +253,7 @@ export function AuthPage() {
                 e.currentTarget.style.display = 'none';
               }}
             />
-            <h2 className="text-4xl font-serif font-bold text-gold-500 mb-4">
+            <h2 className="text-4xl font-serif font-bold text-[#D4AF37] mb-4">
               Welcome to GVConnect
             </h2>
             <p className="text-white/80 text-lg leading-relaxed max-w-sm">
@@ -266,7 +266,7 @@ export function AuthPage() {
       {/* Right Panel - Form Area */}
       <div className="flex-1 flex flex-col bg-white">
         {/* Mobile Header */}
-        <header className="lg:hidden pt-8 pb-4 px-6 bg-gradient-to-r from-maroon-800 to-maroon-900">
+        <header className="lg:hidden pt-8 pb-4 px-6 bg-gradient-to-r from-[#800020] to-[#600018]">
           <div className="flex flex-col items-center gap-3">
             <img
               src="/gvlogo.png"
@@ -276,7 +276,7 @@ export function AuthPage() {
                 e.currentTarget.style.display = 'none';
               }}
             />
-            <h2 className="text-xl font-serif font-bold text-gold-500">
+            <h2 className="text-xl font-serif font-bold text-[#D4AF37]">
               GVConnect
             </h2>
           </div>
@@ -286,13 +286,13 @@ export function AuthPage() {
         <main className="flex-1 flex flex-col justify-center px-6 py-12 lg:px-12">
           <div className="w-full max-w-md mx-auto">
             {/* Tab Switcher */}
-            <div className="flex gap-2 mb-8 bg-neutral-100 p-1 rounded-xl">
+            <div className="flex gap-2 mb-8 bg-[#fafafa] p-1 rounded-xl">
               <button
                 onClick={() => setActiveTab('signup')}
                 className={`flex-1 py-3 px-4 rounded-lg text-sm font-semibold transition-all ${
                   activeTab === 'signup'
-                    ? 'bg-maroon-800 text-gold-500 shadow-md'
-                    : 'text-neutral-500 hover:text-maroon-800'
+                    ? 'bg-[#800020] text-[#D4AF37] shadow-md'
+                    : 'text-[#666666] hover:text-[#800020]'
                 }`}
               >
                 New User
@@ -301,8 +301,8 @@ export function AuthPage() {
                 onClick={() => setActiveTab('login')}
                 className={`flex-1 py-3 px-4 rounded-lg text-sm font-semibold transition-all ${
                   activeTab === 'login'
-                    ? 'bg-maroon-800 text-gold-500 shadow-md'
-                    : 'text-neutral-500 hover:text-maroon-800'
+                    ? 'bg-[#800020] text-[#D4AF37] shadow-md'
+                    : 'text-[#666666] hover:text-[#800020]'
                 }`}
               >
                 Login
@@ -319,15 +319,15 @@ export function AuthPage() {
               >
                 {/* Step Indicator */}
                 <div className="mb-6">
-                  <p className="text-xs font-semibold tracking-widest uppercase text-gold-600 mb-2">
+                  <p className="text-xs font-semibold tracking-widest uppercase text-[#D4AF37] mb-2">
                     STEP {signupStep === 'email' ? '1' : signupStep === 'otp' ? '2' : '3'} OF 3
                   </p>
-                  <h1 className="text-2xl sm:text-3xl font-serif font-bold text-maroon-800 tracking-tight">
+                  <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#800020] tracking-tight">
                     {signupStep === 'email' && 'Create your account'}
                     {signupStep === 'otp' && 'Verify your email'}
                     {signupStep === 'profile' && 'Complete your profile'}
                   </h1>
-                  <p className="mt-2 text-neutral-600 text-[15px]">
+                  <p className="mt-2 text-[#666666] text-[15px]">
                     {signupStep === 'email' && 'Enter your email to receive a verification code.'}
                     {signupStep === 'otp' && 'Enter the 6-digit code we sent to your email.'}
                     {signupStep === 'profile' && 'Tell us about yourself to join the community.'}
@@ -338,7 +338,7 @@ export function AuthPage() {
                 {signupStep === 'email' && (
                   <form onSubmit={handleSendOTP} className="space-y-5">
                     <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                      <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
                         Email Address
                       </label>
                       <input
@@ -346,7 +346,7 @@ export function AuthPage() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
-                        className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all"
+                        className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
                         placeholder="your@email.com"
                       />
                     </div>
@@ -360,7 +360,7 @@ export function AuthPage() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-gold-500 hover:bg-maroon-700 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-[#800020] text-[#D4AF37] hover:bg-[#600018] active:scale-[0.98] shadow-lg shadow-[#800020]/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
                     >
                       {loading ? 'Sending...' : 'Send Verification Code →'}
                     </button>
@@ -371,13 +371,13 @@ export function AuthPage() {
                 {signupStep === 'otp' && (
                   <form onSubmit={handleVerifyOTP} className="space-y-5">
                     <div className="text-center mb-4">
-                      <p className="text-neutral-600">
-                        We sent a 6-digit code to <span className="font-semibold text-maroon-800">{email}</span>
+                      <p className="text-[#666666]">
+                        We sent a 6-digit code to <span className="font-semibold text-[#800020]">{email}</span>
                       </p>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                      <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
                         Enter Verification Code
                       </label>
                       <input
@@ -386,7 +386,7 @@ export function AuthPage() {
                         onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                         required
                         maxLength={6}
-                        className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all text-center text-2xl tracking-widest"
+                        className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all text-center text-2xl tracking-widest"
                         placeholder="000000"
                       />
                     </div>
@@ -400,21 +400,21 @@ export function AuthPage() {
                     <button
                       type="submit"
                       disabled={loading || otp.length !== 6}
-                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-gold-500 hover:bg-maroon-700 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all"
+                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-[#800020] text-[#D4AF37] hover:bg-[#600018] active:scale-[0.98] shadow-lg shadow-[#800020]/20 disabled:opacity-50 transition-all"
                     >
                       {loading ? 'Verifying...' : 'Verify Code →'}
                     </button>
 
                     <div className="text-center space-y-3">
                       {resendTimer > 0 ? (
-                        <p className="text-sm text-neutral-600">
+                        <p className="text-sm text-[#666666]">
                           Resend in {resendTimer}s
                         </p>
                       ) : (
                         <button
                           type="button"
                           onClick={handleResendOTP}
-                          className="text-sm text-maroon-800 hover:text-maroon-700 font-medium"
+                          className="text-sm text-[#800020] hover:text-[#600018] font-medium"
                         >
                           ↻ Resend Code
                         </button>
@@ -428,7 +428,7 @@ export function AuthPage() {
                           setOtp('');
                           setError('');
                         }}
-                        className="text-sm text-neutral-600 hover:text-neutral-800 block mx-auto"
+                        className="text-sm text-[#666666] hover:text-[#1a1a1a] block mx-auto"
                       >
                         ← Use a different email
                       </button>
@@ -439,14 +439,14 @@ export function AuthPage() {
                 {/* Profile Step */}
                 {signupStep === 'profile' && (
                   <form onSubmit={handleCreateProfile} className="space-y-4">
-                    <div className="bg-maroon-800/10 border-l-4 border-maroon-800 p-4 rounded">
-                      <p className="text-sm text-maroon-800">
+                    <div className="bg-[#800020]/10 border-l-4 border-[#800020] p-4 rounded">
+                      <p className="text-sm text-[#800020]">
                         Email verified: <span className="font-semibold">{verifiedEmail}</span>
                       </p>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                      <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
                         Full Name
                       </label>
                       <input
@@ -454,13 +454,13 @@ export function AuthPage() {
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
                         required
-                        className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all"
+                        className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
                         placeholder="Jay Prakash"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                      <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
                         Admission Number
                       </label>
                       <input
@@ -468,21 +468,21 @@ export function AuthPage() {
                         value={admissionNumber}
                         onChange={(e) => setAdmissionNumber(e.target.value)}
                         required
-                        className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all"
+                        className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
                         placeholder="7552"
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                        <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
                           Class
                         </label>
                         <select
                           value={selectedClass}
                           onChange={(e) => setSelectedClass(e.target.value)}
                           required
-                          className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all"
+                          className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
                         >
                           <option value="">Select</option>
                           <option value="10th">10th</option>
@@ -491,14 +491,14 @@ export function AuthPage() {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                        <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
                           Batch Year
                         </label>
                         <select
                           value={batchYear}
                           onChange={(e) => setBatchYear(e.target.value)}
                           required
-                          className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all"
+                          className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
                         >
                           <option value="">Select</option>
                           {[...Array(10)].map((_, i) => (
@@ -511,7 +511,7 @@ export function AuthPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                      <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
                         Password
                       </label>
                       <input
@@ -520,13 +520,13 @@ export function AuthPage() {
                         onChange={(e) => setPassword(e.target.value)}
                         required
                         minLength={6}
-                        className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all"
+                        className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
                         placeholder="••••••••"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                      <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
                         Confirm Password
                       </label>
                       <input
@@ -535,7 +535,7 @@ export function AuthPage() {
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         required
                         minLength={6}
-                        className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all"
+                        className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
                         placeholder="••••••••"
                       />
                     </div>
@@ -549,7 +549,7 @@ export function AuthPage() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-gold-500 hover:bg-maroon-700 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all"
+                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-[#800020] text-[#D4AF37] hover:bg-[#600018] active:scale-[0.98] shadow-lg shadow-[#800020]/20 disabled:opacity-50 transition-all"
                     >
                       {loading ? 'Creating Account...' : 'Create Account →'}
                     </button>
@@ -566,17 +566,17 @@ export function AuthPage() {
                 transition={{ duration: 0.3 }}
               >
                 <div className="mb-6">
-                  <h1 className="text-2xl sm:text-3xl font-serif font-bold text-maroon-800 tracking-tight">
+                  <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#800020] tracking-tight">
                     Welcome Back!
                   </h1>
-                  <p className="mt-2 text-neutral-600 text-[15px]">
+                  <p className="mt-2 text-[#666666] text-[15px]">
                     Login to your GVConnect account
                   </p>
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-5">
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                    <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
                       Email Address
                     </label>
                     <input
@@ -584,13 +584,13 @@ export function AuthPage() {
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
                       required
-                      className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all"
+                      className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
                       placeholder="your@email.com"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                    <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
                       Password
                     </label>
                     <input
@@ -598,7 +598,7 @@ export function AuthPage() {
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       required
-                      className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all"
+                      className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
                       placeholder="••••••••"
                     />
                   </div>
@@ -612,7 +612,7 @@ export function AuthPage() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-gold-500 hover:bg-maroon-700 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all"
+                    className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-[#800020] text-[#D4AF37] hover:bg-[#600018] active:scale-[0.98] shadow-lg shadow-[#800020]/20 disabled:opacity-50 transition-all"
                   >
                     {loading ? 'Logging in...' : 'Login →'}
                   </button>
@@ -624,7 +624,7 @@ export function AuthPage() {
 
         {/* Footer */}
         <footer className="pb-6 text-center">
-          <p className="text-neutral-500 text-[11px] tracking-wide">
+          <p className="text-[#666666] text-[11px] tracking-wide">
             Grizzly Vidyalya Alumni Network
           </p>
         </footer>

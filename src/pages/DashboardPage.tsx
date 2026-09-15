@@ -103,13 +103,13 @@ export function DashboardPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-maroon-800 via-maroon-800 to-maroon-900 rounded-2xl p-8 mb-8 relative overflow-hidden"
+          className="bg-gradient-to-br from-[#800020] via-[#800020] to-[#600018] rounded-2xl p-8 mb-8 relative overflow-hidden"
           style={{ boxShadow: '0 4px 6px -1px rgba(128, 0, 32, 0.1)' }}
         >
-          <div className="absolute top-0 right-0 w-64 h-64 bg-gold-500/10 rounded-full -translate-y-32 translate-x-32" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/10 rounded-full -translate-y-32 translate-x-32" />
           <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div>
-              <p className="text-gold-500 text-sm font-semibold tracking-widest uppercase mb-2">
+              <p className="text-[#D4AF37] text-sm font-semibold tracking-widest uppercase mb-2">
                 Welcome Back
               </p>
               <h1 className="text-3xl md:text-4xl font-serif font-bold text-white mb-2">
@@ -139,15 +139,15 @@ export function DashboardPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="bg-white rounded-xl p-6 border border-[#f0f0f0] hover:border-gold-500/30 transition-all"
+              className="bg-white rounded-xl p-6 border border-[#f0f0f0] hover:border-[#D4AF37]/30 transition-all"
             >
               <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-maroon-100 rounded-xl flex items-center justify-center">
-                  <stat.icon className="w-6 h-6 text-maroon-800" />
+                <div className="w-12 h-12 bg-[#fff5f7] rounded-xl flex items-center justify-center">
+                  <stat.icon className="w-6 h-6 text-[#800020]" />
                 </div>
               </div>
-              <p className="text-3xl font-bold text-maroon-800 mb-1">{stat.value}</p>
-              <p className="text-neutral-500 text-sm">{stat.label}</p>
+              <p className="text-3xl font-bold text-[#800020] mb-1">{stat.value}</p>
+              <p className="text-[#666666] text-sm">{stat.label}</p>
             </motion.div>
           ))}
         </div>
@@ -160,14 +160,14 @@ export function DashboardPage() {
             transition={{ delay: 0.3 }}
             className="lg:col-span-2 bg-white rounded-xl p-6 border border-[#f0f0f0]"
           >
-            <h2 className="text-xl font-serif font-bold text-maroon-800 mb-6 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-gold-500" />
+            <h2 className="text-xl font-serif font-bold text-[#800020] mb-6 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-[#D4AF37]" />
               Recent Activity
             </h2>
             <div className="text-center py-12">
-              <MessageCircle className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
-              <p className="text-neutral-500 text-sm">No recent activity yet</p>
-              <p className="text-neutral-400 text-xs mt-1">Start connecting with fellow Grizzlians!</p>
+              <MessageCircle className="w-12 h-12 text-[#e5e5e5] mx-auto mb-3" />
+              <p className="text-[#666666] text-sm">No recent activity yet</p>
+              <p className="text-[#999999] text-xs mt-1">Start connecting with fellow Grizzlians!</p>
             </div>
           </motion.div>
 
@@ -178,14 +178,14 @@ export function DashboardPage() {
             transition={{ delay: 0.4 }}
             className="bg-white rounded-xl p-6 border border-[#f0f0f0]"
           >
-            <h2 className="text-xl font-serif font-bold text-maroon-800 mb-6 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-gold-500" />
+            <h2 className="text-xl font-serif font-bold text-[#800020] mb-6 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-[#D4AF37]" />
               Upcoming Events
             </h2>
             <div className="text-center py-12">
-              <Calendar className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
-              <p className="text-neutral-500 text-sm">No upcoming events</p>
-              <p className="text-neutral-400 text-xs mt-1">Stay tuned for alumni reunions!</p>
+              <Calendar className="w-12 h-12 text-[#e5e5e5] mx-auto mb-3" />
+              <p className="text-[#666666] text-sm">No upcoming events</p>
+              <p className="text-[#999999] text-xs mt-1">Stay tuned for alumni reunions!</p>
             </div>
           </motion.div>
         </div>
@@ -197,21 +197,21 @@ export function DashboardPage() {
           transition={{ delay: 0.5 }}
           className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4"
         >
-          <button className="p-6 bg-white rounded-xl border border-[#f0f0f0] hover:border-gold-500/30 transition-all hover:-translate-y-1 text-center group">
-            <Users className="w-8 h-8 text-maroon-800 mx-auto mb-2 group-hover:scale-110 transition-transform" />
-            <p className="font-semibold text-neutral-900 text-sm">Directory</p>
+          <button className="p-6 bg-white rounded-xl border border-[#f0f0f0] hover:border-[#D4AF37]/30 transition-all hover:-translate-y-1 text-center group">
+            <Users className="w-8 h-8 text-[#800020] mx-auto mb-2 group-hover:scale-110 transition-transform" />
+            <p className="font-semibold text-[#1a1a1a] text-sm">Directory</p>
           </button>
-          <button className="p-6 bg-white rounded-xl border border-[#f0f0f0] hover:border-gold-500/30 transition-all hover:-translate-y-1 text-center group">
-            <MessageCircle className="w-8 h-8 text-maroon-800 mx-auto mb-2 group-hover:scale-110 transition-transform" />
-            <p className="font-semibold text-neutral-900 text-sm">Messages</p>
+          <button className="p-6 bg-white rounded-xl border border-[#f0f0f0] hover:border-[#D4AF37]/30 transition-all hover:-translate-y-1 text-center group">
+            <MessageCircle className="w-8 h-8 text-[#800020] mx-auto mb-2 group-hover:scale-110 transition-transform" />
+            <p className="font-semibold text-[#1a1a1a] text-sm">Messages</p>
           </button>
-          <button className="p-6 bg-white rounded-xl border border-[#f0f0f0] hover:border-gold-500/30 transition-all hover:-translate-y-1 text-center group">
-            <Calendar className="w-8 h-8 text-maroon-800 mx-auto mb-2 group-hover:scale-110 transition-transform" />
-            <p className="font-semibold text-neutral-900 text-sm">Events</p>
+          <button className="p-6 bg-white rounded-xl border border-[#f0f0f0] hover:border-[#D4AF37]/30 transition-all hover:-translate-y-1 text-center group">
+            <Calendar className="w-8 h-8 text-[#800020] mx-auto mb-2 group-hover:scale-110 transition-transform" />
+            <p className="font-semibold text-[#1a1a1a] text-sm">Events</p>
           </button>
-          <button className="p-6 bg-white rounded-xl border border-[#f0f0f0] hover:border-gold-500/30 transition-all hover:-translate-y-1 text-center group">
-            <TrendingUp className="w-8 h-8 text-maroon-800 mx-auto mb-2 group-hover:scale-110 transition-transform" />
-            <p className="font-semibold text-neutral-900 text-sm">Activity</p>
+          <button className="p-6 bg-white rounded-xl border border-[#f0f0f0] hover:border-[#D4AF37]/30 transition-all hover:-translate-y-1 text-center group">
+            <TrendingUp className="w-8 h-8 text-[#800020] mx-auto mb-2 group-hover:scale-110 transition-transform" />
+            <p className="font-semibold text-[#1a1a1a] text-sm">Activity</p>
           </button>
         </motion.div>
       </main>
