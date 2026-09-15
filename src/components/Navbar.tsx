@@ -62,7 +62,7 @@ export function Navbar() {
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled ? 'bg-maroon-800 shadow-lg' : 'bg-maroon-800'
+        scrolled ? 'bg-[#800020] shadow-lg' : 'bg-[#800020]'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -80,7 +80,7 @@ export function Navbar() {
               }}
             />
             <div className="flex flex-col">
-              <span className="text-gold-500 font-serif text-2xl font-bold tracking-wide">
+              <span className="text-[#D4AF37] font-serif text-2xl font-bold tracking-wide">
                 GVConnect
               </span>
               <span className="text-white/60 text-xs">Grizzly Vidyalya Alumni</span>
@@ -95,15 +95,15 @@ export function Navbar() {
                 to={link.path}
                 className={`text-sm font-medium transition-all duration-300 relative ${
                   location.pathname === link.path
-                    ? 'text-gold-500'
-                    : 'text-white/90 hover:text-gold-400'
+                    ? 'text-[#D4AF37]'
+                    : 'text-white hover:text-[#D4AF37]'
                 }`}
               >
                 {link.name}
                 {location.pathname === link.path && (
                   <motion.div
                     layoutId="navbar-indicator"
-                    className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gold-500 rounded-full"
+                    className="absolute -bottom-1 left-0 right-0 h-0.5 bg-[#D4AF37] rounded-full"
                   />
                 )}
               </Link>
@@ -169,13 +169,13 @@ export function Navbar() {
               <div className="flex items-center gap-3">
                 <Link
                   to="/auth"
-                  className="px-5 py-2 text-sm font-semibold text-gold-500 border-2 border-gold-500 rounded-full hover:bg-gold-500 hover:text-maroon-800 transition-all duration-300"
+                  className="px-5 py-2 text-sm font-semibold text-[#D4AF37] border-2 border-[#D4AF37] rounded-full hover:bg-[#D4AF37] hover:text-[#800020] transition-all duration-300"
                 >
                   Login
                 </Link>
                 <Link
                   to="/auth"
-                  className="px-5 py-2 text-sm font-semibold bg-gold-500 text-maroon-800 rounded-full hover:bg-gold-400 transition-all duration-300 shadow-md hover:shadow-lg"
+                  className="px-5 py-2 text-sm font-semibold bg-[#D4AF37] text-[#800020] rounded-full hover:bg-[#e6c65c] transition-all duration-300 shadow-md hover:shadow-lg"
                 >
                   Sign Up
                 </Link>
@@ -186,7 +186,7 @@ export function Navbar() {
           {/* Mobile menu button */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden text-gold-500 hover:text-gold-300 transition-colors"
+            className="md:hidden text-[#D4AF37] hover:text-[#e6c65c] transition-colors"
             aria-label="Toggle menu"
           >
             {isOpen ? <X size={28} /> : <Menu size={28} />}
@@ -210,8 +210,8 @@ export function Navbar() {
                     onClick={() => setIsOpen(false)}
                     className={`px-4 py-3 rounded-lg text-sm font-medium transition-all ${
                       location.pathname === link.path
-                        ? 'bg-gold-500/20 text-gold-500'
-                        : 'text-white/90 hover:bg-white/10 hover:text-gold-400'
+                        ? 'bg-[#D4AF37]/20 text-[#D4AF37]'
+                        : 'text-white hover:bg-white/10 hover:text-[#D4AF37]'
                     }`}
                   >
                     {link.name}
@@ -223,7 +223,7 @@ export function Navbar() {
                       <Link
                         to="/dashboard"
                         onClick={() => setIsOpen(false)}
-                        className="px-5 py-3 text-sm font-semibold text-gold-500 border-2 border-gold-500 rounded-full text-center hover:bg-gold-500 hover:text-maroon-800 transition-all"
+                        className="px-5 py-3 text-sm font-semibold text-[#D4AF37] border-2 border-[#D4AF37] rounded-full text-center hover:bg-[#D4AF37] hover:text-[#800020] transition-all"
                       >
                         Dashboard
                       </Link>
@@ -243,14 +243,14 @@ export function Navbar() {
                       <Link
                         to="/auth"
                         onClick={() => setIsOpen(false)}
-                        className="px-5 py-3 text-sm font-semibold text-gold-500 border-2 border-gold-500 rounded-full text-center hover:bg-gold-500 hover:text-maroon-800 transition-all"
+                        className="px-5 py-3 text-sm font-semibold text-[#D4AF37] border-2 border-[#D4AF37] rounded-full text-center hover:bg-[#D4AF37] hover:text-[#800020] transition-all"
                       >
                         Login
                       </Link>
                       <Link
                         to="/auth"
                         onClick={() => setIsOpen(false)}
-                        className="px-5 py-3 text-sm font-semibold bg-gold-500 text-maroon-800 rounded-full text-center hover:bg-gold-400 transition-all"
+                        className="px-5 py-3 text-sm font-semibold bg-[#D4AF37] text-[#800020] rounded-full text-center hover:bg-[#e6c65c] transition-all"
                       >
                         Sign Up
                       </Link>

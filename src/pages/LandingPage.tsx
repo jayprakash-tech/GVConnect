@@ -64,8 +64,8 @@ export function LandingPage() {
           }}
         />
         
-        {/* Dark Overlay */}
-        <div className="absolute inset-0 bg-maroon-800/60" />
+        {/* Dark Maroon Overlay - CRITICAL FOR TEXT VISIBILITY */}
+        <div className="absolute inset-0 bg-[#800020]/70" />
 
         {/* Content */}
         <div className="relative z-10 text-center px-4 max-w-5xl mx-auto">
@@ -73,7 +73,7 @@ export function LandingPage() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-5xl md:text-6xl font-serif font-bold text-gold-500 mb-6 leading-tight"
+            className="text-5xl md:text-7xl font-serif font-bold text-[#D4AF37] mb-6 leading-tight"
             style={{ fontWeight: 700 }}
           >
             Welcome Home, Grizzlian!
@@ -83,7 +83,7 @@ export function LandingPage() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
-            className="text-xl text-white mb-10 leading-relaxed max-w-3xl mx-auto"
+            className="text-xl md:text-2xl text-white mb-10 leading-relaxed max-w-3xl mx-auto"
           >
             Join thousands of Grizzly Vidyalya alumni reconnecting with their roots
           </motion.p>
@@ -97,14 +97,14 @@ export function LandingPage() {
           >
             <Link
               to="/auth"
-              className="px-10 py-4 bg-gold-500 text-maroon-800 rounded-full font-bold text-lg hover:bg-gold-400 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 group inline-flex items-center justify-center gap-3"
+              className="px-10 py-4 bg-[#D4AF37] text-[#800020] rounded-full font-bold text-lg hover:bg-white transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 group inline-flex items-center justify-center gap-3"
             >
               Join the Community
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link
               to="/directory"
-              className="px-10 py-4 border-2 border-gold-500 text-white rounded-full font-bold text-lg hover:bg-gold-500 hover:text-maroon-800 transition-all duration-300 inline-flex items-center justify-center"
+              className="px-10 py-4 border-2 border-[#D4AF37] text-[#D4AF37] rounded-full font-bold text-lg hover:bg-[#D4AF37] hover:text-[#800020] transition-all duration-300 inline-flex items-center justify-center"
             >
               Explore Directory
             </Link>
@@ -116,7 +116,7 @@ export function LandingPage() {
       <section className="py-20 px-4 bg-white" style={{ marginTop: '80px' }}>
         <div className="max-w-7xl mx-auto">
           <motion.div {...fadeInUp} className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-serif font-bold text-maroon-800 mb-4">
+            <h2 className="text-4xl md:text-5xl font-serif font-bold text-[#800020] mb-4">
               Relive the Memories
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
@@ -146,8 +146,8 @@ export function LandingPage() {
                     e.currentTarget.src = `image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='600'%3E%3Crect fill='%23800020' width='800' height='600'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='serif' font-size='24' fill='%23D4AF37'%3E${image.title}%3C/text%3E%3C/svg%3E`;
                   }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-maroon-900/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-6">
-                  <h3 className="text-gold-500 text-xl font-serif font-bold">
+                <div className="absolute inset-0 bg-gradient-to-t from-[#800020]/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-6">
+                  <h3 className="text-[#D4AF37] text-xl font-serif font-bold">
                     {image.title}
                   </h3>
                 </div>
@@ -161,7 +161,7 @@ export function LandingPage() {
       <section className="py-20 px-4" style={{ backgroundColor: '#fff5f7' }}>
         <div className="max-w-7xl mx-auto">
           <motion.div {...fadeInUp} className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-serif font-bold text-maroon-800 mb-4">
+            <h2 className="text-4xl md:text-5xl font-serif font-bold text-[#800020] mb-4">
               Connect, Share, Grow
             </h2>
           </motion.div>
@@ -172,11 +172,11 @@ export function LandingPage() {
                 key={index}
                 {...fadeInUp}
                 transition={{ duration: 0.6, delay: index * 0.1 }}
-                className="bg-white rounded-lg p-8 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group border-t-4 border-gold-500"
+                className="bg-white rounded-lg p-8 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group border-t-4 border-[#D4AF37]"
                 style={{ boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
               >
-                <feature.icon className="w-12 h-12 text-gold-500 mb-6 group-hover:scale-110 transition-transform duration-300" />
-                <h3 className="text-xl font-serif font-bold text-maroon-800 mb-3">
+                <feature.icon className="w-12 h-12 text-[#D4AF37] mb-6 group-hover:scale-110 transition-transform duration-300" />
+                <h3 className="text-xl font-serif font-bold text-[#800020] mb-3">
                   {feature.title}
                 </h3>
                 <p className="text-gray-600 leading-relaxed">
@@ -192,7 +192,7 @@ export function LandingPage() {
       <section className="py-20 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           <motion.div {...fadeInUp} className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-serif font-bold text-maroon-800 mb-4">
+            <h2 className="text-4xl md:text-5xl font-serif font-bold text-[#800020] mb-4">
               Why Join GVConnect?
             </h2>
           </motion.div>
@@ -223,7 +223,7 @@ export function LandingPage() {
                   transition={{ duration: 0.5, delay: index * 0.1 }}
                   className="flex items-start gap-3"
                 >
-                  <CheckCircle className="w-6 h-6 text-gold-500 flex-shrink-0 mt-0.5" />
+                  <CheckCircle className="w-6 h-6 text-[#D4AF37] flex-shrink-0 mt-0.5" />
                   <p className="text-lg text-gray-700">{point}</p>
                 </motion.div>
               ))}
@@ -233,9 +233,9 @@ export function LandingPage() {
       </section>
 
       {/* CTA Banner */}
-      <section className="py-20 px-4 bg-maroon-800">
+      <section className="py-20 px-4 bg-[#800020]">
         <motion.div {...fadeInUp} className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl md:text-5xl font-serif font-bold text-gold-500 mb-6">
+          <h2 className="text-4xl md:text-5xl font-serif font-bold text-[#D4AF37] mb-6">
             Ready to Reconnect?
           </h2>
           <p className="text-xl text-white mb-10 max-w-2xl mx-auto">
@@ -243,7 +243,7 @@ export function LandingPage() {
           </p>
           <Link
             to="/auth"
-            className="inline-flex items-center gap-3 px-12 py-5 bg-gold-500 text-maroon-800 rounded-full font-bold text-lg hover:bg-gold-400 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 group"
+            className="inline-flex items-center gap-3 px-12 py-5 bg-[#D4AF37] text-[#800020] rounded-full font-bold text-lg hover:bg-[#e6c65c] transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 group"
           >
             Join Us
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -269,7 +269,7 @@ export function LandingPage() {
                   }}
                 />
                 <div className="flex flex-col">
-                  <h3 className="text-xl font-bold text-gold-500 leading-tight">GVConnect</h3>
+                  <h3 className="text-xl font-bold text-[#D4AF37] leading-tight">GVConnect</h3>
                   <p className="text-sm text-white/90 leading-tight">Telaiya Dam, Koderma</p>
                 </div>
               </div>
@@ -280,34 +280,34 @@ export function LandingPage() {
 
             {/* Column 2: Quick Links */}
             <div>
-              <h4 className="text-gold-500 font-semibold mb-4">Quick Links</h4>
+              <h4 className="text-[#D4AF37] font-semibold mb-4">Quick Links</h4>
               <ul className="space-y-2">
-                <li><Link to="/" className="text-white/70 hover:text-gold-400 transition-colors text-sm">Home</Link></li>
-                <li><Link to="/directory" className="text-white/70 hover:text-gold-400 transition-colors text-sm">Directory</Link></li>
-                <li><Link to="/events" className="text-white/70 hover:text-gold-400 transition-colors text-sm">Events</Link></li>
-                <li><Link to="/about" className="text-white/70 hover:text-gold-400 transition-colors text-sm">About</Link></li>
+                <li><Link to="/" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">Home</Link></li>
+                <li><Link to="/directory" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">Directory</Link></li>
+                <li><Link to="/events" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">Events</Link></li>
+                <li><Link to="/about" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">About</Link></li>
               </ul>
             </div>
 
             {/* Column 3: Features */}
             <div>
-              <h4 className="text-gold-500 font-semibold mb-4">Features</h4>
+              <h4 className="text-[#D4AF37] font-semibold mb-4">Features</h4>
               <ul className="space-y-2">
-                <li><a href="#" className="text-white/70 hover:text-gold-400 transition-colors text-sm">Group Chat</a></li>
-                <li><a href="#" className="text-white/70 hover:text-gold-400 transition-colors text-sm">Alumni Directory</a></li>
-                <li><a href="#" className="text-white/70 hover:text-gold-400 transition-colors text-sm">Events</a></li>
-                <li><a href="#" className="text-white/70 hover:text-gold-400 transition-colors text-sm">News & Updates</a></li>
+                <li><a href="#" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">Group Chat</a></li>
+                <li><a href="#" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">Alumni Directory</a></li>
+                <li><a href="#" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">Events</a></li>
+                <li><a href="#" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">News & Updates</a></li>
               </ul>
             </div>
 
             {/* Column 4: Contact */}
             <div>
-              <h4 className="text-gold-500 font-semibold mb-4">Contact</h4>
+              <h4 className="text-[#D4AF37] font-semibold mb-4">Contact</h4>
               <ul className="space-y-2">
-                <li><a href="mailto:info@gvconnect.com" className="text-white/70 hover:text-gold-400 transition-colors text-sm">info@gvconnect.com</a></li>
-                <li><a href="#" className="text-white/70 hover:text-gold-400 transition-colors text-sm">Facebook</a></li>
-                <li><a href="#" className="text-white/70 hover:text-gold-400 transition-colors text-sm">Instagram</a></li>
-                <li><a href="#" className="text-white/70 hover:text-gold-400 transition-colors text-sm">LinkedIn</a></li>
+                <li><a href="mailto:info@gvconnect.com" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">info@gvconnect.com</a></li>
+                <li><a href="#" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">Facebook</a></li>
+                <li><a href="#" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">Instagram</a></li>
+                <li><a href="#" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">LinkedIn</a></li>
               </ul>
             </div>
           </div>
