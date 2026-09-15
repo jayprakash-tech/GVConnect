@@ -100,20 +100,31 @@ export function AuthPage() {
         clearInterval(timerInterval);
         setTimerInterval(null);
       }
+
+      const normalizedEmail = email.trim().toLowerCase();
+      console.log('Attempting to send OTP to:', normalizedEmail);
       
-      const { error } = await supabase.auth.signInWithOtp({
-        email: email.trim().toLowerCase(),
+      const { data, error } = await supabase.auth.signInWithOtp({
+        email: normalizedEmail,
         options: {
-          shouldCreateUser: false
+          emailRedirectTo: `${window.location.origin}/auth`
         }
       });
 
       if (error) {
         console.error('OTP Error:', error);
+        console.error('Error details:', {
+          message: error.message,
+          status: error.status,
+          name: error.name
+        });
         throw error;
       }
 
-      console.log('OTP sent to:', email);
+      console.log('OTP sent successfully!');
+      console.log('Response data:', data);
+      console.log('Email:', normalizedEmail);
+      
       setSignupStep('otp');
       setResendTimer(30);
       
@@ -281,20 +292,31 @@ export function AuthPage() {
     // Resend OTP
     try {
       setLoading(true);
+
+      const normalizedEmail = email.trim().toLowerCase();
+      console.log('Attempting to resend OTP to:', normalizedEmail);
       
-      const { error } = await supabase.auth.signInWithOtp({
-        email: email.trim().toLowerCase(),
+      const { data, error } = await supabase.auth.signInWithOtp({
+        email: normalizedEmail,
         options: {
-          shouldCreateUser: false
+          emailRedirectTo: `${window.location.origin}/auth`
         }
       });
 
       if (error) {
         console.error('Resend OTP Error:', error);
+        console.error('Error details:', {
+          message: error.message,
+          status: error.status,
+          name: error.name
+        });
         throw error;
       }
 
-      console.log('OTP resent to:', email);
+      console.log('OTP resent successfully!');
+      console.log('Response data:', data);
+      console.log('Email:', normalizedEmail);
+      
       setResendTimer(30);
       
       // Clear existing timer if any
