@@ -61,18 +61,23 @@ export function AuthPage() {
 
   // Persist signup flow state to sessionStorage (survives page refresh)
   useEffect(() => {
+    console.log("=== State Update ===");
     console.log("Current step:", signupStep);
     console.log("Email state:", email);
     console.log("Verified email:", verifiedEmail);
+    console.log("Mode:", mode);
     
     sessionStorage.setItem('gv_signup_step', signupStep);
     sessionStorage.setItem('gv_verified_email', verifiedEmail);
     sessionStorage.setItem('gv_auth_mode', mode);
     
+    console.log("Saved to sessionStorage - verifiedEmail:", verifiedEmail);
+    
     // Clear storage when flow completes or user switches to login
     if (mode === 'login' || signupStep === 'email') {
       // Only clear if we're not in the middle of a flow
       if (signupStep === 'email' && !verifiedEmail) {
+        console.log("Clearing sessionStorage - fresh start");
         sessionStorage.removeItem('gv_signup_step');
         sessionStorage.removeItem('gv_verified_email');
         sessionStorage.removeItem('gv_auth_mode');
@@ -102,6 +107,11 @@ export function AuthPage() {
 
     console.log("Email input changed to:", email);
     console.log("Sending OTP to:", email);
+    console.log("Clearing old verifiedEmail before starting fresh");
+
+    // CRITICAL: Clear the old verified email before starting fresh
+    setVerifiedEmail('');
+    sessionStorage.removeItem('gv_verified_email');
 
     setLoading(true);
     setError('');
@@ -153,6 +163,7 @@ export function AuthPage() {
 
     // OTP verified - store email
     const verifiedEmailValue = email.trim().toLowerCase();
+    console.log("OTP verified successfully! Setting verifiedEmail to:", verifiedEmailValue);
     setVerifiedEmail(verifiedEmailValue);
 
     // CRITICAL: Sign out immediately to prevent auto-login
@@ -327,6 +338,7 @@ export function AuthPage() {
             <div className="flex gap-2 mb-8 bg-neutral-100 p-1 rounded-xl">
               <button
                 onClick={() => { 
+                  console.log("Switching to New User tab - clearing all states");
                   setMode('signup'); 
                   setError('');
                   setEmail('');
@@ -349,6 +361,7 @@ export function AuthPage() {
               </button>
               <button
                 onClick={() => { 
+                  console.log("Switching to Login tab - clearing all states");
                   setMode('login'); 
                   setError('');
                   setEmail('');
