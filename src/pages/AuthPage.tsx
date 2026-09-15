@@ -27,12 +27,29 @@ export function AuthPage() {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
-  // Redirect if already logged in
+  // Redirect if already logged in AND has completed profile
   useEffect(() => {
-    if (user) {
-      navigate('/dashboard');
-    }
-  }, [user, navigate]);
+    const checkProfileAndRedirect = async () => {
+      if (user && activeTab === 'login') {
+        // Only redirect if user is on login tab (not in middle of signup)
+        navigate('/dashboard');
+      } else if (user && activeTab === 'signup' && signupStep === 'email') {
+        // If user is logged in but on signup email step, check if they have a profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', user.id)
+          .maybeSingle();
+        
+        // Only redirect if profile exists (completed signup)
+        if (profile) {
+          navigate('/dashboard');
+        }
+      }
+    };
+    
+    checkProfileAndRedirect();
+  }, [user, navigate, activeTab, signupStep]);
 
   // Clear all states when switching tabs
   useEffect(() => {
