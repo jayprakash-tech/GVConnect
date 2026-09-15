@@ -76,6 +76,32 @@ export function AuthPage() {
     }
   }, [activeTab]);
 
+  // Clear invalid sessions on mount (fixes cache issue for deleted accounts)
+  useEffect(() => {
+    const clearInvalidSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        // Check if user still exists in database
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', session.user.id)
+          .maybeSingle();
+        
+        // If profile doesn't exist or there's an error, clear the session
+        if (error || !profile) {
+          console.log('Clearing invalid session for deleted account');
+          await supabase.auth.signOut();
+          // Force reload to clear all cached state
+          window.location.reload();
+        }
+      }
+    };
+    
+    clearInvalidSession();
+  }, []);
+
   // Cleanup timer on unmount
   useEffect(() => {
     return () => {
@@ -276,6 +302,36 @@ export function AuthPage() {
       
     } catch (err: any) {
       setError(err.message || 'Failed to login');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Forgot password handler
+  const handleForgotPassword = async () => {
+    if (!loginEmail) {
+      setError('Please enter your email address first');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(loginEmail, {
+        redirectTo: `${window.location.origin}/auth`
+      });
+
+      if (error) {
+        console.error('Reset Password Error:', error);
+        throw error;
+      }
+
+      setError('');
+      alert('Password reset link sent! Check your email inbox.');
+      
+    } catch (err: any) {
+      setError(err.message || 'Failed to send reset link');
     } finally {
       setLoading(false);
     }
@@ -721,6 +777,16 @@ export function AuthPage() {
                       className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
                       placeholder="••••••••"
                     />
+                    <div className="mt-2 text-right">
+                      <button
+                        type="button"
+                        onClick={handleForgotPassword}
+                        disabled={loading || !loginEmail}
+                        className="text-sm text-[#D4AF37] hover:text-[#b8952d] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Forgot Password?
+                      </button>
+                    </div>
                   </div>
                   
                   {error && (
