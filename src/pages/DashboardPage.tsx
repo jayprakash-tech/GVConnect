@@ -14,7 +14,7 @@ interface Profile {
 }
 
 export function DashboardPage() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [connections, setConnections] = useState<number>(0);
@@ -84,7 +84,7 @@ export function DashboardPage() {
   }, [user]);
 
   const handleSignOut = async () => {
-    await signOut();
+    await supabase.auth.signOut();
     navigate('/');
   };
 
