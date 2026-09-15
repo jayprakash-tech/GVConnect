@@ -22,6 +22,7 @@ export function AuthPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
+  const [timerInterval, setTimerInterval] = useState<any>(null);
 
   // Login state
   const [loginEmail, setLoginEmail] = useState('');
@@ -66,7 +67,23 @@ export function AuthPage() {
     setBatchYear('');
     setLoginEmail('');
     setLoginPassword('');
+    setResendTimer(0);
+    
+    // Clear timer interval
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      setTimerInterval(null);
+    }
   }, [activeTab]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+      }
+    };
+  }, [timerInterval]);
 
   // STEP 1: Send OTP
   const handleSendOTP = async (e: React.FormEvent) => {
@@ -76,11 +93,18 @@ export function AuthPage() {
 
     try {
       setVerifiedEmail('');
+      setOtp(''); // Clear any previous OTP
+      
+      // Clear existing timer if any
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        setTimerInterval(null);
+      }
       
       const { error } = await supabase.auth.signInWithOtp({
-        email: email,
+        email: email.trim().toLowerCase(),
         options: {
-          emailRedirectTo: window.location.origin + '/auth'
+          shouldCreateUser: false
         }
       });
 
@@ -93,18 +117,23 @@ export function AuthPage() {
       setSignupStep('otp');
       setResendTimer(30);
       
-      const timer = setInterval(() => {
+      // Start countdown timer
+      const interval = setInterval(() => {
         setResendTimer((prev) => {
           if (prev <= 1) {
-            clearInterval(timer);
+            clearInterval(interval);
+            setTimerInterval(null);
             return 0;
           }
           return prev - 1;
         });
       }, 1000);
+      
+      setTimerInterval(interval);
 
     } catch (err: any) {
-      setError(err.message || 'Failed to send OTP');
+      console.error('Send OTP failed:', err);
+      setError(err.message || 'Failed to send OTP. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -113,13 +142,20 @@ export function AuthPage() {
   // STEP 2: Verify OTP
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate OTP before sending
+    if (!otp || otp.length !== 6) {
+      setError('Please enter the complete 6-digit code');
+      return;
+    }
+    
     setError('');
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.verifyOtp({
-        email: email,
-        token: otp,
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: email.trim().toLowerCase(),
+        token: otp.trim(),
         type: 'email'
       });
 
@@ -128,12 +164,26 @@ export function AuthPage() {
         throw error;
       }
 
+      if (!data || !data.session) {
+        throw new Error('Verification failed. Please try again.');
+      }
+
       console.log('OTP verified! Email:', email);
-      setVerifiedEmail(email);
+      setVerifiedEmail(email.trim().toLowerCase());
       setSignupStep('profile');
       
     } catch (err: any) {
-      setError(err.message || 'Invalid OTP');
+      console.error('OTP verification failed:', err);
+      const errorMessage = err.message || 'Invalid OTP code';
+      
+      // Provide more specific error messages
+      if (errorMessage.includes('expired')) {
+        setError('OTP code has expired. Please request a new code.');
+      } else if (errorMessage.includes('invalid')) {
+        setError('Invalid OTP code. Please check and try again.');
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -223,7 +273,55 @@ export function AuthPage() {
   // Resend OTP
   const handleResendOTP = async () => {
     if (resendTimer > 0) return;
-    await handleSendOTP({ preventDefault: () => {} } as React.FormEvent);
+    
+    // Clear current OTP
+    setOtp('');
+    setError('');
+    
+    // Resend OTP
+    try {
+      setLoading(true);
+      
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim().toLowerCase(),
+        options: {
+          shouldCreateUser: false
+        }
+      });
+
+      if (error) {
+        console.error('Resend OTP Error:', error);
+        throw error;
+      }
+
+      console.log('OTP resent to:', email);
+      setResendTimer(30);
+      
+      // Clear existing timer if any
+      if (timerInterval) {
+        clearInterval(timerInterval);
+      }
+      
+      // Start new countdown timer
+      const interval = setInterval(() => {
+        setResendTimer((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            setTimerInterval(null);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      setTimerInterval(interval);
+      
+    } catch (err: any) {
+      console.error('Resend OTP failed:', err);
+      setError(err.message || 'Failed to resend OTP. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
