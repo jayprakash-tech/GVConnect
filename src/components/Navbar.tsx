@@ -116,10 +116,10 @@ export function Navbar() {
                   onClick={() => setShowProfileDropdown(!showProfileDropdown)}
                   className="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-white/10 transition-all duration-300"
                 >
-                  <div className="w-9 h-9 rounded-full bg-gold-500 flex items-center justify-center text-maroon-800 font-bold text-sm">
+                  <div className="w-9 h-9 rounded-full bg-[#D4AF37] flex items-center justify-center text-[#800020] font-bold text-sm">
                     {getUserInitials()}
                   </div>
-                  <ChevronDown className="w-4 h-4 text-gold-500" />
+                  <ChevronDown className="w-4 h-4 text-[#D4AF37]" />
                 </button>
 
                 {/* Profile Dropdown */}
