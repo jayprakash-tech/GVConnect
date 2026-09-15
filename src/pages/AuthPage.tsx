@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { supabase } from '../utils/supabase/client';
 import { useAuth } from '../context/AuthContext';
 
@@ -26,12 +27,29 @@ export function AuthPage() {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
-  // Redirect if already logged in
+  // Redirect if already logged in AND has completed profile
   useEffect(() => {
-    if (user) {
-      navigate('/dashboard');
-    }
-  }, [user, navigate]);
+    const checkProfileAndRedirect = async () => {
+      if (user && activeTab === 'login') {
+        // Only redirect if user is on login tab (not in middle of signup)
+        navigate('/dashboard');
+      } else if (user && activeTab === 'signup' && signupStep === 'email') {
+        // If user is logged in but on signup email step, check if they have a profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', user.id)
+          .maybeSingle();
+        
+        // Only redirect if profile exists (completed signup)
+        if (profile) {
+          navigate('/dashboard');
+        }
+      }
+    };
+    
+    checkProfileAndRedirect();
+  }, [user, navigate, activeTab, signupStep]);
 
   // Clear all states when switching tabs
   useEffect(() => {
@@ -57,7 +75,6 @@ export function AuthPage() {
     setLoading(true);
 
     try {
-      // Clear any old verified email
       setVerifiedEmail('');
       
       const { error } = await supabase.auth.signInWithOtp({
@@ -76,7 +93,6 @@ export function AuthPage() {
       setSignupStep('otp');
       setResendTimer(30);
       
-      // Start countdown timer
       const timer = setInterval(() => {
         setResendTimer((prev) => {
           if (prev <= 1) {
@@ -101,7 +117,7 @@ export function AuthPage() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.verifyOtp({
+      const { error } = await supabase.auth.verifyOtp({
         email: email,
         token: otp,
         type: 'email'
@@ -136,7 +152,6 @@ export function AuthPage() {
     }
 
     try {
-      // Update the user with password
       const { data: updateData, error: updateError } = await supabase.auth.updateUser({
         password: password
       });
@@ -146,8 +161,7 @@ export function AuthPage() {
         throw updateError;
       }
 
-      // Insert profile into database
-      const userId = updateData.user?.id;
+      const userId = updateData?.user?.id;
       if (!userId) throw new Error('No user ID');
 
       const { error: profileError } = await supabase
@@ -212,333 +226,408 @@ export function AuthPage() {
     await handleSendOTP({ preventDefault: () => {} } as React.FormEvent);
   };
 
-  // Render functions for each step
-  const renderEmailStep = () => (
-    <form onSubmit={handleSendOTP} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Email Address
-        </label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-[#D4AF37]"
-          placeholder="your@email.com"
-        />
-      </div>
-      
-      {error && (
-        <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
-          {error}
-        </div>
-      )}
-
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full bg-[#800020] text-[#D4AF37] py-3 rounded-lg font-semibold hover:bg-[#600018] transition-colors disabled:opacity-50"
-      >
-        {loading ? 'Sending...' : 'Send Verification Code →'}
-      </button>
-    </form>
-  );
-
-  const renderOTPStep = () => (
-    <form onSubmit={handleVerifyOTP} className="space-y-4">
-      <div className="text-center">
-        <p className="text-gray-600 mb-2">
-          We sent a 6-digit code to <span className="font-semibold">{email}</span>
-        </p>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Enter Verification Code
-        </label>
-        <input
-          type="text"
-          value={otp}
-          onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-          required
-          maxLength={6}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-[#D4AF37] text-center text-2xl tracking-widest"
-          placeholder="000000"
-        />
-      </div>
-      
-      {error && (
-        <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
-          {error}
-        </div>
-      )}
-
-      <button
-        type="submit"
-        disabled={loading || otp.length !== 6}
-        className="w-full bg-[#800020] text-[#D4AF37] py-3 rounded-lg font-semibold hover:bg-[#600018] transition-colors disabled:opacity-50"
-      >
-        {loading ? 'Verifying...' : 'Verify Code →'}
-      </button>
-
-      <div className="text-center space-y-2">
-        {resendTimer > 0 ? (
-          <p className="text-sm text-gray-600">
-            Resend in {resendTimer}s
-          </p>
-        ) : (
-          <button
-            type="button"
-            onClick={handleResendOTP}
-            className="text-sm text-[#800020] hover:text-[#600018] font-medium"
-          >
-            ↻ Resend Code
-          </button>
-        )}
-        
-        <button
-          type="button"
-          onClick={() => {
-            setSignupStep('email');
-            setEmail('');
-            setOtp('');
-            setError('');
-          }}
-          className="text-sm text-gray-600 hover:text-gray-800 block mx-auto"
-        >
-          ← Use a different email
-        </button>
-      </div>
-    </form>
-  );
-
-  const renderProfileStep = () => (
-    <form onSubmit={handleCreateProfile} className="space-y-4">
-      <div className="bg-[#800020] bg-opacity-10 border-l-4 border-[#800020] p-4 rounded">
-        <p className="text-sm text-[#800020]">
-          Email verified: <span className="font-semibold">{verifiedEmail}</span>
-        </p>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Full Name
-        </label>
-        <input
-          type="text"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          required
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-[#D4AF37]"
-          placeholder="Jay Prakash"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Admission Number
-        </label>
-        <input
-          type="text"
-          value={admissionNumber}
-          onChange={(e) => setAdmissionNumber(e.target.value)}
-          required
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-[#D4AF37]"
-          placeholder="7552"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Class
-          </label>
-          <select
-            value={selectedClass}
-            onChange={(e) => setSelectedClass(e.target.value)}
-            required
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-[#D4AF37]"
-          >
-            <option value="">Select</option>
-            <option value="10th">10th</option>
-            <option value="12th">12th</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Batch Year
-          </label>
-          <select
-            value={batchYear}
-            onChange={(e) => setBatchYear(e.target.value)}
-            required
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-[#D4AF37]"
-          >
-            <option value="">Select</option>
-            {[...Array(10)].map((_, i) => (
-              <option key={i} value={(2026 - i).toString()}>
-                {2026 - i}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Password
-        </label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          minLength={6}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-[#D4AF37]"
-          placeholder="••••••••"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Confirm Password
-        </label>
-        <input
-          type="password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          required
-          minLength={6}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-[#D4AF37]"
-          placeholder="••••••••"
-        />
-      </div>
-      
-      {error && (
-        <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
-          {error}
-        </div>
-      )}
-
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full bg-[#800020] text-[#D4AF37] py-3 rounded-lg font-semibold hover:bg-[#600018] transition-colors disabled:opacity-50"
-      >
-        {loading ? 'Creating Account...' : 'Create Account →'}
-      </button>
-    </form>
-  );
-
-  const renderLoginForm = () => (
-    <form onSubmit={handleLogin} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Email Address
-        </label>
-        <input
-          type="email"
-          value={loginEmail}
-          onChange={(e) => setLoginEmail(e.target.value)}
-          required
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-[#D4AF37]"
-          placeholder="your@email.com"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Password
-        </label>
-        <input
-          type="password"
-          value={loginPassword}
-          onChange={(e) => setLoginPassword(e.target.value)}
-          required
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-[#D4AF37]"
-          placeholder="••••••••"
-        />
-      </div>
-      
-      {error && (
-        <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
-          {error}
-        </div>
-      )}
-
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full bg-[#800020] text-[#D4AF37] py-3 rounded-lg font-semibold hover:bg-[#600018] transition-colors disabled:opacity-50"
-      >
-        {loading ? 'Logging in...' : 'Login →'}
-      </button>
-    </form>
-  );
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-md mx-auto pt-20 px-4">
-        {/* Tab Switcher */}
-        <div className="bg-white rounded-lg p-1 mb-6 flex">
-          <button
-            onClick={() => setActiveTab('signup')}
-            className={`flex-1 py-2 rounded-md font-medium transition-all ${
-              activeTab === 'signup'
-                ? 'bg-[#800020] text-[#D4AF37]'
-                : 'text-gray-600 hover:text-gray-800'
-            }`}
-          >
-            New User
-          </button>
-          <button
-            onClick={() => setActiveTab('login')}
-            className={`flex-1 py-2 rounded-md font-medium transition-all ${
-              activeTab === 'login'
-                ? 'bg-[#800020] text-[#D4AF37]'
-                : 'text-gray-600 hover:text-gray-800'
-            }`}
-          >
-            Login
-          </button>
+    <div className="min-h-screen flex">
+      {/* Left Panel - Professional Gradient */}
+      <div className="hidden lg:flex lg:w-2/5 bg-gradient-to-br from-maroon-800 via-maroon-900 to-maroon-950 relative overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{
+            backgroundImage: 'radial-gradient(circle at 2px 2px, #D4AF37 1px, transparent 0)',
+            backgroundSize: '40px 40px',
+          }} />
         </div>
 
         {/* Content */}
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          {activeTab === 'signup' ? (
-            <>
-              <div className="mb-6">
-                <p className="text-sm text-[#800020] font-semibold mb-1">
-                  STEP {signupStep === 'email' ? '1' : signupStep === 'otp' ? '2' : '3'} OF 3
-                </p>
-                <h2 className="text-3xl font-bold text-[#800020]">
-                  {signupStep === 'email' && 'Create your account'}
-                  {signupStep === 'otp' && 'Verify your email'}
-                  {signupStep === 'profile' && 'Complete your profile'}
-                </h2>
-                <p className="text-gray-600 mt-2">
-                  {signupStep === 'email' && 'Enter your email to receive a verification code.'}
-                  {signupStep === 'otp' && 'Enter the 6-digit code we sent to your email.'}
-                  {signupStep === 'profile' && 'Tell us about yourself to join the community.'}
-                </p>
-              </div>
-
-              {signupStep === 'email' && renderEmailStep()}
-              {signupStep === 'otp' && renderOTPStep()}
-              {signupStep === 'profile' && renderProfileStep()}
-            </>
-          ) : (
-            <>
-              <div className="mb-6">
-                <h2 className="text-3xl font-bold text-[#800020]">Welcome Back!</h2>
-                <p className="text-gray-600 mt-2">Login to your GVConnect account</p>
-              </div>
-              {renderLoginForm()}
-            </>
-          )}
+        <div className="relative z-10 flex flex-col items-center justify-center w-full p-12 text-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <img
+              src="/gvlogo.png"
+              alt="GVConnect Logo"
+              className="w-32 h-32 mx-auto mb-8"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+            <h2 className="text-4xl font-serif font-bold text-gold-500 mb-4">
+              Welcome to GVConnect
+            </h2>
+            <p className="text-white/80 text-lg leading-relaxed max-w-sm">
+              Your journey back to Grizzly Vidyalya starts here
+            </p>
+          </motion.div>
         </div>
+      </div>
+
+      {/* Right Panel - Form Area */}
+      <div className="flex-1 flex flex-col bg-white">
+        {/* Mobile Header */}
+        <header className="lg:hidden pt-8 pb-4 px-6 bg-gradient-to-r from-maroon-800 to-maroon-900">
+          <div className="flex flex-col items-center gap-3">
+            <img
+              src="/gvlogo.png"
+              alt="GVConnect Logo"
+              className="w-16 h-16"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+            <h2 className="text-xl font-serif font-bold text-gold-500">
+              GVConnect
+            </h2>
+          </div>
+        </header>
+
+        {/* Main Form Area */}
+        <main className="flex-1 flex flex-col justify-center px-6 py-12 lg:px-12">
+          <div className="w-full max-w-md mx-auto">
+            {/* Tab Switcher */}
+            <div className="flex gap-2 mb-8 bg-neutral-100 p-1 rounded-xl">
+              <button
+                onClick={() => setActiveTab('signup')}
+                className={`flex-1 py-3 px-4 rounded-lg text-sm font-semibold transition-all ${
+                  activeTab === 'signup'
+                    ? 'bg-maroon-800 text-gold-500 shadow-md'
+                    : 'text-neutral-500 hover:text-maroon-800'
+                }`}
+              >
+                New User
+              </button>
+              <button
+                onClick={() => setActiveTab('login')}
+                className={`flex-1 py-3 px-4 rounded-lg text-sm font-semibold transition-all ${
+                  activeTab === 'login'
+                    ? 'bg-maroon-800 text-gold-500 shadow-md'
+                    : 'text-neutral-500 hover:text-maroon-800'
+                }`}
+              >
+                Login
+              </button>
+            </div>
+
+            {/* Signup Flow */}
+            {activeTab === 'signup' && (
+              <motion.div
+                key={signupStep}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                {/* Step Indicator */}
+                <div className="mb-6">
+                  <p className="text-xs font-semibold tracking-widest uppercase text-gold-600 mb-2">
+                    STEP {signupStep === 'email' ? '1' : signupStep === 'otp' ? '2' : '3'} OF 3
+                  </p>
+                  <h1 className="text-2xl sm:text-3xl font-serif font-bold text-maroon-800 tracking-tight">
+                    {signupStep === 'email' && 'Create your account'}
+                    {signupStep === 'otp' && 'Verify your email'}
+                    {signupStep === 'profile' && 'Complete your profile'}
+                  </h1>
+                  <p className="mt-2 text-neutral-600 text-[15px]">
+                    {signupStep === 'email' && 'Enter your email to receive a verification code.'}
+                    {signupStep === 'otp' && 'Enter the 6-digit code we sent to your email.'}
+                    {signupStep === 'profile' && 'Tell us about yourself to join the community.'}
+                  </p>
+                </div>
+
+                {/* Email Step */}
+                {signupStep === 'email' && (
+                  <form onSubmit={handleSendOTP} className="space-y-5">
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                        Email Address
+                      </label>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all"
+                        placeholder="your@email.com"
+                      />
+                    </div>
+                    
+                    {error && (
+                      <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
+                        {error}
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-gold-500 hover:bg-maroon-700 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                    >
+                      {loading ? 'Sending...' : 'Send Verification Code →'}
+                    </button>
+                  </form>
+                )}
+
+                {/* OTP Step */}
+                {signupStep === 'otp' && (
+                  <form onSubmit={handleVerifyOTP} className="space-y-5">
+                    <div className="text-center mb-4">
+                      <p className="text-neutral-600">
+                        We sent a 6-digit code to <span className="font-semibold text-maroon-800">{email}</span>
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                        Enter Verification Code
+                      </label>
+                      <input
+                        type="text"
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        required
+                        maxLength={6}
+                        className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all text-center text-2xl tracking-widest"
+                        placeholder="000000"
+                      />
+                    </div>
+                    
+                    {error && (
+                      <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
+                        {error}
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={loading || otp.length !== 6}
+                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-gold-500 hover:bg-maroon-700 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all"
+                    >
+                      {loading ? 'Verifying...' : 'Verify Code →'}
+                    </button>
+
+                    <div className="text-center space-y-3">
+                      {resendTimer > 0 ? (
+                        <p className="text-sm text-neutral-600">
+                          Resend in {resendTimer}s
+                        </p>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleResendOTP}
+                          className="text-sm text-maroon-800 hover:text-maroon-700 font-medium"
+                        >
+                          ↻ Resend Code
+                        </button>
+                      )}
+                      
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSignupStep('email');
+                          setEmail('');
+                          setOtp('');
+                          setError('');
+                        }}
+                        className="text-sm text-neutral-600 hover:text-neutral-800 block mx-auto"
+                      >
+                        ← Use a different email
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* Profile Step */}
+                {signupStep === 'profile' && (
+                  <form onSubmit={handleCreateProfile} className="space-y-4">
+                    <div className="bg-maroon-800/10 border-l-4 border-maroon-800 p-4 rounded">
+                      <p className="text-sm text-maroon-800">
+                        Email verified: <span className="font-semibold">{verifiedEmail}</span>
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                        Full Name
+                      </label>
+                      <input
+                        type="text"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        required
+                        className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all"
+                        placeholder="Jay Prakash"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                        Admission Number
+                      </label>
+                      <input
+                        type="text"
+                        value={admissionNumber}
+                        onChange={(e) => setAdmissionNumber(e.target.value)}
+                        required
+                        className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all"
+                        placeholder="7552"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                          Class
+                        </label>
+                        <select
+                          value={selectedClass}
+                          onChange={(e) => setSelectedClass(e.target.value)}
+                          required
+                          className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all"
+                        >
+                          <option value="">Select</option>
+                          <option value="10th">10th</option>
+                          <option value="12th">12th</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                          Batch Year
+                        </label>
+                        <select
+                          value={batchYear}
+                          onChange={(e) => setBatchYear(e.target.value)}
+                          required
+                          className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all"
+                        >
+                          <option value="">Select</option>
+                          {[...Array(10)].map((_, i) => (
+                            <option key={i} value={(2026 - i).toString()}>
+                              {2026 - i}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                        Password
+                      </label>
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        minLength={6}
+                        className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all"
+                        placeholder="••••••••"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                        Confirm Password
+                      </label>
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
+                        minLength={6}
+                        className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all"
+                        placeholder="••••••••"
+                      />
+                    </div>
+                    
+                    {error && (
+                      <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
+                        {error}
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-gold-500 hover:bg-maroon-700 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all"
+                    >
+                      {loading ? 'Creating Account...' : 'Create Account →'}
+                    </button>
+                  </form>
+                )}
+              </motion.div>
+            )}
+
+            {/* Login Form */}
+            {activeTab === 'login' && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="mb-6">
+                  <h1 className="text-2xl sm:text-3xl font-serif font-bold text-maroon-800 tracking-tight">
+                    Welcome Back!
+                  </h1>
+                  <p className="mt-2 text-neutral-600 text-[15px]">
+                    Login to your GVConnect account
+                  </p>
+                </div>
+
+                <form onSubmit={handleLogin} className="space-y-5">
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      required
+                      className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all"
+                      placeholder="your@email.com"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      required
+                      className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 transition-all"
+                      placeholder="••••••••"
+                    />
+                  </div>
+                  
+                  {error && (
+                    <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
+                      {error}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-maroon-800 text-gold-500 hover:bg-maroon-700 active:scale-[0.98] shadow-lg shadow-maroon-900/20 disabled:opacity-50 transition-all"
+                  >
+                    {loading ? 'Logging in...' : 'Login →'}
+                  </button>
+                </form>
+              </motion.div>
+            )}
+          </div>
+        </main>
+
+        {/* Footer */}
+        <footer className="pb-6 text-center">
+          <p className="text-neutral-500 text-[11px] tracking-wide">
+            Grizzly Vidyalya Alumni Network
+          </p>
+        </footer>
       </div>
     </div>
   );
