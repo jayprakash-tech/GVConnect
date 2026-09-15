@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LogOut, MessageCircle, Users, Calendar, TrendingUp } from 'lucide-react';
+import { LogOut, MessageCircle, Users, Calendar, TrendingUp, Camera } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../utils/supabase/client';
 import { Navbar } from '../components/Navbar';
+import { ProfileEditModal } from '../components/ProfileEditModal';
 
 interface Profile {
   full_name: string;
   admission_number: string;
   class: string;
   batch: string;
+  avatar_url?: string | null;
 }
 
 export function DashboardPage() {
@@ -19,13 +21,14 @@ export function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [connections, setConnections] = useState<number>(0);
   const [messages, setMessages] = useState<number>(0);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
       // Fetch user profile
       supabase
         .from('profiles')
-        .select('full_name, admission_number, class, batch')
+        .select('full_name, admission_number, class, batch, avatar_url')
         .eq('id', user.id)
         .single()
         .then(({ data }) => {
@@ -88,6 +91,10 @@ export function DashboardPage() {
     navigate('/');
   };
 
+  const handleProfileUpdate = (updatedProfile: Profile) => {
+    setProfile(updatedProfile);
+  };
+
   const stats = [
     { label: 'Your Batch', value: profile?.batch || 'N/A', icon: Users },
     { label: 'Connections', value: connections.toString(), icon: TrendingUp },
@@ -108,18 +115,43 @@ export function DashboardPage() {
         >
           <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/10 rounded-full -translate-y-32 translate-x-32" />
           <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div>
-              <p className="text-[#D4AF37] text-sm font-semibold tracking-widest uppercase mb-2">
-                Welcome Back
-              </p>
-              <h1 className="text-3xl md:text-4xl font-serif font-bold text-white mb-2">
-                {profile?.full_name || 'Grizzlian'}!
-              </h1>
-              {profile && (
-                <p className="text-white/70">
-                  {profile.admission_number} • Class {profile.class} • Batch {profile.batch}
+            <div className="flex items-center gap-6">
+              {/* Clickable Profile Avatar */}
+              <button
+                onClick={() => setIsProfileModalOpen(true)}
+                className="relative group flex-shrink-0"
+              >
+                <div className="w-20 h-20 rounded-full overflow-hidden bg-white/20 border-4 border-[#D4AF37] group-hover:border-white transition-all">
+                  {profile?.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt={profile.full_name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[#D4AF37] text-3xl font-bold">
+                      {profile?.full_name?.charAt(0).toUpperCase() || 'G'}
+                    </div>
+                  )}
+                </div>
+                <div className="absolute bottom-0 right-0 w-8 h-8 bg-[#D4AF37] text-[#800020] rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                  <Camera className="w-4 h-4" />
+                </div>
+              </button>
+
+              <div>
+                <p className="text-[#D4AF37] text-sm font-semibold tracking-widest uppercase mb-2">
+                  Welcome Back
                 </p>
-              )}
+                <h1 className="text-3xl md:text-4xl font-serif font-bold text-white mb-2">
+                  {profile?.full_name || 'Grizzlian'}!
+                </h1>
+                {profile && (
+                  <p className="text-white/70">
+                    {profile.admission_number} • Class {profile.class} • Batch {profile.batch}
+                  </p>
+                )}
+              </div>
             </div>
             <button
               onClick={handleSignOut}
@@ -215,6 +247,17 @@ export function DashboardPage() {
           </button>
         </motion.div>
       </main>
+
+      {/* Profile Edit Modal */}
+      {user && profile && (
+        <ProfileEditModal
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+          userId={user.id}
+          currentProfile={profile}
+          onProfileUpdate={handleProfileUpdate}
+        />
+      )}
     </div>
   );
 }
