@@ -25,13 +25,17 @@ export function DashboardPage() {
 
   useEffect(() => {
     if (user) {
-      // Fetch user profile
+      // Fetch user profile - handle missing avatar_url column gracefully
       supabase
         .from('profiles')
-        .select('full_name, admission_number, class, batch, avatar_url')
+        .select('full_name, admission_number, class, batch')
         .eq('id', user.id)
         .single()
-        .then(({ data }) => {
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Error fetching profile:', error);
+            return;
+          }
           if (data) setProfile(data);
         });
 
@@ -71,12 +75,17 @@ export function DashboardPage() {
 
           if (batchUsers && batchUsers.length > 0) {
             const userIds = batchUsers.map(u => u.id);
-            const { count } = await supabase
+            const { count, error } = await supabase
               .from('messages')
               .select('*', { count: 'exact', head: true })
-              .in('user_id', userIds);
+              .in('sender_id', userIds);
 
-            setMessages(count || 0);
+            if (error) {
+              console.error('Error fetching messages:', error);
+              setMessages(0);
+            } else {
+              setMessages(count || 0);
+            }
           }
         }
       };

@@ -575,7 +575,7 @@ export function AuthPage() {
                         onChange={(e) => setFullName(e.target.value)}
                         required
                         className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
-                        placeholder="Jay Prakash"
+                        placeholder="Enter your full name"
                       />
                     </div>
 
@@ -589,7 +589,7 @@ export function AuthPage() {
                         onChange={(e) => setAdmissionNumber(e.target.value)}
                         required
                         className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
-                        placeholder="7552"
+                        placeholder="Enter your admission number"
                       />
                     </div>
 

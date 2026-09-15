@@ -121,22 +121,24 @@ export function ProfileEditModal({
     setLoading(true);
 
     try {
+      // Prepare update data
+      const updateData: any = {
+        full_name: fullName,
+        admission_number: admissionNumber,
+        class: selectedClass,
+        batch: batchYear,
+      };
+
       // Upload avatar if changed
-      let newAvatarUrl = avatarUrl;
       if (avatarFile) {
-        newAvatarUrl = await uploadAvatar();
+        const newAvatarUrl = await uploadAvatar();
+        updateData.avatar_url = newAvatarUrl;
       }
 
       // Update profile in database
       const { data, error: updateError } = await supabase
         .from('profiles')
-        .update({
-          full_name: fullName,
-          admission_number: admissionNumber,
-          class: selectedClass,
-          batch: batchYear,
-          avatar_url: newAvatarUrl,
-        })
+        .update(updateData)
         .eq('id', userId)
         .select()
         .single();
