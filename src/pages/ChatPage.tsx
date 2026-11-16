@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Send, MessageCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../utils/supabase/client';
+import { isSupabaseConfigured, supabase } from '../utils/supabase/client';
+import { getUserProfile } from '../services/authService';
 import { Navbar } from '../components/Navbar';
 
 interface Message {
@@ -39,9 +40,9 @@ export function ChatPage() {
     }
   }, [user]);
 
-  // Realtime subscription
+  // Realtime subscription (when Supabase is configured)
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isSupabaseConfigured) return;
 
     const channel = supabase
       .channel('room-main')
@@ -54,7 +55,6 @@ export function ChatPage() {
           filter: 'room_id=eq.batch_main',
         },
         async (payload) => {
-          // Fetch the new message with sender info
           const { data } = await supabase
             .from('messages')
             .select('*, profiles(full_name)')
@@ -80,6 +80,12 @@ export function ChatPage() {
 
   const fetchMessages = async () => {
     try {
+      if (!isSupabaseConfigured) {
+        const raw = localStorage.getItem('gv_demo_chat_messages');
+        setMessages(raw ? (JSON.parse(raw) as Message[]) : []);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('messages')
         .select('*, profiles(full_name)')
@@ -102,6 +108,25 @@ export function ChatPage() {
     if (!newMessage.trim() || !user) return;
 
     try {
+      if (!isSupabaseConfigured) {
+        const profile = await getUserProfile(user.id);
+        const nextMsg: Message = {
+          id: Date.now(),
+          sender_id: user.id,
+          room_id: 'batch_main',
+          content: newMessage.trim(),
+          created_at: new Date().toISOString(),
+          profiles: {
+            full_name: profile?.full_name || user.username || user.email,
+          },
+        };
+        const updated = [...messages, nextMsg];
+        localStorage.setItem('gv_demo_chat_messages', JSON.stringify(updated));
+        setMessages(updated);
+        setNewMessage('');
+        return;
+      }
+
       const { error } = await supabase.from('messages').insert({
         sender_id: user.id,
         room_id: 'batch_main',

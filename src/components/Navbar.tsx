@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, User, LogOut, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../utils/supabase/client';
+import { getUserProfile, signOutUser, UserProfile } from '../services/authService';
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const location = useLocation();
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { user, deviceVerified } = useAuth();
+  const isAuthenticated = Boolean(user && user.email_verified && deviceVerified);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -23,23 +25,14 @@ export function Navbar() {
 
   // Fetch user profile when user is logged in
   useEffect(() => {
-    if (user) {
-      const fetchProfile = async () => {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('full_name, batch, class')
-          .eq('id', user.id)
-          .single();
-        
-        if (data && !error) {
-          setUserProfile(data);
-        }
-      };
-      fetchProfile();
+    if (isAuthenticated && user) {
+      getUserProfile(user.id).then((data) => {
+        if (data) setUserProfile(data);
+      });
     } else {
       setUserProfile(null);
     }
-  }, [user]);
+  }, [isAuthenticated, user]);
 
   // Get user initials
   const getUserInitials = () => {
@@ -109,7 +102,7 @@ export function Navbar() {
               </Link>
             ))}
             {/* Authentication Section */}
-            {user ? (
+            {isAuthenticated ? (
               // Logged in - Show user profile dropdown
               <div className="relative">
                 <button
@@ -150,9 +143,9 @@ export function Navbar() {
                         </Link>
                         <button
                           onClick={async () => {
-                            await supabase.auth.signOut();
+                            await signOutUser();
                             setShowProfileDropdown(false);
-                            window.location.href = '/';
+                            navigate('/');
                           }}
                           className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors w-full text-left"
                         >
@@ -168,14 +161,14 @@ export function Navbar() {
               // Not logged in - Show Login/Sign Up buttons
               <div className="flex items-center gap-3">
                 <Link
-                  to="/auth"
-                  className="px-5 py-2 text-sm font-semibold text-[#D4AF37] border-2 border-[#D4AF37] rounded-full hover:bg-[#D4AF37] hover:text-[#800020] transition-all duration-300"
+                  to="/auth?mode=login"
+                  className="px-5 py-2 text-sm font-semibold text-[#D4AF37] border-2 border-[#D4AF37] rounded-full hover:bg-[#D4AF37] hover:text-[#800020] transition-all duration-300 whitespace-nowrap shrink-0"
                 >
                   Login
                 </Link>
                 <Link
-                  to="/auth"
-                  className="px-5 py-2 text-sm font-semibold bg-[#D4AF37] text-[#800020] rounded-full hover:bg-[#e6c65c] transition-all duration-300 shadow-md hover:shadow-lg"
+                  to="/auth?mode=signup"
+                  className="px-5 py-2 text-sm font-semibold bg-[#D4AF37] text-[#800020] rounded-full hover:bg-[#e6c65c] transition-all duration-300 shadow-md hover:shadow-lg whitespace-nowrap shrink-0"
                 >
                   Sign Up
                 </Link>
@@ -218,7 +211,7 @@ export function Navbar() {
                   </Link>
                 ))}
                 <div className="flex flex-col gap-2 mt-2 px-4">
-                  {user ? (
+                  {isAuthenticated ? (
                     <>
                       <Link
                         to="/dashboard"
@@ -229,9 +222,9 @@ export function Navbar() {
                       </Link>
                       <button
                         onClick={async () => {
-                          await supabase.auth.signOut();
+                          await signOutUser();
                           setIsOpen(false);
-                          window.location.href = '/';
+                          navigate('/');
                         }}
                         className="px-5 py-3 text-sm font-semibold bg-red-500 text-white rounded-full text-center hover:bg-red-600 transition-all"
                       >
@@ -241,14 +234,14 @@ export function Navbar() {
                   ) : (
                     <>
                       <Link
-                        to="/auth"
+                        to="/auth?mode=login"
                         onClick={() => setIsOpen(false)}
                         className="px-5 py-3 text-sm font-semibold text-[#D4AF37] border-2 border-[#D4AF37] rounded-full text-center hover:bg-[#D4AF37] hover:text-[#800020] transition-all"
                       >
                         Login
                       </Link>
                       <Link
-                        to="/auth"
+                        to="/auth?mode=signup"
                         onClick={() => setIsOpen(false)}
                         className="px-5 py-3 text-sm font-semibold bg-[#D4AF37] text-[#800020] rounded-full text-center hover:bg-[#e6c65c] transition-all"
                       >

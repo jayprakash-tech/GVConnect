@@ -96,7 +96,7 @@ export function LandingPage() {
             className="flex flex-col sm:flex-row gap-4 justify-center"
           >
             <Link
-              to="/auth"
+              to="/auth?mode=signup"
               className="px-10 py-4 bg-[#D4AF37] text-[#800020] rounded-full font-bold text-lg hover:bg-white transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 group inline-flex items-center justify-center gap-3"
             >
               Join the Community
@@ -242,7 +242,7 @@ export function LandingPage() {
             Join thousands of Grizzlian alumni today
           </p>
           <Link
-            to="/auth"
+            to="/auth?mode=signup"
             className="inline-flex items-center gap-3 px-12 py-5 bg-[#D4AF37] text-[#800020] rounded-full font-bold text-lg hover:bg-[#e6c65c] transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 group"
           >
             Join Us

@@ -3,7 +3,6 @@ import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LandingPage } from './pages/LandingPage';
 import { AuthPage } from './pages/AuthPage';
-import { ProfilePage } from './pages/ProfilePage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DirectoryPage } from './pages/DirectoryPage';
 import { ChatPage } from './pages/ChatPage';
@@ -15,7 +14,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth" element={<AuthPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/profile" element={<Navigate to="/auth?mode=signup" replace />} />
           <Route path="/directory" element={<DirectoryPage />} />
           <Route
             path="/chat"

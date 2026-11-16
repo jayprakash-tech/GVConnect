@@ -1,30 +1,52 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Camera, User, Lock, Save, Upload } from 'lucide-react';
+import {
+  X,
+  Camera,
+  User,
+  Lock,
+  Save,
+  ShieldCheck,
+  Fingerprint,
+  Trash2,
+  Laptop,
+  Plus,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '../utils/supabase/client';
+import {
+  changeUserPassword,
+  getOrCreateDeviceId,
+  listPasskeys,
+  listTrustedDevices,
+  PasskeyCredentialRecord,
+  registerPasskey,
+  removePasskey,
+  revokeTrustedDevice,
+  TrustedDevice,
+  updateUserProfile,
+  UserProfile,
+  validatePasswordPolicy,
+} from '../services/authService';
 
 interface ProfileEditModalProps {
   isOpen: boolean;
   onClose: () => void;
   userId: string;
-  currentProfile: {
-    full_name: string;
-    admission_number: string;
-    class: string;
-    batch: string;
-    avatar_url?: string | null;
-  };
-  onProfileUpdate: (profile: any) => void;
+  userEmail: string;
+  defaultTab?: 'profile' | 'password' | 'security';
+  currentProfile: UserProfile;
+  onProfileUpdate: (profile: UserProfile) => void;
 }
 
 export function ProfileEditModal({
   isOpen,
   onClose,
   userId,
+  userEmail,
+  defaultTab = 'profile',
   currentProfile,
   onProfileUpdate,
 }: ProfileEditModalProps) {
-  const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'security'>(defaultTab);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -43,10 +65,16 @@ export function ProfileEditModal({
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
+  // Security: Passkeys & Trusted Devices
+  const [passkeys, setPasskeys] = useState<PasskeyCredentialRecord[]>([]);
+  const [trustedDevices, setTrustedDevices] = useState<TrustedDevice[]>([]);
+  const currentDeviceId = getOrCreateDeviceId();
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
+      setActiveTab(defaultTab);
       setFullName(currentProfile.full_name);
       setAdmissionNumber(currentProfile.admission_number);
       setSelectedClass(currentProfile.class);
@@ -56,62 +84,37 @@ export function ProfileEditModal({
       setAvatarPreview(null);
       setError('');
       setSuccess('');
+      loadSecurityData();
     }
-  }, [isOpen, currentProfile]);
+  }, [isOpen, currentProfile, defaultTab]);
+
+  const loadSecurityData = async () => {
+    const [pk, devices] = await Promise.all([
+      listPasskeys(userId),
+      listTrustedDevices(userId),
+    ]);
+    setPasskeys(pk);
+    setTrustedDevices(devices);
+  };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        setError('Please select an image file');
-        return;
-      }
+    if (!file) return;
 
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setError('Image size must be less than 5MB');
-        return;
-      }
-
-      setAvatarFile(file);
-      
-      // Create preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAvatarPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-      
-      setError('');
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file');
+      return;
     }
-  };
-
-  const uploadAvatar = async (): Promise<string> => {
-    if (!avatarFile) return avatarUrl;
-
-    try {
-      const fileExt = avatarFile.name.split('.').pop();
-      const fileName = `${userId}/${Date.now()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
-
-      // Upload to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('profile-images')
-        .upload(filePath, avatarFile, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data } = supabase.storage
-        .from('profile-images')
-        .getPublicUrl(filePath);
-
-      return data.publicUrl;
-    } catch (err: any) {
-      console.error('Avatar upload error:', err);
-      throw new Error('Failed to upload profile picture');
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image size must be less than 5MB');
+      return;
     }
+
+    setAvatarFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setAvatarPreview(reader.result as string);
+    reader.readAsDataURL(file);
+    setError('');
   };
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
@@ -121,36 +124,18 @@ export function ProfileEditModal({
     setLoading(true);
 
     try {
-      // Prepare update data
-      const updateData: any = {
+      const updated = await updateUserProfile(userId, {
         full_name: fullName,
         admission_number: admissionNumber,
         class: selectedClass,
         batch: batchYear,
-      };
+        avatar_url: avatarUrl,
+        avatarFile,
+      });
 
-      // Upload avatar if changed
-      if (avatarFile) {
-        const newAvatarUrl = await uploadAvatar();
-        updateData.avatar_url = newAvatarUrl;
-      }
-
-      // Update profile in database
-      const { data, error: updateError } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('id', userId)
-        .select()
-        .single();
-
-      if (updateError) throw updateError;
-
-      setSuccess('Profile updated successfully!');
-      onProfileUpdate(data);
-      
-      setTimeout(() => {
-        onClose();
-      }, 1500);
+      setSuccess('Profile updated successfully.');
+      onProfileUpdate(updated);
+      setTimeout(() => onClose(), 1000);
     } catch (err: any) {
       setError(err.message || 'Failed to update profile');
     } finally {
@@ -163,14 +148,16 @@ export function ProfileEditModal({
     setError('');
     setSuccess('');
 
-    // Validation
     if (!currentPassword || !newPassword || !confirmPassword) {
       setError('Please fill in all password fields');
       return;
     }
 
-    if (newPassword.length < 6) {
-      setError('New password must be at least 6 characters');
+    const policy = validatePasswordPolicy(newPassword);
+    if (!policy.valid) {
+      setError(
+        'New password must be at least 15 characters, or 8+ characters including a lowercase letter and a number.'
+      );
       return;
     }
 
@@ -180,37 +167,9 @@ export function ProfileEditModal({
     }
 
     setLoading(true);
-
     try {
-      // First verify current password by attempting to sign in
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: (await supabase.auth.getUser()).data.user?.email || '',
-        password: currentPassword,
-      });
-
-      if (signInError) {
-        throw new Error('Current password is incorrect');
-      }
-
-      // Sign out the temporary session
-      await supabase.auth.signOut();
-
-      // Sign back in with current password
-      const { error: reauthError } = await supabase.auth.signInWithPassword({
-        email: (await supabase.auth.getUser()).data.user?.email || '',
-        password: currentPassword,
-      });
-
-      if (reauthError) throw reauthError;
-
-      // Update password
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
-
-      if (updateError) throw updateError;
-
-      setSuccess('Password changed successfully!');
+      await changeUserPassword(userId, currentPassword, newPassword);
+      setSuccess('Password changed successfully.');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -221,8 +180,59 @@ export function ProfileEditModal({
     }
   };
 
-  const classes = ['10th', '12th'];
-  const batches = Array.from({ length: 50 }, (_, i) => String(2024 - i));
+  const handleRegisterPasskey = async () => {
+    setError('');
+    setSuccess('');
+    setLoading(true);
+    try {
+      await registerPasskey(userId, userEmail, fullName);
+      await loadSecurityData();
+      setSuccess('Passkey added for this device.');
+    } catch (err: any) {
+      setError(err.message || 'Could not register passkey.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemovePasskey = async (credentialId: string) => {
+    setError('');
+    setSuccess('');
+    await removePasskey(userId, credentialId);
+    await loadSecurityData();
+    setSuccess('Passkey removed.');
+  };
+
+  const handleRevokeDevice = async (deviceId: string) => {
+    setError('');
+    setSuccess('');
+    await revokeTrustedDevice(userId, deviceId);
+    await loadSecurityData();
+    setSuccess(
+      deviceId === currentDeviceId
+        ? 'Current device trust removed. Next login on this browser will require an OTP verification code.'
+        : 'Device trust revoked.'
+    );
+  };
+
+  const classes = [
+    'Nursery',
+    'LKG',
+    'UKG',
+    '1st',
+    '2nd',
+    '3rd',
+    '4th',
+    '5th',
+    '6th',
+    '7th',
+    '8th',
+    '9th',
+    '10th',
+    '11th',
+    '12th',
+  ];
+  const batches = Array.from({ length: 30 }, (_, i) => String(2026 - i));
 
   if (!isOpen) return null;
 
@@ -231,96 +241,112 @@ export function ProfileEditModal({
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={{ duration: 0.16 }}
+            className="bg-white rounded-2xl border border-[#e5e5e5] shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
           >
             {/* Header */}
             <div className="bg-gradient-to-r from-[#800020] to-[#600018] p-6 flex items-center justify-between">
               <h2 className="text-2xl font-serif font-bold text-[#D4AF37]">
-                Edit Profile
+                Account & Security
               </h2>
               <button
                 onClick={onClose}
                 className="text-white/80 hover:text-white transition-colors"
+                aria-label="Close modal"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
 
             {/* Tabs */}
-            <div className="border-b border-[#f0f0f0]">
+            <div className="border-b border-[#e5e5e5]">
               <div className="flex">
                 <button
-                  onClick={() => setActiveTab('profile')}
-                  className={`flex-1 py-4 px-6 font-semibold transition-all ${
+                  onClick={() => {
+                    setActiveTab('profile');
+                    setError('');
+                    setSuccess('');
+                  }}
+                  className={`flex-1 py-3.5 px-4 text-sm font-semibold transition-all whitespace-nowrap ${
                     activeTab === 'profile'
                       ? 'text-[#800020] border-b-2 border-[#D4AF37]'
-                      : 'text-[#666666] hover:text-[#800020]'
+                      : 'text-[#525252] hover:text-[#800020]'
                   }`}
                 >
-                  <User className="w-5 h-5 inline-block mr-2" />
+                  <User className="w-4 h-4 inline-block mr-1.5" />
                   Profile
                 </button>
                 <button
-                  onClick={() => setActiveTab('password')}
-                  className={`flex-1 py-4 px-6 font-semibold transition-all ${
+                  onClick={() => {
+                    setActiveTab('password');
+                    setError('');
+                    setSuccess('');
+                  }}
+                  className={`flex-1 py-3.5 px-4 text-sm font-semibold transition-all whitespace-nowrap ${
                     activeTab === 'password'
                       ? 'text-[#800020] border-b-2 border-[#D4AF37]'
-                      : 'text-[#666666] hover:text-[#800020]'
+                      : 'text-[#525252] hover:text-[#800020]'
                   }`}
                 >
-                  <Lock className="w-5 h-5 inline-block mr-2" />
+                  <Lock className="w-4 h-4 inline-block mr-1.5" />
                   Password
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('security');
+                    setError('');
+                    setSuccess('');
+                  }}
+                  className={`flex-1 py-3.5 px-4 text-sm font-semibold transition-all whitespace-nowrap ${
+                    activeTab === 'security'
+                      ? 'text-[#800020] border-b-2 border-[#D4AF37]'
+                      : 'text-[#525252] hover:text-[#800020]'
+                  }`}
+                >
+                  <ShieldCheck className="w-4 h-4 inline-block mr-1.5" />
+                  Passkeys & Devices
                 </button>
               </div>
             </div>
 
             {/* Content */}
-            <div className="p-6 overflow-y-auto max-h-[60vh]">
+            <div className="p-6 overflow-y-auto max-h-[64vh]">
               {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                <div className="mb-4 p-3 bg-[#fef2f2] border border-[#fecaca] rounded-lg text-[#b91c1c] text-sm">
                   {error}
                 </div>
               )}
 
               {success && (
-                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm">
+                <div className="mb-4 p-3 bg-[#f0fdf4] border border-[#bbf7d0] rounded-lg text-[#166534] text-sm">
                   {success}
                 </div>
               )}
 
               {activeTab === 'profile' && (
-                <form onSubmit={handleProfileUpdate} className="space-y-6">
-                  {/* Avatar Upload */}
+                <form onSubmit={handleProfileUpdate} className="space-y-5">
                   <div className="flex flex-col items-center">
                     <div className="relative group">
-                      <div className="w-32 h-32 rounded-full overflow-hidden bg-[#fff5f7] border-4 border-[#D4AF37]">
+                      <div className="w-28 h-28 rounded-full overflow-hidden bg-[#fff5f7] border-4 border-[#D4AF37]">
                         {avatarPreview ? (
-                          <img
-                            src={avatarPreview}
-                            alt="Preview"
-                            className="w-full h-full object-cover"
-                          />
+                          <img src={avatarPreview} alt="Preview" className="w-full h-full object-cover" />
                         ) : avatarUrl ? (
-                          <img
-                            src={avatarUrl}
-                            alt="Profile"
-                            className="w-full h-full object-cover"
-                          />
+                          <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-[#800020] text-4xl font-bold">
-                            {fullName.charAt(0).toUpperCase()}
+                          <div className="w-full h-full flex items-center justify-center text-[#800020] text-3xl font-bold">
+                            {fullName.charAt(0).toUpperCase() || 'G'}
                           </div>
                         )}
                       </div>
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="absolute bottom-0 right-0 w-10 h-10 bg-[#800020] text-[#D4AF37] rounded-full flex items-center justify-center hover:bg-[#600018] transition-colors shadow-lg"
+                        className="absolute bottom-0 right-0 w-9 h-9 bg-[#800020] text-[#D4AF37] rounded-full flex items-center justify-center hover:bg-[#600018] transition-colors shadow-lg"
                       >
-                        <Camera className="w-5 h-5" />
+                        <Camera className="w-4 h-4" />
                       </button>
                     </div>
                     <input
@@ -330,15 +356,11 @@ export function ProfileEditModal({
                       onChange={handleAvatarChange}
                       className="hidden"
                     />
-                    <p className="text-xs text-[#666666] mt-2">
-                      Click camera icon to change profile picture
-                    </p>
-                    <p className="text-xs text-[#999999]">
-                      Max size: 5MB • Formats: JPG, PNG, GIF
+                    <p className="text-xs text-[#525252] mt-2">
+                      Click camera icon to change profile picture (max 5MB)
                     </p>
                   </div>
 
-                  {/* Profile Fields */}
                   <div>
                     <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
                       Full Name
@@ -348,8 +370,7 @@ export function ProfileEditModal({
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       required
-                      className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
-                      placeholder="Your full name"
+                      className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:border-[#800020]"
                     />
                   </div>
 
@@ -362,8 +383,7 @@ export function ProfileEditModal({
                       value={admissionNumber}
                       onChange={(e) => setAdmissionNumber(e.target.value)}
                       required
-                      className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
-                      placeholder="Your admission number"
+                      className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:border-[#800020]"
                     />
                   </div>
 
@@ -376,7 +396,7 @@ export function ProfileEditModal({
                         value={selectedClass}
                         onChange={(e) => setSelectedClass(e.target.value)}
                         required
-                        className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
+                        className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl bg-white focus:outline-none focus:border-[#800020]"
                       >
                         {classes.map((cls) => (
                           <option key={cls} value={cls}>
@@ -394,7 +414,7 @@ export function ProfileEditModal({
                         value={batchYear}
                         onChange={(e) => setBatchYear(e.target.value)}
                         required
-                        className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
+                        className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl bg-white focus:outline-none focus:border-[#800020]"
                       >
                         {batches.map((batch) => (
                           <option key={batch} value={batch}>
@@ -408,27 +428,18 @@ export function ProfileEditModal({
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-[#800020] text-[#D4AF37] hover:bg-[#600018] active:scale-[0.98] shadow-lg shadow-[#800020]/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-[#800020] text-[#D4AF37] hover:bg-[#600018] disabled:opacity-50 transition-all flex items-center justify-center gap-2"
                   >
-                    {loading ? (
-                      'Saving...'
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4" />
-                        Save Changes
-                      </>
-                    )}
+                    <Save className="w-4 h-4" />
+                    {loading ? 'Saving...' : 'Save Changes'}
                   </button>
                 </form>
               )}
 
               {activeTab === 'password' && (
-                <form onSubmit={handlePasswordChange} className="space-y-6">
-                  <div className="bg-[#fff5f7] border-l-4 border-[#800020] p-4 rounded">
-                    <p className="text-sm text-[#800020]">
-                      <Lock className="w-4 h-4 inline-block mr-2" />
-                      For security, please enter your current password
-                    </p>
+                <form onSubmit={handlePasswordChange} className="space-y-5">
+                  <div className="bg-[#fafafa] border border-[#e5e5e5] p-4 rounded-xl text-sm text-[#404040]">
+                    New passwords must be at least 15 characters, or 8+ characters including a lowercase letter and a number.
                   </div>
 
                   <div>
@@ -440,7 +451,7 @@ export function ProfileEditModal({
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
                       required
-                      className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
+                      className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:border-[#800020]"
                       placeholder="Enter current password"
                     />
                   </div>
@@ -454,9 +465,8 @@ export function ProfileEditModal({
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       required
-                      minLength={6}
-                      className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
-                      placeholder="Enter new password (min 6 characters)"
+                      className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:border-[#800020]"
+                      placeholder="15+ chars or 8+ with number & lowercase"
                     />
                   </div>
 
@@ -469,8 +479,7 @@ export function ProfileEditModal({
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
-                      minLength={6}
-                      className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all"
+                      className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:border-[#800020]"
                       placeholder="Confirm new password"
                     />
                   </div>
@@ -478,18 +487,115 @@ export function ProfileEditModal({
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-[#800020] text-[#D4AF37] hover:bg-[#600018] active:scale-[0.98] shadow-lg shadow-[#800020]/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-[#800020] text-[#D4AF37] hover:bg-[#600018] disabled:opacity-50 transition-all flex items-center justify-center gap-2"
                   >
-                    {loading ? (
-                      'Changing Password...'
-                    ) : (
-                      <>
-                        <Lock className="w-4 h-4" />
-                        Change Password
-                      </>
-                    )}
+                    <Lock className="w-4 h-4" />
+                    {loading ? 'Changing Password...' : 'Change Password'}
                   </button>
                 </form>
+              )}
+
+              {activeTab === 'security' && (
+                <div className="space-y-6">
+                  {/* Passkeys Section */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <h3 className="text-base font-semibold text-[#1a1a1a] flex items-center gap-2">
+                          <Fingerprint className="w-4 h-4 text-[#800020]" />
+                          Configured Passkeys
+                        </h3>
+                        <p className="text-xs text-[#525252] mt-0.5">
+                          Sign in faster using your device biometrics or hardware security key.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRegisterPasskey}
+                        disabled={loading}
+                        className="px-3.5 py-2 rounded-lg bg-[#800020] text-[#D4AF37] text-xs font-semibold hover:bg-[#600018] transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Add Passkey
+                      </button>
+                    </div>
+
+                    {passkeys.length === 0 ? (
+                      <div className="rounded-xl border border-[#e5e5e5] bg-[#fafafa] p-4 text-xs text-[#525252]">
+                        No passkeys configured yet. Click "Add Passkey" to enroll this device.
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-[#e5e5e5] rounded-xl border border-[#e5e5e5]">
+                        {passkeys.map((pk) => (
+                          <div
+                            key={pk.id}
+                            className="p-3.5 flex items-center justify-between gap-3 text-sm"
+                          >
+                            <div>
+                              <p className="font-medium text-[#1a1a1a]">{pk.label}</p>
+                              <p className="text-xs text-[#737373]">
+                                Added {new Date(pk.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePasskey(pk.id)}
+                              className="p-2 text-[#525252] hover:text-[#b91c1c] rounded-lg transition-colors"
+                              aria-label="Remove passkey"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Trusted Devices Section */}
+                  <div className="space-y-3 pt-4 border-t border-[#e5e5e5]">
+                    <div>
+                      <h3 className="text-base font-semibold text-[#1a1a1a] flex items-center gap-2">
+                        <Laptop className="w-4 h-4 text-[#800020]" />
+                        Trusted Devices
+                      </h3>
+                      <p className="text-xs text-[#525252] mt-0.5">
+                        Logging in from an unrecognized device triggers an email OTP verification challenge.
+                      </p>
+                    </div>
+
+                    {trustedDevices.length === 0 ? (
+                      <div className="rounded-xl border border-[#e5e5e5] bg-[#fafafa] p-4 text-xs text-[#525252]">
+                        No trusted devices recorded. Your next login will ask for an email OTP verification code.
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-[#e5e5e5] rounded-xl border border-[#e5e5e5]">
+                        {trustedDevices.map((dev) => (
+                          <div
+                            key={dev.id}
+                            className="p-3.5 flex items-center justify-between gap-3 text-sm"
+                          >
+                            <div>
+                              <p className="font-medium text-[#1a1a1a]">
+                                {dev.label}
+                                {dev.id === currentDeviceId ? ' · Current Browser' : ''}
+                              </p>
+                              <p className="text-xs text-[#737373]">
+                                Trusted {new Date(dev.addedAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRevokeDevice(dev.id)}
+                              className="text-xs font-medium text-[#b91c1c] hover:underline whitespace-nowrap"
+                            >
+                              Revoke Trust
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           </motion.div>
