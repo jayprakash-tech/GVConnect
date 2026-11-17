@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -31,28 +31,15 @@ import {
   verifyEmailWithToken,
   verifyNewDeviceOtp,
 } from '../services/authService';
+import {
+  CLASS_OPTIONS,
+  parseSupabaseCallbackUrl,
+  resolveSessionRouteAction,
+} from '../utils/authRules';
 
 type AuthTab = 'signup' | 'login';
 type SignupStep = 'credentials' | 'verify' | 'onboarding';
 type LoginStep = 'form' | 'device_otp';
-
-const CLASS_OPTIONS = [
-  'Nursery',
-  'LKG',
-  'UKG',
-  '1st',
-  '2nd',
-  '3rd',
-  '4th',
-  '5th',
-  '6th',
-  '7th',
-  '8th',
-  '9th',
-  '10th',
-  '11th',
-  '12th',
-];
 
 const BATCH_OPTIONS = Array.from({ length: 26 }, (_, i) => String(2026 - i));
 
@@ -66,10 +53,11 @@ const ONBOARDING_GOALS = [
 export function AuthPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user, deviceVerified, isDemoMode, refreshAuth, signUp, signIn } = useAuth();
+  const { user, deviceVerified, isDemoMode, refreshAuth, signUp, signIn, signOut } = useAuth();
 
   const initialTab: AuthTab = searchParams.get('mode') === 'login' ? 'login' : 'signup';
   const [activeTab, setActiveTab] = useState<AuthTab>(initialTab);
+  const [showSignOutPrompt, setShowSignOutPrompt] = useState(false);
 
   // Sign Up state
   const [signupStep, setSignupStep] = useState<SignupStep>('credentials');
@@ -114,6 +102,7 @@ export function AuthPage() {
   const [trustThisDevice, setTrustThisDevice] = useState(true);
   const [demoOtpCode, setDemoOtpCode] = useState('');
   const [otpResendTimer, setOtpResendTimer] = useState(0);
+  const otpDispatchedForUserRef = useRef<string | null>(null);
 
   // Demo OAuth email chooser modal (when Supabase isn't configured)
   const [demoOAuthPrompt, setDemoOAuthPrompt] = useState<{
@@ -128,18 +117,23 @@ export function AuthPage() {
 
   const passwordPolicy = validatePasswordPolicy(password);
 
-  // Sync tab with URL query param (?mode=signup | ?mode=login)
+  // Sync tab & callback errors with URL query params (?mode=signup | ?mode=login)
   useEffect(() => {
     const mode = searchParams.get('mode');
     if (mode === 'login' || mode === 'signup') {
       setActiveTab(mode);
     }
+    const authError = searchParams.get('auth_error');
+    if (authError) {
+      setError(authError);
+    }
   }, [searchParams]);
 
   // Handle verification link callback (?verify_token=...) or Supabase post-verification session (?code=... / ?verified=true)
   useEffect(() => {
-    const token = searchParams.get('verify_token');
-    const pkceCode = new URLSearchParams(window.location.search).get('code') || searchParams.get('code');
+    const parsed = parseSupabaseCallbackUrl(window.location.search, window.location.hash);
+    const token = searchParams.get('verify_token') || parsed.verifyToken;
+    const pkceCode = parsed.pkceCode || searchParams.get('code');
     const verifiedFlag = searchParams.get('verified') === 'true';
 
     if (!token && !pkceCode && !verifiedFlag) return;
@@ -154,13 +148,14 @@ export function AuthPage() {
           if (cancelled) return;
           await refreshAuth();
           setActiveTab('signup');
+          setShowSignOutPrompt(false);
           setEmailVerifiedConfirmed(true);
           setVerifiedUserId(verifiedUser.id);
           setVerifiedEmail(verifiedUser.email);
           setVerifiedUsername(verifiedUser.username || '');
           setSignupStep('onboarding');
           setInfoMessage(
-            'Email verified! Complete your Batch compliance and onboarding to open your dashboard.'
+            'Email verified! Complete your Profile & Batch compliance to open your dashboard.'
           );
           setSearchParams({ mode: 'signup' }, { replace: true });
         })
@@ -173,19 +168,24 @@ export function AuthPage() {
           if (!cancelled) setLoading(false);
         });
     } else {
-      checkLiveEmailVerification(pkceCode || undefined)
+      checkLiveEmailVerification(
+        pkceCode || undefined,
+        parsed.accessToken || undefined,
+        parsed.refreshToken || undefined
+      )
         .then(async (res) => {
           if (cancelled) return;
           if (res.verified && res.user) {
             await refreshAuth();
             setActiveTab('signup');
+            setShowSignOutPrompt(false);
             setEmailVerifiedConfirmed(true);
             setVerifiedUserId(res.user.id);
             setVerifiedEmail(res.user.email);
             setVerifiedUsername(res.user.username || '');
             setSignupStep('onboarding');
             setInfoMessage(
-              'Email verified! Complete your Batch compliance and onboarding to open your dashboard.'
+              'Email verified! Complete your Profile & Batch compliance to open your dashboard.'
             );
             setSearchParams({ mode: 'signup' }, { replace: true });
           } else {
@@ -215,14 +215,28 @@ export function AuthPage() {
     };
   }, [searchParams, refreshAuth, setSearchParams]);
 
-  // Handle authenticated user routing (OAuth return, verified email return, or untrusted device OTP)
+  // Strictly isolate Sign Up and Login session routing:
+  // - Never jump from Sign Up to Login OTP or Dashboard when an existing session is active; ask user to sign out first.
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setShowSignOutPrompt(false);
+      return;
+    }
     let cancelled = false;
 
     const evaluateSession = async () => {
-      // Never treat an unverified account as verified or advance to onboarding
-      if (!user.email_verified) {
+      const profile = await getUserProfile(user.id);
+      if (cancelled) return;
+
+      const decision = resolveSessionRouteAction({
+        activeTab,
+        user,
+        hasProfile: Boolean(profile),
+        deviceVerified,
+      });
+
+      if (decision.action === 'signup_verify_email') {
+        setShowSignOutPrompt(false);
         setActiveTab('signup');
         setSignupStep('verify');
         setPuzzleSolved(true);
@@ -234,11 +248,8 @@ export function AuthPage() {
         return;
       }
 
-      const profile = await getUserProfile(user.id);
-      if (cancelled) return;
-
-      if (!profile) {
-        // User verified email or signed in via OAuth for the first time -> Onboarding
+      if (decision.action === 'signup_onboarding') {
+        setShowSignOutPrompt(false);
         setActiveTab('signup');
         setEmailVerifiedConfirmed(true);
         setVerifiedUserId(user.id);
@@ -248,13 +259,19 @@ export function AuthPage() {
         return;
       }
 
-      if (!deviceVerified) {
-        // Logged in on a new/unrecognized device -> force OTP challenge
+      if (decision.action === 'prompt_signout') {
+        setShowSignOutPrompt(true);
+        return;
+      }
+
+      if (decision.action === 'login_device_otp') {
+        setShowSignOutPrompt(false);
         setActiveTab('login');
         setLoginStep('device_otp');
         setOtpTargetEmail(user.email);
         setOtpTargetUserId(user.id);
-        if (!demoOtpCode && isUsingDemoFallback()) {
+        if (otpDispatchedForUserRef.current !== user.id && isUsingDemoFallback()) {
+          otpDispatchedForUserRef.current = user.id;
           const res = await sendNewDeviceOtp(user.email, user.id);
           if (!cancelled && res.demoOtp) {
             setDemoOtpCode(res.demoOtp);
@@ -263,8 +280,9 @@ export function AuthPage() {
         return;
       }
 
-      // Fully verified & onboarded -> Dashboard
-      navigate('/dashboard', { replace: true });
+      if (decision.action === 'redirect_dashboard') {
+        navigate('/dashboard', { replace: true });
+      }
     };
 
     evaluateSession();
@@ -272,7 +290,7 @@ export function AuthPage() {
     return () => {
       cancelled = true;
     };
-  }, [user, deviceVerified, navigate, demoOtpCode]);
+  }, [activeTab, user, deviceVerified, navigate]);
 
   // Debounced live username availability check during Sign Up
   useEffect(() => {
@@ -330,9 +348,40 @@ export function AuthPage() {
       setEmailVerifiedConfirmed(false);
       setDemoVerifyUrl('');
     } else {
+      setShowSignOutPrompt(false);
       setLoginStep('form');
       setOtpCode('');
       setDemoOtpCode('');
+      otpDispatchedForUserRef.current = null;
+    }
+  };
+
+  const handleSignOutToCreateAccount = async () => {
+    setLoading(true);
+    setError('');
+    setInfoMessage('');
+    otpDispatchedForUserRef.current = null;
+    try {
+      await signOut();
+      setShowSignOutPrompt(false);
+      setActiveTab('signup');
+      setSignupStep('credentials');
+      setPuzzleSolved(false);
+      setVerificationLinkSent(false);
+      setEmailVerifiedConfirmed(false);
+      setDemoVerifyUrl('');
+      setEmail('');
+      setUsername('');
+      setPassword('');
+      setConfirmPassword('');
+      setFullName('');
+      setAdmissionNumber('');
+      setSelectedClass('');
+      setBatchYear('');
+      setComplianceAccepted(false);
+      setSearchParams({ mode: 'signup' }, { replace: true });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -573,6 +622,7 @@ export function AuthPage() {
       }
 
       if (result.status === 'otp_required') {
+        otpDispatchedForUserRef.current = result.userId;
         setLoginStep('device_otp');
         setOtpTargetEmail(result.email);
         setOtpTargetUserId(result.userId);
@@ -617,6 +667,7 @@ export function AuthPage() {
           setVerifiedUsername(result.username || '');
           setSignupStep('onboarding');
         } else if (result.status === 'otp_required') {
+          otpDispatchedForUserRef.current = result.userId || null;
           setActiveTab('login');
           setLoginStep('device_otp');
           setOtpTargetEmail(result.email || '');
@@ -661,6 +712,7 @@ export function AuthPage() {
       }
 
       if (result.status === 'otp_required') {
+        otpDispatchedForUserRef.current = result.userId || null;
         setActiveTab('login');
         setLoginStep('device_otp');
         setOtpTargetEmail(result.email || oauthEmail);
@@ -688,6 +740,7 @@ export function AuthPage() {
       await refreshAuth();
 
       if (result.status === 'otp_required') {
+        otpDispatchedForUserRef.current = result.userId;
         setLoginStep('device_otp');
         setOtpTargetEmail(result.email);
         setOtpTargetUserId(result.userId);
@@ -730,7 +783,7 @@ export function AuthPage() {
     setError('');
     setLoading(true);
     try {
-      const res = await sendNewDeviceOtp(otpTargetEmail, otpTargetUserId);
+      const res = await sendNewDeviceOtp(otpTargetEmail, otpTargetUserId, true);
       if (res.demoOtp) setDemoOtpCode(res.demoOtp);
       setOtpResendTimer(30);
       setInfoMessage('A new 6-digit verification code has been sent.');
@@ -855,7 +908,51 @@ export function AuthPage() {
             )}
 
             {/* ===================== SIGN UP FLOW ===================== */}
-            {activeTab === 'signup' && (
+            {activeTab === 'signup' && showSignOutPrompt && (
+              <motion.div
+                key="signout-prompt"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.18 }}
+                className="rounded-2xl border border-[#e5e5e5] bg-[#fafafa] p-6 space-y-5"
+              >
+                <div>
+                  <p className="text-xs font-semibold text-[#800020] mb-1.5">
+                    Active Session Detected
+                  </p>
+                  <h1 className="text-2xl font-serif font-bold text-[#1a1a1a] tracking-tight">
+                    Sign out before creating a new account
+                  </h1>
+                  <p className="mt-2 text-sm text-[#525252] leading-relaxed">
+                    You are currently signed in as{' '}
+                    <strong className="text-[#1a1a1a]">{user?.email}</strong>. To register a new
+                    GVConnect account, please sign out of your current session first.
+                  </p>
+                </div>
+
+                <div className="space-y-2.5">
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={handleSignOutToCreateAccount}
+                    className="w-full py-3 px-5 rounded-xl font-semibold text-sm bg-[#800020] text-[#D4AF37] hover:bg-[#600018] disabled:opacity-50 transition-all"
+                  >
+                    {loading ? 'Signing Out...' : 'Sign Out & Create New Account'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(deviceVerified ? '/dashboard' : '/auth?mode=login')
+                    }
+                    className="w-full py-3 px-5 rounded-xl font-semibold text-sm border border-[#e5e5e5] bg-white text-[#1a1a1a] hover:bg-[#fafafa] transition-colors"
+                  >
+                    {deviceVerified ? 'Go to Dashboard' : 'Continue to Existing Account Login'}
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'signup' && !showSignOutPrompt && (
               <motion.div
                 key={signupStep}
                 initial={{ opacity: 0, y: 8 }}
@@ -882,7 +979,7 @@ export function AuthPage() {
                     {signupStep === 'verify' &&
                       'Solve the quick security puzzle and confirm via the verification link sent to your email.'}
                     {signupStep === 'onboarding' &&
-                      'Select your Batch for compliance and finish onboarding to enter your dashboard.'}
+                      'Enter your alumni details, select PASSOUT / Class and Batch for compliance, and finish onboarding.'}
                   </p>
                 </div>
 
@@ -926,10 +1023,14 @@ export function AuthPage() {
 
                     <form onSubmit={handleCredentialsContinue} className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
+                        <label
+                          htmlFor="signup-email"
+                          className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
+                        >
                           Email Address
                         </label>
                         <input
+                          id="signup-email"
                           type="email"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
@@ -940,10 +1041,14 @@ export function AuthPage() {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
+                        <label
+                          htmlFor="signup-username"
+                          className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
+                        >
                           Unique Username
                         </label>
                         <input
+                          id="signup-username"
                           type="text"
                           value={username}
                           onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
@@ -976,10 +1081,14 @@ export function AuthPage() {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
+                        <label
+                          htmlFor="signup-password"
+                          className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
+                        >
                           Password
                         </label>
                         <input
+                          id="signup-password"
                           type="password"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
@@ -1032,10 +1141,14 @@ export function AuthPage() {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
+                        <label
+                          htmlFor="signup-confirm-password"
+                          className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
+                        >
                           Confirm Password
                         </label>
                         <input
+                          id="signup-confirm-password"
                           type="password"
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
@@ -1189,10 +1302,14 @@ export function AuthPage() {
                     )}
 
                     <div>
-                      <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
+                      <label
+                        htmlFor="onboarding-fullname"
+                        className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
+                      >
                         Full Name
                       </label>
                       <input
+                        id="onboarding-fullname"
                         type="text"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
@@ -1203,10 +1320,14 @@ export function AuthPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
+                      <label
+                        htmlFor="onboarding-admission"
+                        className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
+                      >
                         Admission Number
                       </label>
                       <input
+                        id="onboarding-admission"
                         type="text"
                         value={admissionNumber}
                         onChange={(e) => setAdmissionNumber(e.target.value)}
@@ -1218,29 +1339,37 @@ export function AuthPage() {
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
+                        <label
+                          htmlFor="onboarding-class"
+                          className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
+                        >
                           Class
                         </label>
                         <select
+                          id="onboarding-class"
                           value={selectedClass}
                           onChange={(e) => setSelectedClass(e.target.value)}
                           required
                           className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#800020]/20 focus:border-[#800020] text-[15px]"
                         >
-                          <option value="">Select</option>
+                          <option value="">Select Class</option>
                           {CLASS_OPTIONS.map((c) => (
                             <option key={c} value={c}>
-                              {c}
+                              {c === 'PASSOUT' ? 'PASSOUT (Alumni)' : c}
                             </option>
                           ))}
                         </select>
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
+                        <label
+                          htmlFor="onboarding-batch"
+                          className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
+                        >
                           Batch Year (Compliance)
                         </label>
                         <select
+                          id="onboarding-batch"
                           value={batchYear}
                           onChange={(e) => setBatchYear(e.target.value)}
                           required
@@ -1258,10 +1387,14 @@ export function AuthPage() {
 
                     {/* Onboarding Prompts */}
                     <div>
-                      <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
+                      <label
+                        htmlFor="onboarding-goal"
+                        className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
+                      >
                         What brings you to GVConnect?
                       </label>
                       <select
+                        id="onboarding-goal"
                         value={onboardingGoal}
                         onChange={(e) => setOnboardingGoal(e.target.value)}
                         className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#800020]/20 focus:border-[#800020] text-[15px]"
@@ -1275,10 +1408,14 @@ export function AuthPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
+                      <label
+                        htmlFor="onboarding-bio"
+                        className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
+                      >
                         Current Role or City (Optional)
                       </label>
                       <input
+                        id="onboarding-bio"
                         type="text"
                         value={onboardingBio}
                         onChange={(e) => setOnboardingBio(e.target.value)}
@@ -1333,10 +1470,14 @@ export function AuthPage() {
 
                     <form onSubmit={handleLogin} className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
+                        <label
+                          htmlFor="login-identifier"
+                          className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
+                        >
                           Username or Email Address
                         </label>
                         <input
+                          id="login-identifier"
                           type="text"
                           value={loginIdentifier}
                           onChange={(e) => setLoginIdentifier(e.target.value)}
@@ -1347,10 +1488,14 @@ export function AuthPage() {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
+                        <label
+                          htmlFor="login-password"
+                          className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
+                        >
                           Password
                         </label>
                         <input
+                          id="login-password"
                           type="password"
                           value={loginPassword}
                           onChange={(e) => setLoginPassword(e.target.value)}
@@ -1477,12 +1622,16 @@ export function AuthPage() {
                     )}
 
                     <div>
-                      <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
+                      <label
+                        htmlFor="device-otp-input"
+                        className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
+                      >
                         6-Digit Verification Code
                       </label>
                       <div className="relative">
                         <KeyRound className="w-4 h-4 text-[#737373] absolute left-3.5 top-1/2 -translate-y-1/2" />
                         <input
+                          id="device-otp-input"
                           type="text"
                           value={otpCode}
                           onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
@@ -1532,7 +1681,9 @@ export function AuthPage() {
 
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={async () => {
+                          otpDispatchedForUserRef.current = null;
+                          await signOut();
                           setLoginStep('form');
                           setOtpCode('');
                           setDemoOtpCode('');

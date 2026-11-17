@@ -35,4 +35,10 @@ export const isSupabaseConfigured = Boolean(
 const supabaseUrl = isSupabaseConfigured ? rawUrl : 'https://placeholder.supabase.co';
 const supabaseAnonKey = isSupabaseConfigured ? rawAnonKey : 'placeholder-key';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+  },
+});

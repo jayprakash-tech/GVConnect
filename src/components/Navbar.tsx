@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, User, LogOut, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import { getUserProfile, signOutUser, UserProfile } from '../services/authService';
+import { getUserProfile, UserProfile } from '../services/authService';
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -12,7 +12,7 @@ export function Navbar() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, deviceVerified } = useAuth();
+  const { user, deviceVerified, signOut } = useAuth();
   const isAuthenticated = Boolean(user && user.email_verified && deviceVerified);
 
   useEffect(() => {
@@ -143,7 +143,7 @@ export function Navbar() {
                         </Link>
                         <button
                           onClick={async () => {
-                            await signOutUser();
+                            await signOut();
                             setShowProfileDropdown(false);
                             navigate('/');
                           }}
@@ -222,7 +222,7 @@ export function Navbar() {
                       </Link>
                       <button
                         onClick={async () => {
-                          await signOutUser();
+                          await signOut();
                           setIsOpen(false);
                           navigate('/');
                         }}

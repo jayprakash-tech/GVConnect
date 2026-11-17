@@ -1,4 +1,19 @@
 import { isSupabaseConfigured, supabase } from '../utils/supabase/client';
+import {
+  normalizeEmail,
+  normalizeUsername,
+  PasswordValidationResult,
+  validatePasswordPolicy,
+  validateUsernameFormat,
+} from '../utils/authRules';
+
+export type { PasswordValidationResult };
+export {
+  normalizeEmail,
+  normalizeUsername,
+  validatePasswordPolicy,
+  validateUsernameFormat,
+};
 
 export interface AuthUser {
   id: string;
@@ -35,16 +50,6 @@ export interface PasskeyCredentialRecord {
   label: string;
   createdAt: string;
   rawId?: string;
-}
-
-export interface PasswordValidationResult {
-  valid: boolean;
-  length: number;
-  meetsLongRule: boolean; // >= 15 chars
-  hasMin8: boolean;
-  hasLowercase: boolean;
-  hasNumber: boolean;
-  meetsCompositeRule: boolean; // >= 8 chars + lowercase + number
 }
 
 interface DemoStoredUser {
@@ -135,50 +140,6 @@ const SEEDED_ALUMNI: UserProfile[] = [
 
 function emitAuthChanged() {
   window.dispatchEvent(new CustomEvent(AUTH_EVENT_NAME));
-}
-
-export function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
-
-export function normalizeUsername(username: string): string {
-  return username.trim().toLowerCase();
-}
-
-export function validateUsernameFormat(username: string): { valid: boolean; message?: string } {
-  const normalized = normalizeUsername(username);
-  if (!normalized) {
-    return { valid: false, message: 'Username is required' };
-  }
-  if (normalized.length < 3 || normalized.length > 24) {
-    return { valid: false, message: 'Username must be 3–24 characters' };
-  }
-  if (!/^[a-z0-9][a-z0-9_.]{2,23}$/.test(normalized)) {
-    return {
-      valid: false,
-      message: 'Start with a letter/number and use only lowercase letters, numbers, dots, or underscores',
-    };
-  }
-  return { valid: true };
-}
-
-export function validatePasswordPolicy(password: string): PasswordValidationResult {
-  const length = password.length;
-  const meetsLongRule = length >= 15;
-  const hasMin8 = length >= 8;
-  const hasLowercase = /[a-z]/.test(password);
-  const hasNumber = /\d/.test(password);
-  const meetsCompositeRule = hasMin8 && hasLowercase && hasNumber;
-
-  return {
-    valid: meetsLongRule || meetsCompositeRule,
-    length,
-    meetsLongRule,
-    hasMin8,
-    hasLowercase,
-    hasNumber,
-    meetsCompositeRule,
-  };
 }
 
 export function getOrCreateDeviceId(): string {
@@ -592,7 +553,8 @@ export async function registerWithEmail(params: {
 
   if (useLiveSupabase()) {
     try {
-      const redirectTo = `${window.location.origin}/#/auth?mode=signup&verified=true`;
+      // Clean root callback URL avoids HashRouter fragment collisions with #access_token=...
+      const redirectTo = `${window.location.origin}/?auth_callback=signup`;
       const { data, error } = await supabase.auth.signUp({
         email,
         password: params.password,
@@ -680,7 +642,11 @@ export async function registerWithEmail(params: {
   };
 }
 
-export async function checkLiveEmailVerification(pkceCode?: string): Promise<{
+export async function checkLiveEmailVerification(
+  pkceCode?: string,
+  accessToken?: string,
+  refreshToken?: string
+): Promise<{
   verified: boolean;
   user?: AuthUser;
 }> {
@@ -693,9 +659,18 @@ export async function checkLiveEmailVerification(pkceCode?: string): Promise<{
   }
 
   try {
-    if (pkceCode) {
+    // Check if detectSessionInUrl already hydrated the session before attempting manual exchange
+    const { data: sessionData } = await supabase.auth.getSession();
+
+    if (!sessionData.session && pkceCode) {
       await supabase.auth.exchangeCodeForSession(pkceCode);
+    } else if (!sessionData.session && accessToken && refreshToken) {
+      await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
     }
+
     const { data, error } = await supabase.auth.getUser();
     if (error) {
       if (isNetworkFetchFailure(error)) {
@@ -705,7 +680,9 @@ export async function checkLiveEmailVerification(pkceCode?: string): Promise<{
     }
     const sbUser = data.user;
     if (!sbUser) return { verified: false };
-    const verified = Boolean(sbUser.email_confirmed_at || sbUser.confirmed_at);
+    const provider = sbUser.app_metadata?.provider || 'email';
+    const isOAuthProvider = provider !== 'email';
+    const verified = Boolean(sbUser.email_confirmed_at || sbUser.confirmed_at || isOAuthProvider);
     return {
       verified,
       user: {
@@ -713,7 +690,7 @@ export async function checkLiveEmailVerification(pkceCode?: string): Promise<{
         email: sbUser.email || '',
         username: sbUser.user_metadata?.username,
         email_verified: verified,
-        providers: sbUser.app_metadata?.providers || ['email'],
+        providers: sbUser.app_metadata?.providers || [provider],
       },
     };
   } catch (err) {
@@ -780,7 +757,7 @@ export async function resendVerificationLink(email: string): Promise<{ demoVerif
         type: 'signup',
         email: normalized,
         options: {
-          emailRedirectTo: `${window.location.origin}/#/auth?mode=signup&verified=true`,
+          emailRedirectTo: `${window.location.origin}/?auth_callback=signup`,
         },
       });
       if (error) {
@@ -1135,7 +1112,7 @@ export async function loginWithOAuthProvider(
 }> {
   if (useLiveSupabase()) {
     try {
-      const redirectTo = `${window.location.origin}/#/auth?mode=${mode}&oauth=${provider}`;
+      const redirectTo = `${window.location.origin}/?auth_callback=oauth&mode=${mode}`;
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
@@ -1513,7 +1490,11 @@ export async function loginWithPasskey(identifier?: string): Promise<{
   };
 }
 
-export async function sendNewDeviceOtp(email: string, userId?: string): Promise<{ demoOtp?: string }> {
+export async function sendNewDeviceOtp(
+  email: string,
+  userId?: string,
+  forceNew = false
+): Promise<{ demoOtp?: string }> {
   const normalized = normalizeEmail(email);
 
   if (useLiveSupabase()) {
@@ -1538,6 +1519,25 @@ export async function sendNewDeviceOtp(email: string, userId?: string): Promise<
         supabaseUnreachable = true;
       } else {
         throw err;
+      }
+    }
+  }
+
+  if (!forceNew) {
+    const rawExisting = sessionStorage.getItem(PENDING_DEVICE_OTP_KEY);
+    if (rawExisting) {
+      try {
+        const existing = JSON.parse(rawExisting) as {
+          email: string;
+          userId: string;
+          code: string;
+          expiresAt: number;
+        };
+        if (existing.email === normalized && Date.now() < existing.expiresAt) {
+          return { demoOtp: existing.code };
+        }
+      } catch {
+        // Ignore malformed cache and generate a fresh OTP
       }
     }
   }

@@ -26,6 +26,7 @@ import {
   UserProfile,
   validatePasswordPolicy,
 } from '../services/authService';
+import { CLASS_OPTIONS } from '../utils/authRules';
 
 interface ProfileEditModalProps {
   isOpen: boolean;
@@ -215,23 +216,7 @@ export function ProfileEditModal({
     );
   };
 
-  const classes = [
-    'Nursery',
-    'LKG',
-    'UKG',
-    '1st',
-    '2nd',
-    '3rd',
-    '4th',
-    '5th',
-    '6th',
-    '7th',
-    '8th',
-    '9th',
-    '10th',
-    '11th',
-    '12th',
-  ];
+  const classes = CLASS_OPTIONS;
   const batches = Array.from({ length: 30 }, (_, i) => String(2026 - i));
 
   if (!isOpen) return null;

@@ -8,12 +8,11 @@ import { ProfileEditModal } from '../components/ProfileEditModal';
 import {
   getBatchStats,
   getUserProfile,
-  signOutUser,
   UserProfile,
 } from '../services/authService';
 
 export function DashboardPage() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [connections, setConnections] = useState<number>(0);
@@ -44,7 +43,7 @@ export function DashboardPage() {
   }, [user]);
 
   const handleSignOut = async () => {
-    await signOutUser();
+    await signOut();
     navigate('/');
   };
 
