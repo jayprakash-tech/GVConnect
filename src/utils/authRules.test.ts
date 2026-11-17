@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   CLASS_OPTIONS,
+  isMissingColumnSchemaError,
+  isProfileComplete,
   parseSupabaseCallbackUrl,
   resolveSessionRouteAction,
   validatePasswordPolicy,
@@ -35,6 +37,44 @@ test('username format enforces lowercase alphanumeric/dot/underscore and length'
 
 test('CLASS_OPTIONS includes PASSOUT', () => {
   assert.equal(CLASS_OPTIONS.includes('PASSOUT'), true);
+});
+
+test('isProfileComplete rejects blank trigger-created profile rows', () => {
+  assert.equal(isProfileComplete(null), false);
+  assert.equal(
+    isProfileComplete({
+      full_name: '',
+      admission_number: '',
+      class: '',
+      batch: '',
+    }),
+    false
+  );
+  assert.equal(
+    isProfileComplete({
+      full_name: 'Ananya Verma',
+      admission_number: 'GV-2020-108',
+      class: 'PASSOUT',
+      batch: '2020',
+    }),
+    true
+  );
+});
+
+test('isMissingColumnSchemaError detects PostgREST schema cache missing column errors', () => {
+  assert.equal(
+    isMissingColumnSchemaError({
+      code: 'PGRST204',
+      message: "Could not find the 'avatar_url' column of 'profiles' in the schema cache",
+    }),
+    true
+  );
+  assert.equal(
+    isMissingColumnSchemaError({
+      message: 'duplicate key value violates unique constraint',
+    }),
+    false
+  );
 });
 
 test('parseSupabaseCallbackUrl extracts PKCE code and auth_callback cleanly', () => {

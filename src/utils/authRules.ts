@@ -148,6 +148,48 @@ export function parseSupabaseCallbackUrl(search: string, hash: string): ParsedAu
   };
 }
 
+/**
+ * Returns true only when required alumni onboarding fields are populated.
+ * Blank rows auto-created by a Supabase auth.users trigger must return false.
+ */
+export function isProfileComplete(
+  profile:
+    | {
+        full_name?: string | null;
+        admission_number?: string | null;
+        class?: string | null;
+        batch?: string | null;
+      }
+    | null
+    | undefined
+): boolean {
+  return Boolean(
+    profile &&
+      profile.full_name?.trim() &&
+      profile.admission_number?.trim() &&
+      profile.class?.trim() &&
+      profile.batch?.trim()
+  );
+}
+
+/**
+ * Detects PostgREST / Postgres errors caused by optional columns (e.g. avatar_url, username)
+ * not yet present in the target Supabase table or schema cache.
+ */
+export function isMissingColumnSchemaError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const record = err as { code?: unknown; message?: unknown; details?: unknown };
+  const code = String(record.code || '');
+  const msg = `${String(record.message || '')} ${String(record.details || '')}`.toLowerCase();
+  return (
+    code === 'PGRST204' ||
+    code === '42703' ||
+    msg.includes('schema cache') ||
+    msg.includes('could not find the') ||
+    (msg.includes('column') && msg.includes('does not exist'))
+  );
+}
+
 export type AuthTabRouteAction =
   | { action: 'none' }
   | { action: 'prompt_signout' }
@@ -160,13 +202,13 @@ export type AuthTabRouteAction =
  * Pure state resolver enforcing strict isolation between Sign Up and Login:
  * - On Sign Up (`activeTab === 'signup'`):
  *   - Unverified session -> stays in signup email verification step (never OTP / login / dashboard).
- *   - Verified session without profile -> opens Step 4 Profile Setup.
- *   - Verified session WITH existing profile -> prompts user to sign out first before creating another account.
+ *   - Verified session without completed profile -> opens Complete Profile setup.
+ *   - Verified session WITH completed profile -> prompts user to sign out first before creating another account.
  * - On Login (`activeTab === 'login'`):
  *   - Unverified session -> routes to signup email verification step.
- *   - Verified session without profile -> routes to Profile Setup.
+ *   - Verified session without completed profile -> routes to Complete Profile setup.
  *   - Untrusted device -> triggers 6-digit new-device OTP challenge.
- *   - Trusted device + profile -> redirects to dashboard.
+ *   - Trusted device + completed profile -> redirects to dashboard.
  */
 export function resolveSessionRouteAction(params: {
   activeTab: 'signup' | 'login';

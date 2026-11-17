@@ -14,10 +14,10 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { SecurityPuzzle } from '../components/SecurityPuzzle';
+import { CompleteProfile } from '../components/CompleteProfile';
 import {
   checkLiveEmailVerification,
   checkUsernameAvailability,
-  completeProfileSetup,
   getDeviceLabel,
   getUserProfile,
   isUsingDemoFallback,
@@ -32,7 +32,7 @@ import {
   verifyNewDeviceOtp,
 } from '../services/authService';
 import {
-  CLASS_OPTIONS,
+  isProfileComplete,
   parseSupabaseCallbackUrl,
   resolveSessionRouteAction,
 } from '../utils/authRules';
@@ -40,15 +40,6 @@ import {
 type AuthTab = 'signup' | 'login';
 type SignupStep = 'credentials' | 'verify' | 'onboarding';
 type LoginStep = 'form' | 'device_otp';
-
-const BATCH_OPTIONS = Array.from({ length: 26 }, (_, i) => String(2026 - i));
-
-const ONBOARDING_GOALS = [
-  'Reconnect with batchmates',
-  'Career & mentorship',
-  'Campus events & reunions',
-  'Mentor current students',
-];
 
 export function AuthPage() {
   const navigate = useNavigate();
@@ -82,13 +73,6 @@ export function AuthPage() {
   const [verifiedUserId, setVerifiedUserId] = useState('');
   const [verifiedEmail, setVerifiedEmail] = useState('');
   const [verifiedUsername, setVerifiedUsername] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [admissionNumber, setAdmissionNumber] = useState('');
-  const [selectedClass, setSelectedClass] = useState('');
-  const [batchYear, setBatchYear] = useState('');
-  const [complianceAccepted, setComplianceAccepted] = useState(false);
-  const [onboardingGoal, setOnboardingGoal] = useState(ONBOARDING_GOALS[0]);
-  const [onboardingBio, setOnboardingBio] = useState('');
 
   // Login state
   const [loginStep, setLoginStep] = useState<LoginStep>('form');
@@ -231,7 +215,7 @@ export function AuthPage() {
       const decision = resolveSessionRouteAction({
         activeTab,
         user,
-        hasProfile: Boolean(profile),
+        hasProfile: isProfileComplete(profile),
         deviceVerified,
       });
 
@@ -374,11 +358,9 @@ export function AuthPage() {
       setUsername('');
       setPassword('');
       setConfirmPassword('');
-      setFullName('');
-      setAdmissionNumber('');
-      setSelectedClass('');
-      setBatchYear('');
-      setComplianceAccepted(false);
+      setVerifiedUserId('');
+      setVerifiedEmail('');
+      setVerifiedUsername('');
       setSearchParams({ mode: 'signup' }, { replace: true });
     } finally {
       setLoading(false);
@@ -447,15 +429,10 @@ export function AuthPage() {
       setVerifiedEmail(result.email);
       setVerifiedUsername(result.username);
 
-      if (result.emailVerified === true && !result.needsEmailVerification) {
-        setEmailVerifiedConfirmed(true);
-        setSignupStep('onboarding');
-      } else {
-        setEmailVerifiedConfirmed(false);
-        setVerificationLinkSent(true);
-        setResendTimer(30);
-        setDemoVerifyUrl(result.demoVerifyUrl || '');
-      }
+      setEmailVerifiedConfirmed(false);
+      setVerificationLinkSent(true);
+      setResendTimer(30);
+      setDemoVerifyUrl(result.demoVerifyUrl || '');
     } catch (err: any) {
       setError(err.message || 'Could not send verification link.');
     } finally {
@@ -526,59 +503,6 @@ export function AuthPage() {
       }
     } catch (err: any) {
       setError(err.message || 'Could not verify email status yet.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Sign Up Step 3: Batch Compliance & Onboarding -> Auto-Login to Dashboard
-  const handleCompleteOnboarding = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    if (!emailVerifiedConfirmed && !user?.email_verified) {
-      setSignupStep('verify');
-      setVerificationLinkSent(true);
-      setError('Please verify your email address before completing onboarding.');
-      return;
-    }
-
-    if (!batchYear) {
-      setError('Please select your Batch year for compliance.');
-      return;
-    }
-    if (!complianceAccepted) {
-      setError('Please confirm your Batch compliance and alumni guidelines.');
-      return;
-    }
-
-    const activeUserId = verifiedUserId || user?.id;
-    const activeEmail = verifiedEmail || user?.email || email;
-    const activeUsername = verifiedUsername || user?.username || username;
-
-    if (!activeUserId) {
-      setError('Verification session missing. Please verify your email first.');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await completeProfileSetup(activeUserId, {
-        email: activeEmail,
-        username: activeUsername,
-        full_name: fullName,
-        admission_number: admissionNumber,
-        class: selectedClass,
-        batch: batchYear,
-        compliance_accepted: complianceAccepted,
-        onboarding_goal: onboardingGoal,
-        onboarding_bio: onboardingBio,
-      });
-
-      await refreshAuth();
-      navigate('/dashboard', { replace: true });
-    } catch (err: any) {
-      setError(err.message || 'Failed to complete onboarding.');
     } finally {
       setLoading(false);
     }
@@ -959,29 +883,26 @@ export function AuthPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.18 }}
               >
-                <div className="mb-6">
-                  <p className="text-xs font-semibold text-[#800020] mb-1.5 tabular-nums">
-                    Step {stepIndex} of 3 ·{' '}
-                    {signupStep === 'credentials'
-                      ? 'Account Credentials'
-                      : signupStep === 'verify'
-                        ? 'Security & Email Verification'
-                        : 'Profile & Batch Compliance'}
-                  </p>
-                  <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#1a1a1a] tracking-tight">
-                    {signupStep === 'credentials' && 'Create your account'}
-                    {signupStep === 'verify' && 'Verify your account'}
-                    {signupStep === 'onboarding' && 'Complete profile setup'}
-                  </h1>
-                  <p className="mt-1.5 text-[#525252] text-[15px]">
-                    {signupStep === 'credentials' &&
-                      'Enter your email, choose a unique username, and set a strong password.'}
-                    {signupStep === 'verify' &&
-                      'Solve the quick security puzzle and confirm via the verification link sent to your email.'}
-                    {signupStep === 'onboarding' &&
-                      'Enter your alumni details, select PASSOUT / Class and Batch for compliance, and finish onboarding.'}
-                  </p>
-                </div>
+                {signupStep !== 'onboarding' && (
+                  <div className="mb-6">
+                    <p className="text-xs font-semibold text-[#800020] mb-1.5 tabular-nums">
+                      Step {stepIndex} of 3 ·{' '}
+                      {signupStep === 'credentials'
+                        ? 'Account Credentials'
+                        : 'Security & Email Verification'}
+                    </p>
+                    <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#1a1a1a] tracking-tight">
+                      {signupStep === 'credentials' && 'Create your account'}
+                      {signupStep === 'verify' && 'Verify your account'}
+                    </h1>
+                    <p className="mt-1.5 text-[#525252] text-[15px]">
+                      {signupStep === 'credentials' &&
+                        'Enter your email, choose a unique username, and set a strong password.'}
+                      {signupStep === 'verify' &&
+                        'Solve the quick security puzzle and confirm via the verification link sent to your email.'}
+                    </p>
+                  </div>
+                )}
 
                 {/* SIGN UP STEP 1: CREDENTIALS */}
                 {signupStep === 'credentials' && (
@@ -1283,168 +1204,22 @@ export function AuthPage() {
                   </div>
                 )}
 
-                {/* SIGN UP STEP 3: BATCH COMPLIANCE & ONBOARDING */}
-                {signupStep === 'onboarding' && (
-                  <form onSubmit={handleCompleteOnboarding} className="space-y-4">
-                    {(emailVerifiedConfirmed || user?.email_verified) && (
-                      <div className="rounded-xl border border-[#e5e5e5] bg-[#fafafa] px-4 py-3 text-xs text-[#525252] flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <CheckCircle2 className="w-4 h-4 text-[#166534] shrink-0" />
-                        <span>
-                          Verified: <strong className="text-[#1a1a1a]">{verifiedEmail}</strong>
-                        </span>
-                        {verifiedUsername && (
-                          <>
-                            <span aria-hidden="true">·</span>
-                            <span>@{verifiedUsername}</span>
-                          </>
-                        )}
-                      </div>
-                    )}
-
-                    <div>
-                      <label
-                        htmlFor="onboarding-fullname"
-                        className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
-                      >
-                        Full Name
-                      </label>
-                      <input
-                        id="onboarding-fullname"
-                        type="text"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        required
-                        className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#800020]/20 focus:border-[#800020] text-[15px]"
-                        placeholder="e.g., Rahul Sharma"
-                      />
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="onboarding-admission"
-                        className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
-                      >
-                        Admission Number
-                      </label>
-                      <input
-                        id="onboarding-admission"
-                        type="text"
-                        value={admissionNumber}
-                        onChange={(e) => setAdmissionNumber(e.target.value)}
-                        required
-                        className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#800020]/20 focus:border-[#800020] text-[15px]"
-                        placeholder="e.g., GV-2018-045"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label
-                          htmlFor="onboarding-class"
-                          className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
-                        >
-                          Class
-                        </label>
-                        <select
-                          id="onboarding-class"
-                          value={selectedClass}
-                          onChange={(e) => setSelectedClass(e.target.value)}
-                          required
-                          className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#800020]/20 focus:border-[#800020] text-[15px]"
-                        >
-                          <option value="">Select Class</option>
-                          {CLASS_OPTIONS.map((c) => (
-                            <option key={c} value={c}>
-                              {c === 'PASSOUT' ? 'PASSOUT (Alumni)' : c}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label
-                          htmlFor="onboarding-batch"
-                          className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
-                        >
-                          Batch Year (Compliance)
-                        </label>
-                        <select
-                          id="onboarding-batch"
-                          value={batchYear}
-                          onChange={(e) => setBatchYear(e.target.value)}
-                          required
-                          className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#800020]/20 focus:border-[#800020] text-[15px]"
-                        >
-                          <option value="">Select Batch</option>
-                          {BATCH_OPTIONS.map((yr) => (
-                            <option key={yr} value={yr}>
-                              {yr}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Onboarding Prompts */}
-                    <div>
-                      <label
-                        htmlFor="onboarding-goal"
-                        className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
-                      >
-                        What brings you to GVConnect?
-                      </label>
-                      <select
-                        id="onboarding-goal"
-                        value={onboardingGoal}
-                        onChange={(e) => setOnboardingGoal(e.target.value)}
-                        className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#800020]/20 focus:border-[#800020] text-[15px]"
-                      >
-                        {ONBOARDING_GOALS.map((goal) => (
-                          <option key={goal} value={goal}>
-                            {goal}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="onboarding-bio"
-                        className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
-                      >
-                        Current Role or City (Optional)
-                      </label>
-                      <input
-                        id="onboarding-bio"
-                        type="text"
-                        value={onboardingBio}
-                        onChange={(e) => setOnboardingBio(e.target.value)}
-                        className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#800020]/20 focus:border-[#800020] text-[15px]"
-                        placeholder="e.g., Product Engineer · Bengaluru"
-                      />
-                    </div>
-
-                    <label className="flex items-start gap-3 rounded-xl border border-[#e5e5e5] bg-[#fafafa] p-3.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={complianceAccepted}
-                        onChange={(e) => setComplianceAccepted(e.target.checked)}
-                        className="mt-0.5 h-4 w-4 accent-[#800020]"
-                      />
-                      <span className="text-xs text-[#404040] leading-relaxed">
-                        I confirm my selected Batch year is accurate for alumni verification compliance and agree to the GVConnect community guidelines.
-                      </span>
-                    </label>
-
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-[#800020] text-[#D4AF37] hover:bg-[#600018] disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-                    >
-                      {loading ? 'Finishing Setup...' : 'Finish Onboarding & Open Dashboard'}
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
-                  </form>
+                {/* SIGN UP STEP 3: COMPLETE PROFILE (ONLY RENDERED AFTER EMAIL LINK VERIFICATION) */}
+                {signupStep === 'onboarding' && emailVerifiedConfirmed && (
+                  <CompleteProfile
+                    isEmailVerified={Boolean(emailVerifiedConfirmed || user?.email_verified)}
+                    userId={verifiedUserId || user?.id || ''}
+                    verifiedEmail={verifiedEmail || user?.email || email}
+                    verifiedUsername={verifiedUsername || user?.username || username}
+                    onRequireVerification={() => {
+                      setSignupStep('verify');
+                      setVerificationLinkSent(true);
+                    }}
+                    onSuccess={async () => {
+                      await refreshAuth();
+                      navigate('/dashboard', { replace: true });
+                    }}
+                  />
                 )}
               </motion.div>
             )}

@@ -1,5 +1,7 @@
 import { isSupabaseConfigured, supabase } from '../utils/supabase/client';
 import {
+  isMissingColumnSchemaError,
+  isProfileComplete,
   normalizeEmail,
   normalizeUsername,
   PasswordValidationResult,
@@ -505,6 +507,12 @@ export async function checkUsernameAvailability(
       }
       if (isNetworkFetchFailure(error)) {
         supabaseUnreachable = true;
+      } else if (isMissingColumnSchemaError(error)) {
+        // Optional username column hasn't been added to profiles yet; allow client-side check
+        return {
+          available: true,
+          message: 'Username is available',
+        };
       }
     } catch (err) {
       if (isNetworkFetchFailure(err)) {
@@ -582,16 +590,27 @@ export async function registerWithEmail(params: {
           throw new Error('An account with this email already exists. Please log in instead.');
         }
 
-        const isEmailConfirmed = Boolean(
-          data.user.email_confirmed_at || data.user.confirmed_at
-        );
+        // Never leave a live session active during Sign Up before the user clicks the email verification link.
+        // If Confirm Email is off in Supabase, signUp returns an auto-session immediately: sign it out and send a verification link.
+        if (data.session) {
+          await supabase.auth.signOut().catch(() => null);
+          await supabase.auth
+            .signInWithOtp({
+              email,
+              options: {
+                emailRedirectTo: redirectTo,
+                shouldCreateUser: false,
+              },
+            })
+            .catch(() => null);
+        }
 
         return {
           userId: data.user.id,
           email,
           username,
-          emailVerified: isEmailConfirmed,
-          needsEmailVerification: !isEmailConfirmed,
+          emailVerified: false,
+          needsEmailVerification: true,
         };
       }
     } catch (err) {
@@ -934,6 +953,8 @@ async function resolveIdentifierToEmail(identifier: string): Promise<string> {
           supabaseUnreachable = true;
         } else if (data?.email) {
           return data.email.toLowerCase();
+        } else if (error && isMissingColumnSchemaError(error)) {
+          throw new Error('Please enter your email address to log in.');
         } else {
           throw new Error('No account found with that username.');
         }
@@ -1004,7 +1025,7 @@ export async function loginWithPassword(params: {
         }
 
         const profile = await getUserProfile(userId);
-        if (!profile) {
+        if (!profile || !isProfileComplete(profile)) {
           return {
             status: 'needs_onboarding',
             email,
@@ -1673,19 +1694,21 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
       } else if (!data) {
         return null;
       } else {
+        const authUserData = await supabase.auth.getUser().catch(() => null);
+        const meta = authUserData?.data?.user?.user_metadata || {};
         return {
           id: data.id,
-          email: data.email || '',
-          username: data.username || data.email?.split('@')[0] || 'grizzlian',
+          email: data.email || authUserData?.data?.user?.email || '',
+          username: data.username || meta.username || data.email?.split('@')[0] || 'grizzlian',
           full_name: data.full_name || '',
           admission_number: data.admission_number || '',
           class: data.class || '',
           batch: data.batch || '',
-          compliance_accepted: Boolean(data.compliance_accepted ?? true),
+          compliance_accepted: Boolean(data.compliance_accepted ?? meta.compliance_accepted ?? false),
           compliance_accepted_at: data.compliance_accepted_at,
-          onboarding_goal: data.onboarding_goal,
-          onboarding_bio: data.onboarding_bio,
-          avatar_url: data.avatar_url || null,
+          onboarding_goal: data.onboarding_goal || meta.onboarding_goal,
+          onboarding_bio: data.onboarding_bio || meta.onboarding_bio,
+          avatar_url: data.avatar_url || meta.avatar_url || null,
         };
       }
     } catch (err) {
@@ -1756,18 +1779,35 @@ export async function updateUserProfile(
 
   if (useLiveSupabase()) {
     try {
-      const { data, error } = await supabase
+      const corePayload = {
+        full_name: updates.full_name,
+        admission_number: updates.admission_number,
+        class: updates.class,
+        batch: updates.batch,
+      };
+      const payloadWithAvatar =
+        updates.avatarFile || updates.avatar_url
+          ? { ...corePayload, avatar_url: finalAvatarUrl }
+          : corePayload;
+
+      let { data, error } = await supabase
         .from('profiles')
-        .update({
-          full_name: updates.full_name,
-          admission_number: updates.admission_number,
-          class: updates.class,
-          batch: updates.batch,
-          ...(finalAvatarUrl !== undefined ? { avatar_url: finalAvatarUrl } : {}),
-        })
+        .update(payloadWithAvatar)
         .eq('id', userId)
-        .select()
+        .select('*')
         .single();
+
+      if (error && isMissingColumnSchemaError(error)) {
+        // Retry without optional avatar_url column if profiles table schema hasn't added it yet
+        const retry = await supabase
+          .from('profiles')
+          .update(corePayload)
+          .eq('id', userId)
+          .select('*')
+          .single();
+        data = retry.data;
+        error = retry.error;
+      }
 
       if (error) {
         if (isNetworkFetchFailure(error)) {
@@ -1776,7 +1816,17 @@ export async function updateUserProfile(
           throw new Error(error.message);
         }
       } else {
-        return data as UserProfile;
+        if (finalAvatarUrl !== undefined) {
+          await supabase.auth
+            .updateUser({
+              data: { avatar_url: finalAvatarUrl },
+            })
+            .catch(() => null);
+        }
+        return {
+          ...(data as UserProfile),
+          avatar_url: (data as UserProfile)?.avatar_url ?? finalAvatarUrl,
+        };
       }
     } catch (err) {
       if (isNetworkFetchFailure(err)) {
@@ -1921,9 +1971,24 @@ export async function listAlumniDirectory(): Promise<UserProfile[]> {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, email, username, full_name, admission_number, class, batch, compliance_accepted, onboarding_bio, avatar_url');
+        .select('*');
       if (!error && data) {
-        return data as UserProfile[];
+        return (data as any[])
+          .filter((row) => isProfileComplete(row))
+          .map((row) => ({
+            id: row.id,
+            email: row.email || '',
+            username: row.username || row.email?.split('@')[0] || 'grizzlian',
+            full_name: row.full_name || '',
+            admission_number: row.admission_number || '',
+            class: row.class || '',
+            batch: row.batch || '',
+            compliance_accepted: Boolean(row.compliance_accepted ?? true),
+            compliance_accepted_at: row.compliance_accepted_at,
+            onboarding_goal: row.onboarding_goal,
+            onboarding_bio: row.onboarding_bio,
+            avatar_url: row.avatar_url || null,
+          }));
       }
       if (error && isNetworkFetchFailure(error)) {
         supabaseUnreachable = true;
