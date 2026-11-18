@@ -23,6 +23,7 @@ export interface CompleteProfileProps {
   initialBatch?: string;
   onSuccess: () => Promise<void> | void;
   onRequireVerification?: () => void;
+  onSignOut?: () => Promise<void> | void;
 }
 
 export function CompleteProfile({
@@ -36,6 +37,7 @@ export function CompleteProfile({
   initialBatch = '',
   onSuccess,
   onRequireVerification,
+  onSignOut,
 }: CompleteProfileProps) {
   const [fullName, setFullName] = useState(initialFullName);
   const [admissionNumber, setAdmissionNumber] = useState(initialAdmissionNumber);
@@ -281,6 +283,17 @@ export function CompleteProfile({
           {loading ? 'Finishing Setup...' : 'Finish Onboarding & Open Dashboard'}
           <ArrowRight className="w-4 h-4" />
         </button>
+
+        {onSignOut && (
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => onSignOut()}
+            className="w-full text-center text-xs text-[#525252] hover:text-[#1a1a1a] pt-1"
+          >
+            Not your account? Sign out and use another email
+          </button>
+        )}
       </form>
     </div>
   );

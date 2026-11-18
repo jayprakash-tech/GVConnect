@@ -52,10 +52,33 @@ function AppRoutes() {
         const res = await checkLiveEmailVerification(
           parsed.pkceCode || undefined,
           parsed.accessToken || undefined,
-          parsed.refreshToken || undefined
+          parsed.refreshToken || undefined,
+          true
         );
 
         if (cancelled) return;
+
+        // If the user clicked a new-device magic link sent by signInWithOtp for an untrusted device,
+        // verify this browser session and proceed cleanly.
+        const pendingDeviceUser = sessionStorage.getItem('gv_pending_device_otp_user');
+        if (
+          res.verified &&
+          res.user &&
+          (parsed.authCallback === 'device_otp' ||
+            (parsed.callbackType === 'magiclink' && pendingDeviceUser === res.user.id))
+        ) {
+          sessionStorage.removeItem('gv_pending_device_otp_user');
+          sessionStorage.setItem('gv_device_otp_verified_user', res.user.id);
+          await refreshAuth();
+          window.history.replaceState({}, '', `${window.location.pathname}#/dashboard`);
+          navigate('/dashboard', { replace: true });
+          return;
+        }
+
+        if (parsed.authCallback === 'oauth') {
+          sessionStorage.setItem('gv_oauth_callback_active', '1');
+        }
+
         await refreshAuth();
 
         const isSignupVerification =

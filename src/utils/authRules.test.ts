@@ -154,3 +154,37 @@ test('resolveSessionRouteAction redirects to dashboard on Login when verified + 
     { action: 'redirect_dashboard' }
   );
 });
+
+test('resolveSessionRouteAction allows existing OAuth user returning via Google on Sign Up tab to log in or trigger new-device OTP', () => {
+  assert.deepEqual(
+    resolveSessionRouteAction({
+      activeTab: 'signup',
+      user: { email_verified: true },
+      hasProfile: true,
+      deviceVerified: false,
+      allowExistingAccountLogin: true,
+    }),
+    { action: 'login_device_otp' }
+  );
+  assert.deepEqual(
+    resolveSessionRouteAction({
+      activeTab: 'signup',
+      user: { email_verified: true },
+      hasProfile: true,
+      deviceVerified: true,
+      allowExistingAccountLogin: true,
+    }),
+    { action: 'redirect_dashboard' }
+  );
+});
+
+test('parseSupabaseCallbackUrl extracts device_otp callback and magiclink type', () => {
+  const parsed = parseSupabaseCallbackUrl(
+    '?auth_callback=device_otp&code=dev-code-99',
+    '#type=magiclink'
+  );
+  assert.equal(parsed.hasCallback, true);
+  assert.equal(parsed.authCallback, 'device_otp');
+  assert.equal(parsed.pkceCode, 'dev-code-99');
+  assert.equal(parsed.callbackType, 'magiclink');
+});

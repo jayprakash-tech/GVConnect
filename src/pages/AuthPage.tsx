@@ -155,7 +155,8 @@ export function AuthPage() {
       checkLiveEmailVerification(
         pkceCode || undefined,
         parsed.accessToken || undefined,
-        parsed.refreshToken || undefined
+        parsed.refreshToken || undefined,
+        true
       )
         .then(async (res) => {
           if (cancelled) return;
@@ -201,6 +202,7 @@ export function AuthPage() {
 
   // Strictly isolate Sign Up and Login session routing:
   // - Never jump from Sign Up to Login OTP or Dashboard when an existing session is active; ask user to sign out first.
+  // - Exception: intentional OAuth return (Continue with Google) lets an existing user log in or complete device OTP.
   useEffect(() => {
     if (!user) {
       setShowSignOutPrompt(false);
@@ -212,11 +214,15 @@ export function AuthPage() {
       const profile = await getUserProfile(user.id);
       if (cancelled) return;
 
+      const allowExistingAccountLogin =
+        sessionStorage.getItem('gv_oauth_callback_active') === '1';
+
       const decision = resolveSessionRouteAction({
         activeTab,
         user,
         hasProfile: isProfileComplete(profile),
         deviceVerified,
+        allowExistingAccountLogin,
       });
 
       if (decision.action === 'signup_verify_email') {
@@ -233,6 +239,7 @@ export function AuthPage() {
       }
 
       if (decision.action === 'signup_onboarding') {
+        sessionStorage.removeItem('gv_oauth_callback_active');
         setShowSignOutPrompt(false);
         setActiveTab('signup');
         setEmailVerifiedConfirmed(true);
@@ -249,22 +256,30 @@ export function AuthPage() {
       }
 
       if (decision.action === 'login_device_otp') {
+        sessionStorage.removeItem('gv_oauth_callback_active');
         setShowSignOutPrompt(false);
         setActiveTab('login');
         setLoginStep('device_otp');
         setOtpTargetEmail(user.email);
         setOtpTargetUserId(user.id);
-        if (otpDispatchedForUserRef.current !== user.id && isUsingDemoFallback()) {
+        if (otpDispatchedForUserRef.current !== user.id) {
           otpDispatchedForUserRef.current = user.id;
-          const res = await sendNewDeviceOtp(user.email, user.id);
-          if (!cancelled && res.demoOtp) {
-            setDemoOtpCode(res.demoOtp);
+          try {
+            const res = await sendNewDeviceOtp(user.email, user.id);
+            if (!cancelled && res.demoOtp) {
+              setDemoOtpCode(res.demoOtp);
+            }
+          } catch (otpErr: any) {
+            if (!cancelled && otpErr?.message) {
+              setInfoMessage(otpErr.message);
+            }
           }
         }
         return;
       }
 
       if (decision.action === 'redirect_dashboard') {
+        sessionStorage.removeItem('gv_oauth_callback_active');
         navigate('/dashboard', { replace: true });
       }
     };
@@ -531,7 +546,8 @@ export function AuthPage() {
         setVerifiedEmail(result.email);
         setVerifiedUsername(result.username || '');
         setDemoVerifyUrl(result.demoVerifyUrl || '');
-        setError('Please verify your email address before logging in.');
+        setResendTimer(0);
+        setError('Please verify your email address via the verification link before logging in.');
         return;
       }
 
@@ -547,11 +563,15 @@ export function AuthPage() {
 
       if (result.status === 'otp_required') {
         otpDispatchedForUserRef.current = result.userId;
+        setActiveTab('login');
         setLoginStep('device_otp');
         setOtpTargetEmail(result.email);
         setOtpTargetUserId(result.userId);
         setDemoOtpCode(result.demoOtp || '');
         setOtpResendTimer(30);
+        if (result.otpNotice) {
+          setInfoMessage(result.otpNotice);
+        }
         return;
       }
 
@@ -580,10 +600,12 @@ export function AuthPage() {
 
     setLoading(true);
     try {
+      sessionStorage.setItem('gv_oauth_callback_active', '1');
       const result = await loginWithOAuthProvider(provider, mode);
       if (result.status !== 'redirecting') {
         await refreshAuth();
         if (result.status === 'needs_onboarding') {
+          sessionStorage.removeItem('gv_oauth_callback_active');
           setActiveTab('signup');
           setEmailVerifiedConfirmed(true);
           setVerifiedUserId(result.userId || '');
@@ -591,6 +613,7 @@ export function AuthPage() {
           setVerifiedUsername(result.username || '');
           setSignupStep('onboarding');
         } else if (result.status === 'otp_required') {
+          sessionStorage.removeItem('gv_oauth_callback_active');
           otpDispatchedForUserRef.current = result.userId || null;
           setActiveTab('login');
           setLoginStep('device_otp');
@@ -599,11 +622,13 @@ export function AuthPage() {
           setDemoOtpCode(result.demoOtp || '');
           setOtpResendTimer(30);
         } else {
+          sessionStorage.removeItem('gv_oauth_callback_active');
           navigate('/dashboard', { replace: true });
         }
         setLoading(false);
       }
     } catch (err: any) {
+      sessionStorage.removeItem('gv_oauth_callback_active');
       setError(err.message || `Could not sign in with ${provider}.`);
       setLoading(false);
     }
@@ -619,24 +644,29 @@ export function AuthPage() {
     setError('');
 
     try {
+      sessionStorage.setItem('gv_oauth_callback_active', '1');
       const result = await loginWithOAuthProvider(provider, mode, oauthEmail);
       await refreshAuth();
 
       if (result.status === 'needs_onboarding') {
+        sessionStorage.removeItem('gv_oauth_callback_active');
         setActiveTab('signup');
+        setShowSignOutPrompt(false);
         setEmailVerifiedConfirmed(true);
         setVerifiedUserId(result.userId || '');
         setVerifiedEmail(result.email || oauthEmail);
         setVerifiedUsername(result.username || '');
         setSignupStep('onboarding');
         setInfoMessage(
-          `Connected with ${provider === 'google' ? 'Google' : 'Apple'}. Complete your Batch compliance to enter your dashboard.`
+          `Connected with ${provider === 'google' ? 'Google' : 'Apple'}. Complete your Profile & Batch compliance to enter your dashboard.`
         );
         return;
       }
 
       if (result.status === 'otp_required') {
+        sessionStorage.removeItem('gv_oauth_callback_active');
         otpDispatchedForUserRef.current = result.userId || null;
+        setShowSignOutPrompt(false);
         setActiveTab('login');
         setLoginStep('device_otp');
         setOtpTargetEmail(result.email || oauthEmail);
@@ -646,8 +676,10 @@ export function AuthPage() {
         return;
       }
 
+      sessionStorage.removeItem('gv_oauth_callback_active');
       navigate('/dashboard', { replace: true });
     } catch (err: any) {
+      sessionStorage.removeItem('gv_oauth_callback_active');
       setError(err.message || 'OAuth sign-in failed.');
     } finally {
       setLoading(false);
@@ -663,8 +695,19 @@ export function AuthPage() {
       const result = await loginWithPasskey(loginIdentifier);
       await refreshAuth();
 
+      if (result.status === 'needs_onboarding') {
+        setActiveTab('signup');
+        setEmailVerifiedConfirmed(true);
+        setVerifiedUserId(result.userId);
+        setVerifiedEmail(result.email);
+        setVerifiedUsername(result.username || '');
+        setSignupStep('onboarding');
+        return;
+      }
+
       if (result.status === 'otp_required') {
         otpDispatchedForUserRef.current = result.userId;
+        setActiveTab('login');
         setLoginStep('device_otp');
         setOtpTargetEmail(result.email);
         setOtpTargetUserId(result.userId);
@@ -1116,7 +1159,10 @@ export function AuthPage() {
 
                         <button
                           type="button"
-                          onClick={() => {
+                          onClick={async () => {
+                            if (user && !user.email_verified) {
+                              await signOut();
+                            }
                             setSignupStep('credentials');
                             setError('');
                           }}
@@ -1189,7 +1235,10 @@ export function AuthPage() {
 
                           <button
                             type="button"
-                            onClick={() => {
+                            onClick={async () => {
+                              if (user && !user.email_verified) {
+                                await signOut();
+                              }
                               setVerificationLinkSent(false);
                               setEmailVerifiedConfirmed(false);
                               setSignupStep('credentials');
@@ -1215,6 +1264,7 @@ export function AuthPage() {
                       setSignupStep('verify');
                       setVerificationLinkSent(true);
                     }}
+                    onSignOut={handleSignOutToCreateAccount}
                     onSuccess={async () => {
                       await refreshAuth();
                       navigate('/dashboard', { replace: true });

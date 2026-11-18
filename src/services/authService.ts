@@ -77,10 +77,28 @@ const DEMO_SESSION_KEY = 'gv_demo_session_v2';
 const DEVICE_ID_KEY = 'gv_device_id';
 const TRUSTED_DEVICES_PREFIX = 'gv_trusted_devices_';
 const PASSKEYS_PREFIX = 'gv_passkeys_';
+const PASSKEY_DIRECTORY_KEY = 'gv_passkey_directory_v1';
+const USERNAME_EMAIL_MAP_KEY = 'gv_username_email_map_v1';
+const AWAITING_LINK_PREFIX = 'gv_awaiting_email_link_';
 const PENDING_DEVICE_OTP_KEY = 'gv_pending_device_otp';
+const PENDING_DEVICE_OTP_USER_KEY = 'gv_pending_device_otp_user';
 const AUTH_EVENT_NAME = 'gv-auth-changed';
 
 let supabaseUnreachable = false;
+let authBroadcastSuppressionDepth = 0;
+
+export function isAuthBroadcastSuppressed(): boolean {
+  return authBroadcastSuppressionDepth > 0;
+}
+
+async function withSuppressedAuthBroadcast<T>(fn: () => Promise<T>): Promise<T> {
+  authBroadcastSuppressionDepth += 1;
+  try {
+    return await fn();
+  } finally {
+    authBroadcastSuppressionDepth = Math.max(0, authBroadcastSuppressionDepth - 1);
+  }
+}
 
 function useLiveSupabase(): boolean {
   return isSupabaseConfigured && !supabaseUnreachable;
@@ -88,6 +106,93 @@ function useLiveSupabase(): boolean {
 
 export function isUsingDemoFallback(): boolean {
   return !useLiveSupabase();
+}
+
+function rememberUsernameEmail(username?: string | null, email?: string | null) {
+  const cleanUser = username ? normalizeUsername(username) : '';
+  const cleanEmail = email ? normalizeEmail(email) : '';
+  if (!cleanUser || !cleanEmail) return;
+  try {
+    const raw = localStorage.getItem(USERNAME_EMAIL_MAP_KEY);
+    const map: Record<string, string> = raw ? JSON.parse(raw) : {};
+    map[cleanUser] = cleanEmail;
+    localStorage.setItem(USERNAME_EMAIL_MAP_KEY, JSON.stringify(map));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+function lookupCachedEmailForUsername(username: string): string | null {
+  try {
+    const raw = localStorage.getItem(USERNAME_EMAIL_MAP_KEY);
+    if (!raw) return null;
+    const map = JSON.parse(raw) as Record<string, string>;
+    return map[normalizeUsername(username)] || null;
+  } catch {
+    return null;
+  }
+}
+
+function setAwaitingEmailLink(email: string) {
+  const clean = normalizeEmail(email);
+  if (!clean) return;
+  try {
+    localStorage.setItem(`${AWAITING_LINK_PREFIX}${clean}`, '1');
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+function clearAwaitingEmailLink(email?: string | null) {
+  if (!email) return;
+  try {
+    localStorage.removeItem(`${AWAITING_LINK_PREFIX}${normalizeEmail(email)}`);
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+function isAwaitingEmailLink(email?: string | null): boolean {
+  if (!email) return false;
+  try {
+    return localStorage.getItem(`${AWAITING_LINK_PREFIX}${normalizeEmail(email)}`) === '1';
+  } catch {
+    return false;
+  }
+}
+
+interface PasskeyDirectoryEntry extends PasskeyCredentialRecord {
+  userId: string;
+  email: string;
+  username?: string;
+}
+
+function getPasskeyDirectory(): PasskeyDirectoryEntry[] {
+  try {
+    const raw = localStorage.getItem(PASSKEY_DIRECTORY_KEY);
+    return raw ? (JSON.parse(raw) as PasskeyDirectoryEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function upsertPasskeyDirectory(entry: PasskeyDirectoryEntry) {
+  try {
+    const next = getPasskeyDirectory().filter((p) => p.id !== entry.id);
+    next.push(entry);
+    localStorage.setItem(PASSKEY_DIRECTORY_KEY, JSON.stringify(next));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+function removeFromPasskeyDirectory(credentialId: string) {
+  try {
+    const next = getPasskeyDirectory().filter((p) => p.id !== credentialId);
+    localStorage.setItem(PASSKEY_DIRECTORY_KEY, JSON.stringify(next));
+  } catch {
+    // Ignore storage errors
+  }
 }
 
 function isNetworkFetchFailure(err: any): boolean {
@@ -401,8 +506,10 @@ export async function getAuthSessionState(): Promise<{
         }
         const provider = sbUser.app_metadata?.provider || 'email';
         const isOAuthProvider = provider !== 'email';
+        const awaitingSignupLink = !isOAuthProvider && isAwaitingEmailLink(sbUser.email);
         const emailVerified = Boolean(
-          sbUser.email_confirmed_at || sbUser.confirmed_at || isOAuthProvider
+          !awaitingSignupLink &&
+            (sbUser.email_confirmed_at || sbUser.confirmed_at || isOAuthProvider)
         );
         const trusted = await isCurrentDeviceTrusted(sbUser.id);
         const pendingDeviceCheck =
@@ -450,6 +557,7 @@ export function subscribeAuthChanges(
   callback: (state: { user: AuthUser | null; deviceVerified: boolean }) => void
 ): () => void {
   const handleLocalChange = () => {
+    if (isAuthBroadcastSuppressed()) return;
     getAuthSessionState().then(callback);
   };
 
@@ -459,6 +567,7 @@ export function subscribeAuthChanges(
   let unsubscribeSupabase: (() => void) | undefined;
   if (useLiveSupabase()) {
     const { data } = supabase.auth.onAuthStateChange(() => {
+      if (isAuthBroadcastSuppressed()) return;
       getAuthSessionState().then(callback);
     });
     unsubscribeSupabase = () => data.subscription.unsubscribe();
@@ -561,26 +670,28 @@ export async function registerWithEmail(params: {
 
   if (useLiveSupabase()) {
     try {
-      // Clean root callback URL avoids HashRouter fragment collisions with #access_token=...
-      const redirectTo = `${window.location.origin}/?auth_callback=signup`;
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password: params.password,
-        options: {
-          emailRedirectTo: redirectTo,
-          data: {
-            username,
+      return await withSuppressedAuthBroadcast(async () => {
+        // Clean root callback URL avoids HashRouter fragment collisions with #access_token=...
+        const redirectTo = `${window.location.origin}/?auth_callback=signup`;
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password: params.password,
+          options: {
+            emailRedirectTo: redirectTo,
+            data: {
+              username,
+            },
           },
-        },
-      });
+        });
 
-      if (error) {
-        if (isNetworkFetchFailure(error)) {
-          supabaseUnreachable = true;
-        } else {
+        if (error) {
+          if (isNetworkFetchFailure(error)) {
+            supabaseUnreachable = true;
+            throw error;
+          }
           throw new Error(error.message);
         }
-      } else {
+
         if (!data.user) {
           throw new Error('Could not create user account. Please try again.');
         }
@@ -590,9 +701,13 @@ export async function registerWithEmail(params: {
           throw new Error('An account with this email already exists. Please log in instead.');
         }
 
+        rememberUsernameEmail(username, email);
+
         // Never leave a live session active during Sign Up before the user clicks the email verification link.
-        // If Confirm Email is off in Supabase, signUp returns an auto-session immediately: sign it out and send a verification link.
+        // If Confirm Email is disabled in Supabase, signUp immediately returns a session: revoke it,
+        // flag awaiting email link, and send a verification link so the user still clicks the email link first.
         if (data.session) {
+          setAwaitingEmailLink(email);
           await supabase.auth.signOut().catch(() => null);
           await supabase.auth
             .signInWithOtp({
@@ -612,7 +727,7 @@ export async function registerWithEmail(params: {
           emailVerified: false,
           needsEmailVerification: true,
         };
-      }
+      });
     } catch (err) {
       if (isNetworkFetchFailure(err)) {
         supabaseUnreachable = true;
@@ -664,7 +779,8 @@ export async function registerWithEmail(params: {
 export async function checkLiveEmailVerification(
   pkceCode?: string,
   accessToken?: string,
-  refreshToken?: string
+  refreshToken?: string,
+  fromLinkCallback = false
 ): Promise<{
   verified: boolean;
   user?: AuthUser;
@@ -678,16 +794,18 @@ export async function checkLiveEmailVerification(
   }
 
   try {
-    // Check if detectSessionInUrl already hydrated the session before attempting manual exchange
+    // Wait for detectSessionInUrl if active before attempting manual code/token exchange
     const { data: sessionData } = await supabase.auth.getSession();
 
     if (!sessionData.session && pkceCode) {
-      await supabase.auth.exchangeCodeForSession(pkceCode);
+      await supabase.auth.exchangeCodeForSession(pkceCode).catch(() => null);
     } else if (!sessionData.session && accessToken && refreshToken) {
-      await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      });
+      await supabase.auth
+        .setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        })
+        .catch(() => null);
     }
 
     const { data, error } = await supabase.auth.getUser();
@@ -699,9 +817,18 @@ export async function checkLiveEmailVerification(
     }
     const sbUser = data.user;
     if (!sbUser) return { verified: false };
+
+    if (fromLinkCallback || pkceCode || accessToken) {
+      clearAwaitingEmailLink(sbUser.email);
+    }
+
     const provider = sbUser.app_metadata?.provider || 'email';
     const isOAuthProvider = provider !== 'email';
-    const verified = Boolean(sbUser.email_confirmed_at || sbUser.confirmed_at || isOAuthProvider);
+    const awaitingSignupLink = !isOAuthProvider && isAwaitingEmailLink(sbUser.email);
+    const verified = Boolean(
+      !awaitingSignupLink &&
+        (sbUser.email_confirmed_at || sbUser.confirmed_at || isOAuthProvider)
+    );
     return {
       verified,
       user: {
@@ -772,16 +899,34 @@ export async function resendVerificationLink(email: string): Promise<{ demoVerif
 
   if (useLiveSupabase()) {
     try {
+      const redirectTo = `${window.location.origin}/?auth_callback=signup`;
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email: normalized,
         options: {
-          emailRedirectTo: `${window.location.origin}/?auth_callback=signup`,
+          emailRedirectTo: redirectTo,
         },
       });
       if (error) {
         if (isNetworkFetchFailure(error)) {
           supabaseUnreachable = true;
+        } else if (isAwaitingEmailLink(normalized) || error.message?.toLowerCase().includes('already')) {
+          const { error: otpLinkError } = await supabase.auth.signInWithOtp({
+            email: normalized,
+            options: {
+              emailRedirectTo: redirectTo,
+              shouldCreateUser: false,
+            },
+          });
+          if (otpLinkError) {
+            if (isNetworkFetchFailure(otpLinkError)) {
+              supabaseUnreachable = true;
+            } else {
+              throw new Error(otpLinkError.message);
+            }
+          } else {
+            return {};
+          }
         } else {
           throw new Error(error.message);
         }
@@ -846,42 +991,56 @@ export async function completeProfileSetup(
     onboarding_bio: payload.onboarding_bio.trim(),
   };
 
+  rememberUsernameEmail(profile.username, profile.email);
+  clearAwaitingEmailLink(profile.email);
+
   if (useLiveSupabase()) {
     try {
-      const { error } = await supabase.from('profiles').upsert({
+      const corePayload = {
         id: profile.id,
         email: profile.email,
-        username: profile.username,
         full_name: profile.full_name,
         admission_number: profile.admission_number,
         class: profile.class,
         batch: profile.batch,
+      };
+      const extendedPayload = {
+        ...corePayload,
+        username: profile.username,
         compliance_accepted: profile.compliance_accepted,
         compliance_accepted_at: profile.compliance_accepted_at,
         onboarding_goal: profile.onboarding_goal,
         onboarding_bio: profile.onboarding_bio,
-      });
+      };
+
+      let { error } = await supabase.from('profiles').upsert(extendedPayload);
+
+      if (error && !isNetworkFetchFailure(error)) {
+        // Retry with core schema columns when optional columns (username, compliance, onboarding) aren't migrated
+        const retryCore = await supabase.from('profiles').upsert(corePayload);
+        error = retryCore.error;
+
+        // If trigger inserted the row and RLS allows UPDATE but denies INSERT via upsert, update directly
+        if (error && !isNetworkFetchFailure(error)) {
+          const updateRetry = await supabase
+            .from('profiles')
+            .update({
+              email: profile.email,
+              full_name: profile.full_name,
+              admission_number: profile.admission_number,
+              class: profile.class,
+              batch: profile.batch,
+            })
+            .eq('id', profile.id);
+          error = updateRetry.error;
+        }
+      }
 
       if (error) {
         if (isNetworkFetchFailure(error)) {
           supabaseUnreachable = true;
         } else {
-          // Retry with core columns if optional migration hasn't been run yet
-          const { error: fallbackError } = await supabase.from('profiles').upsert({
-            id: profile.id,
-            email: profile.email,
-            full_name: profile.full_name,
-            admission_number: profile.admission_number,
-            class: profile.class,
-            batch: profile.batch,
-          });
-          if (fallbackError) {
-            if (isNetworkFetchFailure(fallbackError)) {
-              supabaseUnreachable = true;
-            } else {
-              throw new Error(fallbackError.message);
-            }
-          }
+          throw new Error(error.message);
         }
       }
 
@@ -953,10 +1112,15 @@ async function resolveIdentifierToEmail(identifier: string): Promise<string> {
           supabaseUnreachable = true;
         } else if (data?.email) {
           return data.email.toLowerCase();
-        } else if (error && isMissingColumnSchemaError(error)) {
-          throw new Error('Please enter your email address to log in.');
         } else {
-          throw new Error('No account found with that username.');
+          const cached = lookupCachedEmailForUsername(trimmed);
+          if (cached) return cached;
+          if (error && isMissingColumnSchemaError(error)) {
+            throw new Error(
+              'Username login on a new device requires setup_auth_v2.sql or entering your email address.'
+            );
+          }
+          throw new Error('No account found with that username. Try entering your email address.');
         }
       }
     } catch (err) {
@@ -966,6 +1130,11 @@ async function resolveIdentifierToEmail(identifier: string): Promise<string> {
         throw err;
       }
     }
+  }
+
+  const cached = lookupCachedEmailForUsername(trimmed);
+  if (cached) {
+    return cached;
   }
 
   const users = getDemoUsers();
@@ -986,75 +1155,103 @@ export async function loginWithPassword(params: {
   username?: string;
   demoOtp?: string;
   demoVerifyUrl?: string;
+  otpNotice?: string;
 }> {
   const email = await resolveIdentifierToEmail(params.identifier);
 
   if (useLiveSupabase()) {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password: params.password,
-      });
+      return await withSuppressedAuthBroadcast(async () => {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password: params.password,
+        });
 
-      if (error) {
-        if (isNetworkFetchFailure(error)) {
-          supabaseUnreachable = true;
-        } else if (error.message?.toLowerCase().includes('email not confirmed')) {
-          return {
-            status: 'email_verification_required',
-            email,
-            userId: '',
-          };
-        } else {
+        if (error) {
+          if (isNetworkFetchFailure(error)) {
+            supabaseUnreachable = true;
+            throw error;
+          }
+          if (error.message?.toLowerCase().includes('email not confirmed')) {
+            return {
+              status: 'email_verification_required' as const,
+              email,
+              userId: '',
+            };
+          }
           throw new Error(error.message || 'Invalid username/email or password');
         }
-      } else {
+
         if (!data.user) {
           throw new Error('Invalid username/email or password');
         }
 
         const userId = data.user.id;
-        const emailVerified = Boolean(data.user.email_confirmed_at || data.user.confirmed_at);
+        const username = data.user.user_metadata?.username;
+        const emailVerified = Boolean(
+          !isAwaitingEmailLink(email) &&
+            (data.user.email_confirmed_at || data.user.confirmed_at)
+        );
+
         if (!emailVerified) {
+          await supabase.auth.signOut().catch(() => null);
           return {
-            status: 'email_verification_required',
+            status: 'email_verification_required' as const,
             email,
             userId,
-            username: data.user.user_metadata?.username,
+            username,
           };
         }
+
+        rememberUsernameEmail(username, email);
 
         const profile = await getUserProfile(userId);
         if (!profile || !isProfileComplete(profile)) {
           return {
-            status: 'needs_onboarding',
+            status: 'needs_onboarding' as const,
             email,
             userId,
-            username: data.user.user_metadata?.username,
+            username,
           };
         }
 
         const trusted = await isCurrentDeviceTrusted(userId);
         if (!trusted) {
-          const otpResult = await sendNewDeviceOtp(email, userId);
-          return {
-            status: 'otp_required',
-            email,
-            userId,
-            username: profile.username,
-            demoOtp: otpResult.demoOtp,
-          };
+          try {
+            const otpResult = await sendNewDeviceOtp(email, userId);
+            return {
+              status: 'otp_required' as const,
+              email,
+              userId,
+              username: profile.username,
+              demoOtp: otpResult.demoOtp,
+            };
+          } catch (otpErr: any) {
+            const msg = String(otpErr?.message || '').toLowerCase();
+            if (msg.includes('rate') || msg.includes('seconds') || msg.includes('429')) {
+              sessionStorage.setItem(PENDING_DEVICE_OTP_USER_KEY, userId);
+              return {
+                status: 'otp_required' as const,
+                email,
+                userId,
+                username: profile.username,
+                otpNotice: otpErr.message,
+              };
+            }
+            await supabase.auth.signOut().catch(() => null);
+            throw otpErr;
+          }
         }
 
         sessionStorage.setItem('gv_device_otp_verified_user', userId);
         emitAuthChanged();
         return {
-          status: 'authenticated',
+          status: 'authenticated' as const,
           email,
           userId,
           username: profile.username,
         };
-      }
+      });
     } catch (err) {
       if (isNetworkFetchFailure(err)) {
         supabaseUnreachable = true;
@@ -1088,7 +1285,9 @@ export async function loginWithPassword(params: {
     };
   }
 
-  if (!user.profile) {
+  rememberUsernameEmail(user.username, user.email);
+
+  if (!isProfileComplete(user.profile)) {
     setDemoSession({ userId: user.id, deviceVerified: true });
     return {
       status: 'needs_onboarding',
@@ -1190,7 +1389,9 @@ export async function loginWithOAuthProvider(
     saveDemoUsers(users);
   }
 
-  if (!user.profile) {
+  rememberUsernameEmail(user.username, user.email);
+
+  if (!isProfileComplete(user.profile)) {
     setDemoSession({ userId: user.id, deviceVerified: true });
     return {
       status: 'needs_onboarding',
@@ -1276,7 +1477,8 @@ export async function listPasskeys(userId: string): Promise<PasskeyCredentialRec
 export async function registerPasskey(
   userId: string,
   email: string,
-  displayName: string
+  displayName: string,
+  username?: string
 ): Promise<PasskeyCredentialRecord> {
   let credentialId = `pk_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
   let rawId: string | undefined;
@@ -1327,6 +1529,13 @@ export async function registerPasskey(
     createdAt: new Date().toISOString(),
   };
 
+  upsertPasskeyDirectory({
+    ...record,
+    userId,
+    email: normalizeEmail(email),
+    username: username ? normalizeUsername(username) : undefined,
+  });
+
   const existingLocal = getLocalPasskeys(userId).filter((p) => p.id !== record.id);
   existingLocal.push(record);
   saveLocalPasskeys(userId, existingLocal);
@@ -1374,6 +1583,7 @@ export async function registerPasskey(
 }
 
 export async function removePasskey(userId: string, credentialId: string): Promise<void> {
+  removeFromPasskeyDirectory(credentialId);
   const nextLocal = getLocalPasskeys(userId).filter((p) => p.id !== credentialId);
   saveLocalPasskeys(userId, nextLocal);
 
@@ -1413,51 +1623,51 @@ export async function removePasskey(userId: string, credentialId: string): Promi
 }
 
 export async function loginWithPasskey(identifier?: string): Promise<{
-  status: 'authenticated' | 'otp_required';
+  status: 'authenticated' | 'otp_required' | 'needs_onboarding';
   email: string;
   userId: string;
   username?: string;
   demoOtp?: string;
 }> {
   const users = getDemoUsers();
-  let matchedUser: DemoStoredUser | undefined;
+  const directory = getPasskeyDirectory();
+  const cleanIdentifier = identifier?.trim().toLowerCase() || '';
 
-  if (identifier && identifier.trim()) {
-    const normalized = identifier.trim().toLowerCase();
-    matchedUser = users.find(
-      (u) => (u.email === normalized || u.username.toLowerCase() === normalized) && u.passkeys.length > 0
+  let matchedPasskey: PasskeyDirectoryEntry | undefined;
+  if (cleanIdentifier) {
+    matchedPasskey = directory.find(
+      (p) =>
+        p.email === cleanIdentifier ||
+        (p.username && p.username.toLowerCase() === cleanIdentifier)
     );
   } else {
-    matchedUser = users.find((u) => u.passkeys.length > 0);
+    matchedPasskey = directory[0];
   }
 
-  if (useLiveSupabase()) {
-    try {
-      const { data, error } = await supabase.auth.getSession();
-      if (error && isNetworkFetchFailure(error)) {
-        supabaseUnreachable = true;
-      } else if (!data.session?.user) {
-        throw new Error(
-          'Passkey sign-in requires an account with a configured passkey on this device. Sign in with password or OAuth first, then register a passkey in Profile → Security.'
-        );
-      }
-    } catch (err) {
-      if (isNetworkFetchFailure(err)) {
-        supabaseUnreachable = true;
-      } else {
-        throw err;
-      }
-    }
+  let matchedDemoUser: DemoStoredUser | undefined;
+  if (cleanIdentifier) {
+    matchedDemoUser = users.find(
+      (u) =>
+        (u.email === cleanIdentifier || u.username.toLowerCase() === cleanIdentifier) &&
+        u.passkeys.length > 0
+    );
+  } else {
+    matchedDemoUser = users.find((u) => u.passkeys.length > 0);
   }
 
-  if (!matchedUser) {
+  const targetUserId = matchedPasskey?.userId || matchedDemoUser?.id || '';
+  const targetEmail = matchedPasskey?.email || matchedDemoUser?.email || '';
+  const targetUsername = matchedPasskey?.username || matchedDemoUser?.username;
+  const primaryPasskey: PasskeyCredentialRecord | undefined =
+    matchedPasskey || matchedDemoUser?.passkeys[0];
+
+  if (!targetUserId || !targetEmail || !primaryPasskey) {
     throw new Error(
-      'No Passkey is configured for this account on this browser yet. Sign in with your password first and add a Passkey in Dashboard → Profile → Security.'
+      'No Passkey is configured for this account on this browser yet. Sign in with your password or Google first and add a Passkey in Dashboard → Passkeys & Devices.'
     );
   }
 
   // Attempt native WebAuthn assertion when supported and credential has rawId
-  const primaryPasskey = matchedUser.passkeys[0];
   if (
     typeof window !== 'undefined' &&
     window.PublicKeyCredential &&
@@ -1483,31 +1693,86 @@ export async function loginWithPasskey(identifier?: string): Promise<{
         },
       });
     } catch (err: any) {
-      if (err?.name === 'AbortError') {
+      if (err?.name === 'AbortError' || err?.name === 'NotAllowedError') {
         throw new Error('Passkey verification was canceled.');
       }
     }
   }
 
-  const trusted = await isCurrentDeviceTrusted(matchedUser.id);
+  if (useLiveSupabase()) {
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error && isNetworkFetchFailure(error)) {
+        supabaseUnreachable = true;
+      } else if (data.session?.user && data.session.user.id === targetUserId) {
+        const trusted = await isCurrentDeviceTrusted(targetUserId);
+        if (!trusted) {
+          const otpResult = await sendNewDeviceOtp(targetEmail, targetUserId);
+          return {
+            status: 'otp_required',
+            email: targetEmail,
+            userId: targetUserId,
+            username: targetUsername,
+            demoOtp: otpResult.demoOtp,
+          };
+        }
+        sessionStorage.setItem('gv_device_otp_verified_user', targetUserId);
+        emitAuthChanged();
+        return {
+          status: 'authenticated',
+          email: targetEmail,
+          userId: targetUserId,
+          username: targetUsername,
+        };
+      } else {
+        // Signed out in live Supabase: complete session authentication via email OTP challenge
+        const otpResult = await sendNewDeviceOtp(targetEmail, targetUserId);
+        return {
+          status: 'otp_required',
+          email: targetEmail,
+          userId: targetUserId,
+          username: targetUsername,
+          demoOtp: otpResult.demoOtp,
+        };
+      }
+    } catch (err) {
+      if (isNetworkFetchFailure(err)) {
+        supabaseUnreachable = true;
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  if (matchedDemoUser && !isProfileComplete(matchedDemoUser.profile)) {
+    setDemoSession({ userId: matchedDemoUser.id, deviceVerified: true });
+    return {
+      status: 'needs_onboarding',
+      email: matchedDemoUser.email,
+      userId: matchedDemoUser.id,
+      username: matchedDemoUser.username,
+    };
+  }
+
+  const trusted = await isCurrentDeviceTrusted(targetUserId);
   if (!trusted) {
-    setDemoSession({ userId: matchedUser.id, deviceVerified: false });
-    const otpResult = await sendNewDeviceOtp(matchedUser.email, matchedUser.id);
+    setDemoSession({ userId: targetUserId, deviceVerified: false });
+    const otpResult = await sendNewDeviceOtp(targetEmail, targetUserId);
     return {
       status: 'otp_required',
-      email: matchedUser.email,
-      userId: matchedUser.id,
-      username: matchedUser.username,
+      email: targetEmail,
+      userId: targetUserId,
+      username: targetUsername,
       demoOtp: otpResult.demoOtp,
     };
   }
 
-  setDemoSession({ userId: matchedUser.id, deviceVerified: true });
+  setDemoSession({ userId: targetUserId, deviceVerified: true });
   return {
     status: 'authenticated',
-    email: matchedUser.email,
-    userId: matchedUser.id,
-    username: matchedUser.username,
+    email: targetEmail,
+    userId: targetUserId,
+    username: targetUsername,
   };
 }
 
@@ -1517,6 +1782,9 @@ export async function sendNewDeviceOtp(
   forceNew = false
 ): Promise<{ demoOtp?: string }> {
   const normalized = normalizeEmail(email);
+  if (userId) {
+    sessionStorage.setItem(PENDING_DEVICE_OTP_USER_KEY, userId);
+  }
 
   if (useLiveSupabase()) {
     try {
@@ -1524,6 +1792,7 @@ export async function sendNewDeviceOtp(
         email: normalized,
         options: {
           shouldCreateUser: false,
+          emailRedirectTo: `${window.location.origin}/?auth_callback=device_otp`,
         },
       });
       if (error) {
@@ -1592,7 +1861,7 @@ export async function verifyNewDeviceOtp(params: {
 
   if (useLiveSupabase()) {
     try {
-      const { error } = await supabase.auth.verifyOtp({
+      const { data, error } = await supabase.auth.verifyOtp({
         email: normalized,
         token: cleanCode,
         type: 'email',
@@ -1604,10 +1873,14 @@ export async function verifyNewDeviceOtp(params: {
           throw new Error(error.message);
         }
       } else {
-        if (params.trustDevice) {
-          await trustCurrentDevice(params.userId);
+        const verifiedUserId = data.user?.id || params.userId;
+        sessionStorage.removeItem(PENDING_DEVICE_OTP_USER_KEY);
+        if (params.trustDevice && verifiedUserId) {
+          await trustCurrentDevice(verifiedUserId);
         }
-        sessionStorage.setItem('gv_device_otp_verified_user', params.userId);
+        if (verifiedUserId) {
+          sessionStorage.setItem('gv_device_otp_verified_user', verifiedUserId);
+        }
         emitAuthChanged();
         return;
       }
@@ -1640,6 +1913,7 @@ export async function verifyNewDeviceOtp(params: {
   }
 
   sessionStorage.removeItem(PENDING_DEVICE_OTP_KEY);
+  sessionStorage.removeItem(PENDING_DEVICE_OTP_USER_KEY);
 
   if (params.trustDevice) {
     await trustCurrentDevice(params.userId);
@@ -2006,13 +2280,15 @@ export async function listAlumniDirectory(): Promise<UserProfile[]> {
 
   const registered = getDemoUsers()
     .map((u) => u.profile)
-    .filter((p): p is UserProfile => Boolean(p));
+    .filter((p): p is UserProfile => isProfileComplete(p));
 
   return [...registered, ...SEEDED_ALUMNI];
 }
 
 export async function signOutUser(): Promise<void> {
   sessionStorage.removeItem('gv_device_otp_verified_user');
+  sessionStorage.removeItem(PENDING_DEVICE_OTP_USER_KEY);
+  sessionStorage.removeItem(PENDING_DEVICE_OTP_KEY);
   if (useLiveSupabase()) {
     try {
       await supabase.auth.signOut();

@@ -3,6 +3,7 @@ import { isSupabaseConfigured, supabase } from '../utils/supabase/client';
 import {
   AuthUser,
   getAuthSessionState,
+  isAuthBroadcastSuppressed,
   isUsingDemoFallback,
   loginWithPassword,
   registerWithEmail,
@@ -26,6 +27,7 @@ export interface SignInResult {
   username?: string;
   demoOtp?: string;
   demoVerifyUrl?: string;
+  otpNotice?: string;
 }
 
 interface AuthContextType {
@@ -105,9 +107,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let unsubscribeSupabase: (() => void) | undefined;
     if (isSupabaseConfigured) {
       const { data } = supabase.auth.onAuthStateChange((_event) => {
-        if (!mounted) return;
+        if (!mounted || isAuthBroadcastSuppressed()) return;
         getAuthSessionState().then((state) => {
-          if (!mounted) return;
+          if (!mounted || isAuthBroadcastSuppressed()) return;
           setUser(state.user);
           setDeviceVerified(state.deviceVerified);
           setIsDemoMode(isUsingDemoFallback());

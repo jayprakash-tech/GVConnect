@@ -186,7 +186,7 @@ export function ProfileEditModal({
     setSuccess('');
     setLoading(true);
     try {
-      await registerPasskey(userId, userEmail, fullName);
+      await registerPasskey(userId, userEmail, fullName, currentProfile.username);
       await loadSecurityData();
       setSuccess('Passkey added for this device.');
     } catch (err: any) {

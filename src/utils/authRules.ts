@@ -215,8 +215,9 @@ export function resolveSessionRouteAction(params: {
   user: { email_verified?: boolean } | null;
   hasProfile: boolean;
   deviceVerified: boolean;
+  allowExistingAccountLogin?: boolean;
 }): AuthTabRouteAction {
-  const { activeTab, user, hasProfile, deviceVerified } = params;
+  const { activeTab, user, hasProfile, deviceVerified, allowExistingAccountLogin } = params;
   if (!user) return { action: 'none' };
 
   if (!user.email_verified) {
@@ -227,7 +228,7 @@ export function resolveSessionRouteAction(params: {
     return { action: 'signup_onboarding' };
   }
 
-  if (activeTab === 'signup') {
+  if (activeTab === 'signup' && !allowExistingAccountLogin) {
     return { action: 'prompt_signout' };
   }
 
