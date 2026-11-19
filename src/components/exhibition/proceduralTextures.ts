@@ -93,7 +93,7 @@ export function loadImage(src: string): Promise<HTMLImageElement> {
 
 export function toCanvasTexture(
   canvas: HTMLCanvasElement,
-  anisotropy = 4,
+  anisotropy = 2,
   repeat?: [number, number]
 ): THREE.CanvasTexture {
   const tex = new THREE.CanvasTexture(canvas);
@@ -102,6 +102,9 @@ export function toCanvasTexture(
   if (repeat) {
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.repeat.set(repeat[0], repeat[1]);
+  } else {
+    tex.generateMipmaps = false;
+    tex.minFilter = THREE.LinearFilter;
   }
   tex.needsUpdate = true;
   return tex;
@@ -112,8 +115,8 @@ export async function createFramedPhotoCanvas(
   title: string,
   isHeroWide = false
 ): Promise<HTMLCanvasElement> {
-  const w = isHeroWide ? 1400 : 900;
-  const h = isHeroWide ? 540 : 620;
+  const w = isHeroWide ? 1024 : 720;
+  const h = isHeroWide ? 400 : 496;
   const [canvas, ctx] = createCanvas(w, h);
 
   // Warm museum archival mat backdrop
@@ -148,12 +151,12 @@ export async function createFramedPhotoCanvas(
       ctx.fillRect(pad, pad, innerW, innerH);
 
       ctx.fillStyle = '#ffcf8a';
-      ctx.font = '600 18px "JetBrains Mono", monospace';
-      drawSpacedText(ctx, 'GRIZZLY VIDYALYA · TELAIYA DAM', pad + 34, h - 102, 4);
+      ctx.font = '600 14px "JetBrains Mono", monospace';
+      drawSpacedText(ctx, 'GRIZZLY VIDYALYA · TELAIYA DAM', pad + 26, h - 78, 3);
 
       ctx.fillStyle = '#ffffff';
-      ctx.font = '700 42px "Cinzel", Georgia, serif';
-      ctx.fillText('THE GATEWAY TO MEMORIES', pad + 32, h - 52);
+      ctx.font = '700 32px "Cinzel", Georgia, serif';
+      ctx.fillText('THE GATEWAY TO MEMORIES', pad + 24, h - 40);
     }
     ctx.restore();
 
@@ -250,8 +253,8 @@ export function createChapterTextCanvas(
 }
 
 export async function createFeatureWallCanvas(fw: FeatureWall): Promise<HTMLCanvasElement> {
-  const w = 1600;
-  const h = 840;
+  const w = 1024;
+  const h = 538;
   const [canvas, ctx] = createCanvas(w, h);
   const rng = makeRng(`fw:${fw.id}`);
   const meta = ROOM_META[fw.room];
@@ -318,23 +321,23 @@ export async function createFeatureWallCanvas(fw: FeatureWall): Promise<HTMLCanv
 
   // Typography centered in safe viewport region
   const safeW = w * fw.safe;
-  const padX = (w - safeW) / 2 + 52;
+  const padX = (w - safeW) / 2 + 34;
 
   ctx.fillStyle = accent;
-  ctx.font = '600 28px "JetBrains Mono", monospace';
-  drawSpacedText(ctx, `CHAPTER ${fw.chapter} · ${meta.era.toUpperCase()}`, padX, h - 220, 4);
-  ctx.fillRect(padX, h - 202, 110, 3);
+  ctx.font = '600 18px "JetBrains Mono", monospace';
+  drawSpacedText(ctx, `CHAPTER ${fw.chapter} · ${meta.era.toUpperCase()}`, padX, h - 142, 3);
+  ctx.fillRect(padX, h - 130, 74, 2);
 
   ctx.fillStyle = '#ffffff';
   ctx.shadowColor = 'rgba(0,0,0,0.65)';
-  ctx.shadowBlur = 16;
-  ctx.font = '700 68px "Cinzel", Georgia, serif';
-  drawSpacedText(ctx, fw.title, padX, h - 120, 5);
+  ctx.shadowBlur = 10;
+  ctx.font = '700 44px "Cinzel", Georgia, serif';
+  drawSpacedText(ctx, fw.title, padX, h - 78, 3);
   ctx.shadowBlur = 0;
 
   ctx.fillStyle = 'rgba(255, 244, 230, 0.88)';
-  ctx.font = '400 28px "Plus Jakarta Sans", sans-serif';
-  ctx.fillText(fw.caption, padX, h - 62);
+  ctx.font = '400 18px "Plus Jakarta Sans", sans-serif';
+  ctx.fillText(fw.caption, padX, h - 40);
 
   return canvas;
 }
@@ -342,7 +345,7 @@ export async function createFeatureWallCanvas(fw: FeatureWall): Promise<HTMLCanv
 export function createSurfaceCanvas(
   kind: 'walnut' | 'maroon-plaster' | 'terrazzo' | 'concrete-grid' | 'planks' | 'future-floor'
 ): HTMLCanvasElement {
-  const size = 512;
+  const size = 256;
   const [canvas, ctx] = createCanvas(size, size);
   const rng = makeRng(`surf:${kind}`);
 
@@ -524,8 +527,8 @@ export function createBrassGearCanvas(teeth: number, seed: string): HTMLCanvasEl
 }
 
 export async function createBelvedereVistaCanvas(): Promise<HTMLCanvasElement> {
-  const w = 1600;
-  const h = 800;
+  const w = 1024;
+  const h = 512;
   const [canvas, ctx] = createCanvas(w, h);
   const sky = ctx.createLinearGradient(0, 0, 0, h);
   sky.addColorStop(0, '#0d0918');
@@ -546,11 +549,11 @@ export async function createBelvedereVistaCanvas(): Promise<HTMLCanvasElement> {
   }
 
   const rng = makeRng('belvedere-stars');
-  for (let i = 0; i < 240; i++) {
+  for (let i = 0; i < 160; i++) {
     const sy = rng() * h * 0.75;
     ctx.fillStyle = `rgba(255, 244, 224, ${0.25 + rng() * 0.65})`;
     ctx.beginPath();
-    ctx.arc(rng() * w, sy, 0.7 + rng() * 1.5, 0, Math.PI * 2);
+    ctx.arc(rng() * w, sy, 0.6 + rng() * 1.2, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -562,19 +565,19 @@ export async function createBelvedereVistaCanvas(): Promise<HTMLCanvasElement> {
 
   ctx.fillStyle = '#ffcf8a';
   ctx.textAlign = 'center';
-  ctx.font = '500 24px "JetBrains Mono", monospace';
-  ctx.fillText('TELAIYA DAM · KODERMA', w / 2, 230);
+  ctx.font = '500 16px "JetBrains Mono", monospace';
+  ctx.fillText('TELAIYA DAM · KODERMA', w / 2, 150);
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = '700 58px "Cinzel", Georgia, serif';
-  ctx.fillText('WHERE OUR ROOTS BEGAN', w / 2, 315);
+  ctx.font = '700 38px "Cinzel", Georgia, serif';
+  ctx.fillText('WHERE OUR ROOTS BEGAN', w / 2, 206);
 
   ctx.fillStyle = 'rgba(255, 245, 235, 0.85)';
-  ctx.font = '400 28px "Plus Jakarta Sans", sans-serif';
+  ctx.font = '400 18px "Plus Jakarta Sans", sans-serif';
   ctx.fillText(
     'Click the stone bench below to pause and look back at campus.',
     w / 2,
-    385
+    252
   );
 
   return canvas;

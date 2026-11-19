@@ -1,9 +1,21 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LogOut, MessageCircle, Users, Calendar, TrendingUp, Camera, ShieldCheck } from 'lucide-react';
+import {
+  LogOut,
+  MessageCircle,
+  Users,
+  Calendar,
+  TrendingUp,
+  Camera,
+  ShieldCheck,
+  Compass,
+  Edit3,
+  ArrowRight,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Navbar } from '../components/Navbar';
+import { BackButton } from '../components/BackButton';
 import { ProfileEditModal } from '../components/ProfileEditModal';
 import {
   getBatchStats,
@@ -52,35 +64,48 @@ export function DashboardPage() {
   };
 
   const stats = [
-    { label: 'Your Batch', value: profile?.batch || 'N/A', icon: Users },
-    { label: 'Connections', value: connections.toString(), icon: TrendingUp },
-    { label: 'Messages', value: messages.toString(), icon: MessageCircle },
+    { label: 'Your Batch', value: profile?.batch || '—', icon: Users },
+    { label: 'Batchmates Online', value: connections.toString(), icon: TrendingUp },
+    { label: 'Batch Messages', value: messages.toString(), icon: MessageCircle },
   ];
 
   return (
-    <div className="min-h-screen bg-[#fafafa]">
+    <div className="min-h-screen bg-[#120409] text-white relative">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-80 opacity-45"
+        style={{
+          background:
+            'radial-gradient(ellipse at top, rgba(128, 0, 32, 0.55), transparent 70%)',
+        }}
+      />
+
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-12">
+      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16">
+        <div className="mb-6">
+          <BackButton fallbackTo="/" label="Back" />
+        </div>
+
         {/* Welcome Banner */}
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-[#800020] via-[#800020] to-[#600018] rounded-2xl p-8 mb-8 relative overflow-hidden"
+          className="hud-card relative rounded-2xl border border-white/15 bg-gradient-to-br from-[#240612] via-[#1a060e] to-[#120409] p-6 sm:p-8 mb-8 overflow-hidden shadow-[0_24px_70px_rgba(0,0,0,0.55)]"
         >
-          <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/10 rounded-full -translate-y-32 translate-x-32" />
           <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-5 sm:gap-6">
               {/* Clickable Profile Avatar */}
               <button
+                type="button"
                 onClick={() => {
                   setModalDefaultTab('profile');
                   setIsProfileModalOpen(true);
                 }}
-                className="relative group flex-shrink-0"
-                aria-label="Edit profile"
+                className="relative group shrink-0 cursor-pointer"
+                aria-label="Edit profile picture and details"
               >
-                <div className="w-20 h-20 rounded-full overflow-hidden bg-white/20 border-4 border-[#D4AF37] group-hover:border-white transition-all">
+                <div className="w-20 h-20 rounded-full overflow-hidden bg-[#120409] border-2 border-[#d4af37] group-hover:border-[#ffcf8a] transition-all">
                   {profile?.avatar_url ? (
                     <img
                       src={profile.avatar_url}
@@ -88,27 +113,27 @@ export function DashboardPage() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-[#D4AF37] text-3xl font-bold">
+                    <div className="w-full h-full flex items-center justify-center text-[#ffcf8a] font-display text-3xl font-bold">
                       {profile?.full_name?.charAt(0).toUpperCase() || 'G'}
                     </div>
                   )}
                 </div>
-                <div className="absolute bottom-0 right-0 w-8 h-8 bg-[#D4AF37] text-[#800020] rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                  <Camera className="w-4 h-4" />
+                <div className="absolute bottom-0 right-0 w-7 h-7 bg-[#d4af37] text-[#1c040b] rounded-full flex items-center justify-center shadow-lg">
+                  <Camera className="w-3.5 h-3.5" />
                 </div>
               </button>
 
               <div>
-                <p className="text-[#D4AF37] text-sm font-semibold tracking-wide mb-1">
-                  Welcome Back{profile?.username ? ` · @${profile.username}` : ''}
+                <p className="font-mono-tabular text-[11px] uppercase tracking-[0.26em] text-[#ffcf8a] mb-1">
+                  Alumni Member{profile?.username ? ` · @${profile.username}` : ''}
                 </p>
-                <h1 className="text-3xl md:text-4xl font-serif font-bold text-white mb-2">
-                  {profile?.full_name || 'Grizzlian'}
+                <h1 className="font-display text-2xl sm:text-4xl font-bold text-white mb-1.5">
+                  {profile?.full_name || 'Grizzly Vidyalya Member'}
                 </h1>
                 {profile && (
-                  <p className="text-white/80 text-sm">
-                    {profile.admission_number} · Class {profile.class} · Batch {profile.batch}
-                    {profile.compliance_accepted ? ' · Batch Compliance Verified' : ''}
+                  <p className="font-mono-tabular text-xs text-white/70">
+                    {profile.admission_number} · {profile.class} · Batch {profile.batch}
+                    {profile.compliance_accepted ? ' · Verified' : ''}
                   </p>
                 )}
               </div>
@@ -116,19 +141,21 @@ export function DashboardPage() {
 
             <div className="flex flex-wrap items-center gap-3">
               <button
+                type="button"
                 onClick={() => {
                   setModalDefaultTab('security');
                   setIsProfileModalOpen(true);
                 }}
-                className="flex items-center gap-2 px-5 py-2.5 bg-white/10 text-[#D4AF37] rounded-full hover:bg-white/20 transition-all border border-[#D4AF37]/40 text-sm font-semibold"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-[#d4af37]/40 bg-[#120409]/80 text-[#ffcf8a] hover:bg-[#d4af37]/15 transition-colors text-xs font-semibold uppercase tracking-wider cursor-pointer"
               >
                 <ShieldCheck className="w-4 h-4" />
-                Passkeys & Devices
+                Passkeys &amp; Devices
               </button>
 
               <button
+                type="button"
                 onClick={handleSignOut}
-                className="flex items-center gap-2 px-5 py-2.5 bg-white/10 text-white rounded-full hover:bg-white/20 transition-all border border-white/20 text-sm font-semibold"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/15 bg-white/5 text-white/85 hover:bg-white/10 hover:text-white transition-colors text-xs font-semibold uppercase tracking-wider cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
                 Sign Out
@@ -141,121 +168,180 @@ export function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {stats.map((stat, index) => (
             <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 16 }}
+              key={stat.label}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.08 }}
-              className="bg-white rounded-xl p-6 border border-[#e5e5e5] hover:border-[#D4AF37]/50 transition-all"
+              transition={{ delay: index * 0.06 }}
+              className="rounded-2xl border border-white/12 bg-[#1a060e]/85 p-6 hover:border-[#d4af37]/40 transition-colors"
             >
               <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-[#fff5f7] rounded-xl flex items-center justify-center">
-                  <stat.icon className="w-6 h-6 text-[#800020]" />
+                <div className="w-11 h-11 rounded-xl border border-[#d4af37]/30 bg-[#800020]/30 flex items-center justify-center">
+                  <stat.icon className="w-5 h-5 text-[#ffcf8a]" />
                 </div>
               </div>
-              <p className="text-3xl font-bold text-[#800020] mb-1 tabular-nums">{stat.value}</p>
-              <p className="text-[#525252] text-sm">{stat.label}</p>
+              <p className="font-mono-tabular text-3xl font-bold text-white mb-1">{stat.value}</p>
+              <p className="text-white/65 text-xs uppercase tracking-wider">{stat.label}</p>
             </motion.div>
           ))}
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
-          {/* Recent Activity / Onboarding Goal */}
+          {/* Alumni Profile Overview */}
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="lg:col-span-2 bg-white rounded-xl p-6 border border-[#e5e5e5]"
+            transition={{ delay: 0.16 }}
+            className="lg:col-span-2 rounded-2xl border border-white/12 bg-[#1a060e]/85 p-6 flex flex-col justify-between"
           >
-            <h2 className="text-xl font-serif font-bold text-[#800020] mb-4 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-[#D4AF37]" />
-              Alumni Profile Overview
-            </h2>
-            {profile?.onboarding_goal || profile?.onboarding_bio ? (
-              <div className="space-y-3 text-sm text-[#404040] py-4">
-                {profile.onboarding_goal && (
-                  <p>
-                    <span className="font-semibold text-[#1a1a1a]">Focus:</span>{' '}
-                    {profile.onboarding_goal}
-                  </p>
-                )}
-                {profile.onboarding_bio && (
-                  <p>
-                    <span className="font-semibold text-[#1a1a1a]">Current Note:</span>{' '}
-                    {profile.onboarding_bio}
-                  </p>
-                )}
-                <p className="text-[#525252] pt-2">
-                  Explore the Alumni Directory or Batch Chat below to connect with fellow Grizzlians.
-                </p>
+            <div>
+              <div className="flex items-center justify-between gap-4 mb-4">
+                <h2 className="font-display text-xl font-bold text-white flex items-center gap-2.5">
+                  <TrendingUp className="w-5 h-5 text-[#ffcf8a]" />
+                  Alumni Profile Overview
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalDefaultTab('profile');
+                    setIsProfileModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#ffcf8a] hover:text-white transition-colors cursor-pointer"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  Edit Details
+                </button>
               </div>
-            ) : (
-              <div className="text-center py-10">
-                <MessageCircle className="w-12 h-12 text-[#e5e5e5] mx-auto mb-3" />
-                <p className="text-[#525252] text-sm">No recent activity yet</p>
-                <p className="text-[#737373] text-xs mt-1">Start connecting with fellow Grizzlians.</p>
-              </div>
-            )}
+
+              {profile?.onboarding_goal || profile?.onboarding_bio ? (
+                <dl className="space-y-3 text-sm text-white/80 py-2 border-t border-white/10 pt-4">
+                  {profile.onboarding_goal && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <dt className="font-mono-tabular text-xs uppercase tracking-wider text-white/50">
+                        Network Focus
+                      </dt>
+                      <dd className="text-[#ffcf8a] font-medium">{profile.onboarding_goal}</dd>
+                    </div>
+                  )}
+                  {profile.onboarding_bio && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <dt className="font-mono-tabular text-xs uppercase tracking-wider text-white/50">
+                        Current Role / City
+                      </dt>
+                      <dd className="text-white">{profile.onboarding_bio}</dd>
+                    </div>
+                  )}
+                </dl>
+              ) : (
+                <div className="py-6 border-t border-white/10">
+                  <p className="text-white/70 text-sm">
+                    Add your current role or city so fellow Grizzlians from Telaiya Dam can recognize your chapter.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-white/10 flex flex-wrap items-center gap-4">
+              <button
+                type="button"
+                onClick={() => navigate('/directory')}
+                className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#ffcf8a] hover:text-white transition-colors cursor-pointer"
+              >
+                Browse Alumni Directory
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/chat')}
+                className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/75 hover:text-[#ffcf8a] transition-colors cursor-pointer"
+              >
+                Open Batch Chat
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </motion.div>
 
-          {/* Upcoming Events */}
+          {/* Campus Exhibition & Reunions */}
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25 }}
-            className="bg-white rounded-xl p-6 border border-[#e5e5e5]"
+            transition={{ delay: 0.2 }}
+            className="rounded-2xl border border-white/12 bg-[#1a060e]/85 p-6 flex flex-col justify-between"
           >
-            <h2 className="text-xl font-serif font-bold text-[#800020] mb-4 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-[#D4AF37]" />
-              Upcoming Events
-            </h2>
-            <div className="text-center py-10">
-              <Calendar className="w-12 h-12 text-[#e5e5e5] mx-auto mb-3" />
-              <p className="text-[#525252] text-sm">No upcoming events</p>
-              <p className="text-[#737373] text-xs mt-1">Stay tuned for alumni reunions.</p>
+            <div>
+              <h2 className="font-display text-xl font-bold text-white mb-3 flex items-center gap-2.5">
+                <Calendar className="w-5 h-5 text-[#ffcf8a]" />
+                Heritage &amp; Chapters
+              </h2>
+              <p className="text-sm text-white/70 leading-relaxed">
+                Revisit the 4-hall 3D campus exhibition or join the reunions channel to plan local batch meetups.
+              </p>
+            </div>
+
+            <div className="mt-6 space-y-2.5">
+              <button
+                type="button"
+                onClick={() => navigate('/chat?room=reunions')}
+                className="w-full py-2.5 px-4 rounded-xl bg-[#d4af37] text-[#1c040b] text-xs font-semibold uppercase tracking-wider hover:bg-[#ffcf8a] transition-colors flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <MessageCircle className="w-3.5 h-3.5" />
+                Open Reunions Channel
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                className="w-full py-2.5 px-4 rounded-xl border border-white/15 bg-[#120409] text-white/85 text-xs font-semibold uppercase tracking-wider hover:border-[#d4af37]/40 hover:text-white transition-colors flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Compass className="w-3.5 h-3.5 text-[#ffcf8a]" />
+                Walk 3D Exhibition
+              </button>
             </div>
           </motion.div>
         </div>
 
         {/* Quick Actions */}
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.24 }}
           className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4"
         >
           <button
+            type="button"
             onClick={() => navigate('/directory')}
-            className="p-6 bg-white rounded-xl border border-[#e5e5e5] hover:border-[#D4AF37] transition-all hover:-translate-y-0.5 text-center group"
+            className="p-6 bg-[#1a060e]/85 rounded-2xl border border-white/12 hover:border-[#d4af37]/50 transition-all hover:-translate-y-0.5 text-center group cursor-pointer"
           >
-            <Users className="w-8 h-8 text-[#800020] mx-auto mb-2 group-hover:scale-105 transition-transform" />
-            <p className="font-semibold text-[#1a1a1a] text-sm">Directory</p>
+            <Users className="w-7 h-7 text-[#ffcf8a] mx-auto mb-2.5 group-hover:scale-105 transition-transform" />
+            <p className="font-semibold text-white text-sm">Directory</p>
           </button>
           <button
+            type="button"
             onClick={() => navigate('/chat')}
-            className="p-6 bg-white rounded-xl border border-[#e5e5e5] hover:border-[#D4AF37] transition-all hover:-translate-y-0.5 text-center group"
+            className="p-6 bg-[#1a060e]/85 rounded-2xl border border-white/12 hover:border-[#d4af37]/50 transition-all hover:-translate-y-0.5 text-center group cursor-pointer"
           >
-            <MessageCircle className="w-8 h-8 text-[#800020] mx-auto mb-2 group-hover:scale-105 transition-transform" />
-            <p className="font-semibold text-[#1a1a1a] text-sm">Batch Chat</p>
+            <MessageCircle className="w-7 h-7 text-[#ffcf8a] mx-auto mb-2.5 group-hover:scale-105 transition-transform" />
+            <p className="font-semibold text-white text-sm">Group Chat</p>
           </button>
           <button
+            type="button"
             onClick={() => {
               setModalDefaultTab('profile');
               setIsProfileModalOpen(true);
             }}
-            className="p-6 bg-white rounded-xl border border-[#e5e5e5] hover:border-[#D4AF37] transition-all hover:-translate-y-0.5 text-center group"
+            className="p-6 bg-[#1a060e]/85 rounded-2xl border border-white/12 hover:border-[#d4af37]/50 transition-all hover:-translate-y-0.5 text-center group cursor-pointer"
           >
-            <Camera className="w-8 h-8 text-[#800020] mx-auto mb-2 group-hover:scale-105 transition-transform" />
-            <p className="font-semibold text-[#1a1a1a] text-sm">Edit Profile</p>
+            <Camera className="w-7 h-7 text-[#ffcf8a] mx-auto mb-2.5 group-hover:scale-105 transition-transform" />
+            <p className="font-semibold text-white text-sm">Edit Profile</p>
           </button>
           <button
+            type="button"
             onClick={() => {
               setModalDefaultTab('security');
               setIsProfileModalOpen(true);
             }}
-            className="p-6 bg-white rounded-xl border border-[#e5e5e5] hover:border-[#D4AF37] transition-all hover:-translate-y-0.5 text-center group"
+            className="p-6 bg-[#1a060e]/85 rounded-2xl border border-white/12 hover:border-[#d4af37]/50 transition-all hover:-translate-y-0.5 text-center group cursor-pointer"
           >
-            <ShieldCheck className="w-8 h-8 text-[#800020] mx-auto mb-2 group-hover:scale-105 transition-transform" />
-            <p className="font-semibold text-[#1a1a1a] text-sm">Passkeys & Devices</p>
+            <ShieldCheck className="w-7 h-7 text-[#ffcf8a] mx-auto mb-2.5 group-hover:scale-105 transition-transform" />
+            <p className="font-semibold text-white text-sm">Passkeys &amp; Devices</p>
           </button>
         </motion.div>
       </main>

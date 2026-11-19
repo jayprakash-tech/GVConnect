@@ -187,39 +187,41 @@ function HeroAmbienceCanvas() {
 
     const start = performance.now();
     const draw = (now: number) => {
-      const t = (now - start) * 0.001;
-      ctx.clearRect(0, 0, width, height);
+      if (motionRefs.progress < 0.045) {
+        const t = (now - start) * 0.001;
+        ctx.clearRect(0, 0, width, height);
 
-      // Sweeping nostalgic golden threads across curtain backdrop
-      for (let i = 0; i < 3; i++) {
-        ctx.beginPath();
-        const baseY = height * (0.28 + i * 0.22);
-        for (let x = 0; x <= width; x += 28) {
-          const y =
-            baseY +
-            Math.sin(x * 0.0045 + t * (0.55 + i * 0.15) + i * 1.4) * 34 +
-            Math.cos(x * 0.009 - t * 0.4) * 14;
-          if (x === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
+        // Sweeping nostalgic golden threads across curtain backdrop
+        for (let i = 0; i < 3; i++) {
+          ctx.beginPath();
+          const baseY = height * (0.28 + i * 0.22);
+          for (let x = 0; x <= width; x += 36) {
+            const y =
+              baseY +
+              Math.sin(x * 0.0045 + t * (0.55 + i * 0.15) + i * 1.4) * 34 +
+              Math.cos(x * 0.009 - t * 0.4) * 14;
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.strokeStyle =
+            i === 1 ? 'rgba(255, 207, 138, 0.11)' : 'rgba(212, 175, 55, 0.07)';
+          ctx.lineWidth = i === 1 ? 1.5 : 1;
+          ctx.stroke();
         }
-        ctx.strokeStyle =
-          i === 1 ? 'rgba(255, 207, 138, 0.11)' : 'rgba(212, 175, 55, 0.07)';
-        ctx.lineWidth = i === 1 ? 1.5 : 1;
-        ctx.stroke();
-      }
 
-      // Drifting warm dust motes
-      particles.forEach((p) => {
-        p.y -= p.vy * 0.016;
-        if (p.y < -0.05) p.y = 1.05;
-        const px = (p.x + Math.sin(t * 0.6 + p.phase) * 0.015) * width;
-        const py = p.y * height;
-        const alpha = 0.25 + 0.35 * (0.5 + 0.5 * Math.sin(t * 1.6 + p.phase));
-        ctx.beginPath();
-        ctx.arc(px, py, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 212, 148, ${alpha.toFixed(3)})`;
-        ctx.fill();
-      });
+        // Drifting warm dust motes
+        particles.forEach((p) => {
+          p.y -= p.vy * 0.016;
+          if (p.y < -0.05) p.y = 1.05;
+          const px = (p.x + Math.sin(t * 0.6 + p.phase) * 0.015) * width;
+          const py = p.y * height;
+          const alpha = 0.25 + 0.35 * (0.5 + 0.5 * Math.sin(t * 1.6 + p.phase));
+          ctx.beginPath();
+          ctx.arc(px, py, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, 212, 148, ${alpha.toFixed(3)})`;
+          ctx.fill();
+        });
+      }
 
       raf = requestAnimationFrame(draw);
     };
@@ -255,15 +257,19 @@ export function HeroCurtain({ scrollTrackHeight }: { scrollTrackHeight?: number 
 
   useEffect(() => {
     let raf = 0;
+    let lastT = -1;
     const syncCurtain = () => {
       const el = curtainRef.current;
       if (el) {
         const raw = motionRefs.progress;
         const t = Math.min(1, Math.max(0, raw / 0.036));
-        const eased = t * t * (3 - 2 * t);
-        el.style.transform = `translate3d(${-105 * eased}%, 0, 0)`;
-        el.style.opacity = t >= 0.99 ? '0' : '1';
-        el.style.pointerEvents = t >= 0.85 || focus || bench ? 'none' : 'auto';
+        if (Math.abs(t - lastT) > 0.0005 || lastT < 0) {
+          lastT = t;
+          const eased = t * t * (3 - 2 * t);
+          el.style.transform = `translate3d(${-105 * eased}%, 0, 0)`;
+          el.style.opacity = t >= 0.99 ? '0' : '1';
+          el.style.pointerEvents = t >= 0.85 || focus || bench ? 'none' : 'auto';
+        }
       }
       raf = requestAnimationFrame(syncCurtain);
     };
@@ -474,6 +480,7 @@ export function ExhibitionCursor() {
 
   const cursorRef = useRef<HTMLDivElement>(null);
   const trailCanvasRef = useRef<HTMLCanvasElement>(null);
+  const dotRef = useRef<HTMLDivElement>(null);
   const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
@@ -485,17 +492,28 @@ export function ExhibitionCursor() {
     }
   }, []);
 
+  // Hide native browser pointer strictly while custom desktop cursor is active in gallery
+  useEffect(() => {
+    const active = enabled && phase === 'gallery';
+    document.documentElement.classList.toggle('exhibition-cursor-hidden', active);
+    return () => {
+      document.documentElement.classList.remove('exhibition-cursor-hidden');
+    };
+  }, [enabled, phase]);
+
   useEffect(() => {
     if (!enabled) return;
 
     const canvas = trailCanvasRef.current;
     const cursorEl = cursorRef.current;
+    const dotEl = dotRef.current;
     const ctx = canvas?.getContext('2d') || null;
 
     const trail: { x: number; y: number; life: number }[] = [];
     const targetPos = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     const smoothPos = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     let visible = false;
+    let uiInteractive = false;
     let raf = 0;
 
     const resize = () => {
@@ -513,8 +531,14 @@ export function ExhibitionCursor() {
       targetPos.y = e.clientY;
       motionRefs.pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
       motionRefs.pointer.y = (e.clientY / window.innerHeight) * 2 - 1;
-      trail.push({ x: e.clientX, y: e.clientY, life: 1 });
-      if (trail.length > 22) trail.shift();
+
+      const el = e.target as HTMLElement | null;
+      uiInteractive = Boolean(el?.closest('a, button, [role="button"], input, textarea, select'));
+
+      if (!motionRefs.scrolledPastGallery && !focus && !bench) {
+        trail.push({ x: e.clientX, y: e.clientY, life: 1 });
+        if (trail.length > 18) trail.shift();
+      }
     };
 
     const onLeave = () => {
@@ -522,27 +546,37 @@ export function ExhibitionCursor() {
     };
 
     window.addEventListener('pointermove', onMove, { passive: true });
-    window.addEventListener('pointerleave', onLeave);
+    document.addEventListener('mouseleave', onLeave);
 
     const tick = () => {
-      smoothPos.x += (targetPos.x - smoothPos.x) * 0.24;
-      smoothPos.y += (targetPos.y - smoothPos.y) * 0.24;
+      smoothPos.x += (targetPos.x - smoothPos.x) * 0.34;
+      smoothPos.y += (targetPos.y - smoothPos.y) * 0.34;
 
       if (cursorEl) {
         cursorEl.style.transform = `translate3d(${smoothPos.x}px, ${smoothPos.y}px, 0)`;
         cursorEl.classList.toggle('is-on', visible && phase === 'gallery');
       }
 
-      if (ctx && canvas) {
+      if (dotEl && !hover) {
+        dotEl.style.transform = uiInteractive ? 'scale(1.65)' : 'scale(1)';
+      }
+
+      if (ctx && canvas && trail.length > 0) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         const accent = ROOM_META[room]?.accent || '#ffcf8a';
         for (let i = trail.length - 1; i >= 0; i--) {
-          trail[i].life -= 0.055;
+          trail[i].life -= 0.065;
           if (trail[i].life <= 0) {
             trail.splice(i, 1);
           }
         }
-        if (trail.length > 1 && phase === 'gallery' && !focus && !bench) {
+        if (
+          trail.length > 1 &&
+          phase === 'gallery' &&
+          !focus &&
+          !bench &&
+          !motionRefs.scrolledPastGallery
+        ) {
           for (let i = 1; i < trail.length; i++) {
             const p0 = trail[i - 1];
             const p1 = trail[i];
@@ -550,8 +584,8 @@ export function ExhibitionCursor() {
             ctx.moveTo(p0.x, p0.y);
             ctx.lineTo(p1.x, p1.y);
             ctx.strokeStyle = accent;
-            ctx.globalAlpha = Math.max(0, p1.life * 0.38);
-            ctx.lineWidth = Math.max(0.8, p1.life * 3.2);
+            ctx.globalAlpha = Math.max(0, p1.life * 0.36);
+            ctx.lineWidth = Math.max(0.8, p1.life * 3.0);
             ctx.lineCap = 'round';
             ctx.stroke();
           }
@@ -567,9 +601,9 @@ export function ExhibitionCursor() {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', resize);
       window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerleave', onLeave);
+      document.removeEventListener('mouseleave', onLeave);
     };
-  }, [enabled, room, phase, focus, bench]);
+  }, [enabled, room, phase, focus, bench, hover]);
 
   if (!enabled) return null;
 
@@ -591,13 +625,14 @@ export function ExhibitionCursor() {
       <div
         ref={cursorRef}
         aria-hidden="true"
-        className="gallery-cursor pointer-events-none fixed top-0 left-0 z-50 -translate-x-1/2 -translate-y-1/2"
+        className="gallery-cursor pointer-events-none fixed top-0 left-0 z-[80] -translate-x-1/2 -translate-y-1/2"
       >
         <div
-          className={`flex items-center justify-center rounded-full border border-white transition-all duration-200 ${
+          ref={dotRef}
+          className={`flex items-center justify-center rounded-full border border-white transition-[width,height,background-color,transform] duration-200 ${
             isHovering
               ? 'h-20 w-20 bg-white text-black'
-              : 'h-4 w-4 bg-white/90 text-transparent'
+              : 'h-4 w-4 bg-white/95 text-transparent'
           }`}
         >
           {isHovering && (
@@ -638,7 +673,7 @@ export function RoomHudAndChapters({
     <>
       {/* Bottom-left Room Identifier */}
       <div className="pointer-events-none fixed bottom-6 left-6 z-20 hidden sm:block">
-        <div className="rounded-lg border border-white/10 bg-[#120409]/70 px-4 py-2.5 backdrop-blur-md">
+        <div className="rounded-lg border border-white/10 bg-[#120409]/88 px-4 py-2.5 shadow-lg">
           <p
             className="text-[10px] font-mono-tabular uppercase tracking-[0.28em]"
             style={{ color: meta.accent }}
@@ -652,7 +687,7 @@ export function RoomHudAndChapters({
       </div>
 
       {/* Bottom-right Chapter Jump Rail */}
-      <div className="fixed bottom-5 right-5 z-20 flex flex-wrap items-center gap-1.5 rounded-full border border-white/15 bg-[#120409]/75 p-1.5 backdrop-blur-xl shadow-2xl">
+      <div className="fixed bottom-5 right-5 z-20 flex flex-wrap items-center gap-1.5 rounded-full border border-white/15 bg-[#120409]/90 p-1.5 shadow-2xl">
         {CHAPTER_JUMPS.map((ch) => {
           const active = room === ch.room;
           return (
@@ -903,23 +938,23 @@ export function FloatingInviteCTA({ inGallery }: { inGallery: boolean }) {
   const phase = useExhibitionStore((s) => s.phase);
   const focus = useExhibitionStore((s) => s.focus);
   const bench = useExhibitionStore((s) => s.bench);
+  const room = useExhibitionStore((s) => s.room);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    let raf = 0;
     const check = () => {
       const shouldShow =
         inGallery &&
         phase === 'gallery' &&
         !focus &&
         !bench &&
-        motionRefs.progress >= REUNION_PROGRESS_THRESHOLD - 0.04;
+        (room === 'reunion' || motionRefs.target >= REUNION_PROGRESS_THRESHOLD - 0.04);
       setVisible((prev) => (prev === shouldShow ? prev : shouldShow));
-      raf = requestAnimationFrame(check);
     };
-    raf = requestAnimationFrame(check);
-    return () => cancelAnimationFrame(raf);
-  }, [inGallery, phase, focus, bench]);
+    check();
+    window.addEventListener('scroll', check, { passive: true });
+    return () => window.removeEventListener('scroll', check);
+  }, [inGallery, phase, focus, bench, room]);
 
   if (!visible) return null;
 
@@ -953,7 +988,7 @@ export function WebGLFallbackShowcase({
             Welcome Home, Grizzlian
           </h1>
           <p className="mt-4 text-base sm:text-lg text-white/75">
-            Explore five cherished campus memories from Telaiya Dam and connect
+            Explore cherished campus memories from Telaiya Dam and connect
             with your batchmates on GVConnect.
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-4">

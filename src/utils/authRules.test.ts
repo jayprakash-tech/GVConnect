@@ -29,7 +29,7 @@ test('password policy rejects short or missing-number passwords under 15 chars',
 });
 
 test('username format enforces lowercase alphanumeric/dot/underscore and length', () => {
-  assert.equal(validateUsernameFormat('rahul.sharma18').valid, true);
+  assert.equal(validateUsernameFormat('alumni.member18').valid, true);
   assert.equal(validateUsernameFormat('ab').valid, false);
   assert.equal(validateUsernameFormat('.badstart').valid, false);
   assert.equal(validateUsernameFormat('bad space').valid, false);
@@ -52,7 +52,7 @@ test('isProfileComplete rejects blank trigger-created profile rows', () => {
   );
   assert.equal(
     isProfileComplete({
-      full_name: 'Ananya Verma',
+      full_name: 'Alumni Member',
       admission_number: 'GV-2020-108',
       class: 'PASSOUT',
       batch: '2020',

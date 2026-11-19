@@ -205,45 +205,7 @@ function isNetworkFetchFailure(err: any): boolean {
   );
 }
 
-// Seeded alumni directory entries for preview/demo mode
-const SEEDED_ALUMNI: UserProfile[] = [
-  {
-    id: 'seed-alumni-1',
-    email: 'aarav.sharma@grizzlian.edu',
-    username: 'aarav.sharma',
-    full_name: 'Aarav Sharma',
-    admission_number: 'GV-2018-042',
-    class: '12th',
-    batch: '2018',
-    compliance_accepted: true,
-    onboarding_goal: 'Career & mentorship',
-    onboarding_bio: 'Software Engineer · Bengaluru',
-  },
-  {
-    id: 'seed-alumni-2',
-    email: 'ananya.verma@grizzlian.edu',
-    username: 'ananya_v',
-    full_name: 'Ananya Verma',
-    admission_number: 'GV-2020-118',
-    class: '12th',
-    batch: '2020',
-    compliance_accepted: true,
-    onboarding_goal: 'Reconnect with batchmates',
-    onboarding_bio: 'Product Designer · Mumbai',
-  },
-  {
-    id: 'seed-alumni-3',
-    email: 'rohan.kumar@grizzlian.edu',
-    username: 'rohan.k19',
-    full_name: 'Rohan Kumar',
-    admission_number: 'GV-2019-075',
-    class: '10th',
-    batch: '2019',
-    compliance_accepted: true,
-    onboarding_goal: 'Campus events & reunions',
-    onboarding_bio: 'Civil Services Aspirant · Delhi',
-  },
-];
+// Directory queries return only registered alumni accounts (live Supabase or local accounts).
 
 function emitAuthChanged() {
   window.dispatchEvent(new CustomEvent(AUTH_EVENT_NAME));
@@ -632,8 +594,7 @@ export async function checkUsernameAvailability(
 
   const users = getDemoUsers();
   const takenInUsers = users.some((u) => u.username.toLowerCase() === normalized);
-  const takenInSeeds = SEEDED_ALUMNI.some((a) => a.username.toLowerCase() === normalized);
-  const available = !takenInUsers && !takenInSeeds;
+  const available = !takenInUsers;
 
   return {
     available,
@@ -1357,10 +1318,11 @@ export async function loginWithOAuthProvider(
     }
   }
 
-  // Local demo fallback for Google / Apple OAuth
-  const cleanEmail = normalizeEmail(
-    demoEmailInput || (provider === 'google' ? 'grizzlian.google@gmail.com' : 'grizzlian.apple@icloud.com')
-  );
+  // Local fallback for OAuth when Supabase env is not configured
+  const cleanEmail = normalizeEmail(demoEmailInput || '');
+  if (!cleanEmail || !cleanEmail.includes('@')) {
+    throw new Error('Please enter a valid email address to continue with OAuth.');
+  }
   const users = getDemoUsers();
   let user = users.find((u) => u.email === cleanEmail);
 
@@ -1947,6 +1909,29 @@ export async function sendPasswordReset(identifier: string): Promise<string> {
     }
   }
 
+  const users = getDemoUsers();
+  const exists = users.some((u) => u.email === email);
+  if (!exists) {
+    throw new Error('No registered account was found for that username or email.');
+  }
+  return email;
+}
+
+export async function resetLocalDemoPassword(identifier: string, newPassword: string): Promise<string> {
+  const policy = validatePasswordPolicy(newPassword);
+  if (!policy.valid) {
+    throw new Error(
+      'New password must be at least 15 characters, or 8+ characters with a lowercase letter and number.'
+    );
+  }
+  const email = await resolveIdentifierToEmail(identifier);
+  const users = getDemoUsers();
+  const idx = users.findIndex((u) => u.email === email);
+  if (idx === -1) {
+    throw new Error('No registered account was found for that username or email.');
+  }
+  users[idx].passwordHash = simpleHash(newPassword);
+  saveDemoUsers(users);
   return email;
 }
 
@@ -2006,6 +1991,8 @@ export async function updateUserProfile(
     admission_number: string;
     class: string;
     batch: string;
+    onboarding_goal?: string;
+    onboarding_bio?: string;
     avatar_url?: string | null;
     avatarFile?: File | null;
   }
@@ -2059,20 +2046,21 @@ export async function updateUserProfile(
         class: updates.class,
         batch: updates.batch,
       };
-      const payloadWithAvatar =
-        updates.avatarFile || updates.avatar_url
-          ? { ...corePayload, avatar_url: finalAvatarUrl }
-          : corePayload;
+      const extendedPayload = {
+        ...corePayload,
+        ...(updates.onboarding_goal !== undefined ? { onboarding_goal: updates.onboarding_goal } : {}),
+        ...(updates.onboarding_bio !== undefined ? { onboarding_bio: updates.onboarding_bio } : {}),
+        ...(updates.avatarFile || updates.avatar_url ? { avatar_url: finalAvatarUrl } : {}),
+      };
 
       let { data, error } = await supabase
         .from('profiles')
-        .update(payloadWithAvatar)
+        .update(extendedPayload)
         .eq('id', userId)
         .select('*')
         .single();
 
       if (error && isMissingColumnSchemaError(error)) {
-        // Retry without optional avatar_url column if profiles table schema hasn't added it yet
         const retry = await supabase
           .from('profiles')
           .update(corePayload)
@@ -2090,15 +2078,19 @@ export async function updateUserProfile(
           throw new Error(error.message);
         }
       } else {
-        if (finalAvatarUrl !== undefined) {
-          await supabase.auth
-            .updateUser({
-              data: { avatar_url: finalAvatarUrl },
-            })
-            .catch(() => null);
-        }
+        await supabase.auth
+          .updateUser({
+            data: {
+              ...(finalAvatarUrl !== undefined ? { avatar_url: finalAvatarUrl } : {}),
+              ...(updates.onboarding_goal !== undefined ? { onboarding_goal: updates.onboarding_goal } : {}),
+              ...(updates.onboarding_bio !== undefined ? { onboarding_bio: updates.onboarding_bio } : {}),
+            },
+          })
+          .catch(() => null);
         return {
           ...(data as UserProfile),
+          onboarding_goal: (data as UserProfile)?.onboarding_goal ?? updates.onboarding_goal,
+          onboarding_bio: (data as UserProfile)?.onboarding_bio ?? updates.onboarding_bio,
           avatar_url: (data as UserProfile)?.avatar_url ?? finalAvatarUrl,
         };
       }
@@ -2123,6 +2115,14 @@ export async function updateUserProfile(
     admission_number: updates.admission_number,
     class: updates.class,
     batch: updates.batch,
+    onboarding_goal:
+      updates.onboarding_goal !== undefined
+        ? updates.onboarding_goal
+        : users[idx].profile!.onboarding_goal,
+    onboarding_bio:
+      updates.onboarding_bio !== undefined
+        ? updates.onboarding_bio.trim()
+        : users[idx].profile!.onboarding_bio,
     avatar_url: finalAvatarUrl,
   };
   users[idx].profile = updated;
@@ -2282,7 +2282,7 @@ export async function listAlumniDirectory(): Promise<UserProfile[]> {
     .map((u) => u.profile)
     .filter((p): p is UserProfile => isProfileComplete(p));
 
-  return [...registered, ...SEEDED_ALUMNI];
+  return registered;
 }
 
 export async function signOutUser(): Promise<void> {

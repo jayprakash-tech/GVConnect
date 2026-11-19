@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
   Calendar,
@@ -28,6 +28,7 @@ import {
   resetExhibitionStore,
   scrollToProgress,
   scrollTrackRef,
+  setExhibitionState,
   useExhibitionStore,
 } from '../data/exhibitionData';
 
@@ -102,19 +103,36 @@ export function LandingPage() {
   const bench = useExhibitionStore((s) => s.bench);
   const webglSupported = useExhibitionStore((s) => s.webglSupported);
 
+  const location = useLocation();
+  const navigate = useNavigate();
   const communityRef = useRef<HTMLElement>(null);
   const [inGallery, setInGallery] = useState(true);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   // Reset gallery state on entry & cleanup on leave
   useEffect(() => {
+    const targetSection = (location.state as { scrollToSection?: string } | null)?.scrollToSection;
     resetExhibitionStore();
-    window.scrollTo(0, 0);
+    if (targetSection) {
+      setExhibitionState({ phase: 'gallery' });
+      document.documentElement.style.overflow = '';
+      const timer = window.setTimeout(() => {
+        document.getElementById(targetSection)?.scrollIntoView({ behavior: 'smooth' });
+        navigate('.', { replace: true, state: null });
+      }, 120);
+      return () => {
+        window.clearTimeout(timer);
+        document.documentElement.style.overflow = '';
+        resetExhibitionStore();
+      };
+    }
+
+    window.scrollTo({ top: 0, behavior: 'auto' });
     return () => {
       document.documentElement.style.overflow = '';
       resetExhibitionStore();
     };
-  }, []);
+  }, [location.state, navigate]);
 
   // Lock scroll while loading or inspecting exhibit / bench overlook
   useEffect(() => {
@@ -140,8 +158,10 @@ export function LandingPage() {
       const commEl = communityRef.current;
       if (commEl) {
         const rect = commEl.getBoundingClientRect();
+        motionRefs.scrolledPastGallery = rect.top <= 0;
         setInGallery(rect.top > window.innerHeight * 0.65);
       } else {
+        motionRefs.scrolledPastGallery = false;
         setInGallery(true);
       }
     };
@@ -329,6 +349,76 @@ export function LandingPage() {
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* Official Campus Chronicles Gallery (sourced from grizzlyvidyalaya.com) */}
+          <div className="mt-24 pt-16 border-t border-white/10">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+              <div>
+                <p className="text-xs font-mono-tabular uppercase tracking-[0.3em] text-[#ffcf8a]">
+                  Grizzly Vidyalaya · Telaiya Dam
+                </p>
+                <h3 className="font-display mt-2 text-2xl sm:text-4xl font-bold text-white">
+                  Moments Across the Campus
+                </h3>
+              </div>
+              <Link
+                to="/directory"
+                className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#ffcf8a] hover:text-white transition-colors"
+              >
+                Find Your Batchmates
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+
+            <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                {
+                  src: '/campus/campus-slide-2.jpg',
+                  tag: 'Leadership',
+                  title: 'Prefectorial Council',
+                },
+                {
+                  src: '/campus/campus-atl.png',
+                  tag: 'Innovation',
+                  title: 'ATL & Robotics Studio',
+                },
+                {
+                  src: '/campus/campus-slide-4.jpg',
+                  tag: 'Academics',
+                  title: 'Science Discovery Labs',
+                },
+                {
+                  src: '/campus/campus-slide-3.jpg',
+                  tag: 'Culture',
+                  title: 'Art & Creativity Wing',
+                },
+              ].map((card) => (
+                <div
+                  key={card.title}
+                  className="group overflow-hidden rounded-xl border border-white/10 bg-[#1a060e]/85 transition-colors hover:border-[#d4af37]/45"
+                >
+                  <div className="aspect-[4/3] overflow-hidden">
+                    <img
+                      src={card.src}
+                      alt={card.title}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      loading="lazy"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                  <div className="p-4">
+                    <p className="text-[10px] font-mono-tabular uppercase tracking-[0.24em] text-[#ffcf8a]">
+                      {card.tag}
+                    </p>
+                    <h4 className="font-display mt-1 text-lg font-bold text-white">
+                      {card.title}
+                    </h4>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 

@@ -97,7 +97,7 @@ export function AlumniCanvas3D() {
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.08;
-    renderer.setPixelRatio(isSoftwareGl ? 1 : Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setPixelRatio(isSoftwareGl ? 1 : Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.setSize(container.clientWidth || window.innerWidth, container.clientHeight || window.innerHeight);
     renderer.domElement.style.display = 'block';
     renderer.domElement.style.width = '100%';
@@ -141,35 +141,35 @@ export function AlumniCanvas3D() {
     const ambientLight = new THREE.AmbientLight('#ffffff', 0.2);
     scene.add(ambientLight);
 
-    const maxAniso = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+    const maxAniso = Math.min(2, renderer.capabilities.getMaxAnisotropy());
     const dropShadowTex = track(toCanvasTexture(createDropShadowCanvas(), maxAniso));
     const spotlightTex = track(toCanvasTexture(createSpotlightBeamCanvas(), maxAniso));
 
-    // Shared procedural surface canvases
-    const walnutCanvas = createSurfaceCanvas('walnut');
-    const plasterCanvas = createSurfaceCanvas('maroon-plaster');
-    const terrazzoCanvas = createSurfaceCanvas('terrazzo');
-    const concreteCanvas = createSurfaceCanvas('concrete-grid');
-    const planksCanvas = createSurfaceCanvas('planks');
-    const futureCanvas = createSurfaceCanvas('future-floor');
+    const scaleUv = (geo: THREE.BufferGeometry, uScale: number, vScale: number) => {
+      const uv = geo.getAttribute('uv');
+      if (!uv) return;
+      for (let i = 0; i < uv.count; i++) {
+        uv.setXY(i, uv.getX(i) * uScale, uv.getY(i) * vScale);
+      }
+      uv.needsUpdate = true;
+    };
 
-    const exteriorFloorTex = track(
-      toCanvasTexture(terrazzoCanvas, maxAniso, [
-        (WORLD_BOUNDS.x1 - WORLD_BOUNDS.x0) / 6,
-        (WORLD_BOUNDS.z1 - WORLD_BOUNDS.z0) / 6,
-      ])
-    );
+    // Shared GPU tiled textures (only 6 GPU textures instead of 28+)
+    const walnutTex = track(toCanvasTexture(createSurfaceCanvas('walnut'), maxAniso, [1, 1]));
+    const plasterTex = track(toCanvasTexture(createSurfaceCanvas('maroon-plaster'), maxAniso, [1, 1]));
+    const terrazzoTex = track(toCanvasTexture(createSurfaceCanvas('terrazzo'), maxAniso, [1, 1]));
+    const concreteTex = track(toCanvasTexture(createSurfaceCanvas('concrete-grid'), maxAniso, [1, 1]));
+    const planksTex = track(toCanvasTexture(createSurfaceCanvas('planks'), maxAniso, [1, 1]));
+    const futureTex = track(toCanvasTexture(createSurfaceCanvas('future-floor'), maxAniso, [1, 1]));
 
     // Exterior ground plane
-    const extGeo = track(
-      new THREE.PlaneGeometry(
-        WORLD_BOUNDS.x1 - WORLD_BOUNDS.x0,
-        WORLD_BOUNDS.z1 - WORLD_BOUNDS.z0
-      )
-    );
+    const extW = WORLD_BOUNDS.x1 - WORLD_BOUNDS.x0;
+    const extD = WORLD_BOUNDS.z1 - WORLD_BOUNDS.z0;
+    const extGeo = track(new THREE.PlaneGeometry(extW, extD));
+    scaleUv(extGeo, extW / 6, extD / 6);
     const extMat = track(
       new THREE.MeshStandardMaterial({
-        map: exteriorFloorTex,
+        map: terrazzoTex,
         color: '#6e5c58',
         roughness: 0.65,
       })
@@ -190,17 +190,16 @@ export function AlumniCanvas3D() {
       const w = isCorridor ? (r.len ?? 6) + 0.6 : r.x1 - r.x0;
       const d = isCorridor ? 5 : r.z1 - r.z0;
       const repeatScale = age >= 2.8 && age < 3.8 ? 2.4 : 3.5;
-      const floorCanvas =
+      const floorTex =
         age < 0.8
-          ? planksCanvas
+          ? planksTex
+          : age < 1.6
+          ? plasterTex
           : age < 2.2
-          ? maroonPlasterOrTerrazzo(age, plasterCanvas, terrazzoCanvas)
+          ? terrazzoTex
           : age < 3.8
-          ? concreteCanvas
-          : futureCanvas;
-      const floorTex = track(
-        toCanvasTexture(floorCanvas, maxAniso, [w / repeatScale, d / repeatScale])
-      );
+          ? concreteTex
+          : futureTex;
       const floorMat = track(
         new THREE.MeshStandardMaterial({
           map: floorTex,
@@ -210,6 +209,7 @@ export function AlumniCanvas3D() {
         })
       );
       const floorGeo = track(new THREE.PlaneGeometry(w, d));
+      scaleUv(floorGeo, w / repeatScale, d / repeatScale);
 
       if (isCorridor && r.a) {
         const grp = new THREE.Group();
@@ -228,9 +228,8 @@ export function AlumniCanvas3D() {
 
         const ceilGeo = track(new THREE.PlaneGeometry(w, d));
         const ceilMat = track(
-          new THREE.MeshStandardMaterial({
-            color: age < 2.2 ? '#210a11' : '#323642',
-            roughness: 0.9,
+          new THREE.MeshBasicMaterial({
+            color: age < 2.2 ? '#1a070d' : '#2a2e38',
           })
         );
         const ceilMesh = new THREE.Mesh(ceilGeo, ceilMat);
@@ -239,14 +238,6 @@ export function AlumniCanvas3D() {
         scene.add(ceilMesh);
       }
     });
-
-    function maroonPlasterOrTerrazzo(
-      age: number,
-      plaster: HTMLCanvasElement,
-      terrazzo: HTMLCanvasElement
-    ) {
-      return age < 1.6 ? plaster : terrazzo;
-    }
 
     // Build Walls
     WALLS.forEach((w) => {
@@ -260,20 +251,18 @@ export function AlumniCanvas3D() {
       grp.position.set((w.a[0] + w.b[0]) / 2, 0, (w.a[1] + w.b[1]) / 2);
       grp.rotation.y = Math.atan2(w.n[0], w.n[1]);
 
-      const wallCanvas =
+      const wallTex =
         age < 0.8
-          ? walnutCanvas
+          ? walnutTex
           : age < 2.2
-          ? plasterCanvas
+          ? plasterTex
           : age < 3.8
-          ? terrazzoCanvas
-          : concreteCanvas;
-      const wallTex = track(
-        toCanvasTexture(wallCanvas, maxAniso, [len / (age < 1.6 ? 3.2 : 4.2), 1])
-      );
+          ? terrazzoTex
+          : concreteTex;
 
       if (thick > 0) {
         const boxGeo = track(new THREE.BoxGeometry(len + thick * 0.02, WALL_HEIGHT, thick));
+        scaleUv(boxGeo, len / (age < 1.6 ? 3.2 : 4.2), 1);
         const boxMat = track(
           age >= 4.5
             ? new THREE.MeshStandardMaterial({ color: '#e6f1f8', roughness: 0.32 })
@@ -346,7 +335,7 @@ export function AlumniCanvas3D() {
         const geo = new THREE.ExtrudeGeometry(shape, {
           depth,
           bevelEnabled: false,
-          curveSegments: 32,
+          curveSegments: 16,
         });
         geo.rotateY(Math.PI / 2);
         return track(geo);
@@ -374,17 +363,17 @@ export function AlumniCanvas3D() {
         new THREE.Vector3(0, 0.02, -1.3),
         new THREE.Vector3(0, 2.25, -1.3),
       ];
-      for (let i = 0; i <= 28; i++) {
-        const a = Math.PI - (i / 28) * Math.PI;
+      for (let i = 0; i <= 16; i++) {
+        const a = Math.PI - (i / 16) * Math.PI;
         trimPts.push(new THREE.Vector3(0, 2.25 + 1.3 * Math.sin(a), 1.3 * Math.cos(a)));
       }
       trimPts.push(new THREE.Vector3(0, 0.02, 1.3));
       const trimGeo = track(
         new THREE.TubeGeometry(
           new THREE.CatmullRomCurve3(trimPts, false, 'catmullrom', 0.02),
-          72,
+          36,
           0.02,
-          6,
+          5,
           false
         )
       );
@@ -572,8 +561,12 @@ export function AlumniCanvas3D() {
       gearMeshes.push({ mesh, speed: (g.dir * 3.0) / g.teeth });
     });
 
-    // Build Flickering Warm Sconce Lanterns
-    const lanternRefs: { light: THREE.PointLight; glow: THREE.MeshBasicMaterial; phase: number }[] = [];
+    // Build Flickering Warm Sconce Lanterns (1 shared point light + baked halo planes for 60fps PBR)
+    const activeLanternLight = new THREE.PointLight('#ffae52', 5.2, 11, 1.5);
+    activeLanternLight.position.set(13.8, 2.75, -1.2);
+    scene.add(activeLanternLight);
+
+    const lanternRefs: { glow: THREE.MeshBasicMaterial; phase: number; pos: THREE.Vector3 }[] = [];
     LANTERNS.forEach((l, idx) => {
       const grp = new THREE.Group();
       grp.position.set(l.x, 2.75, l.z);
@@ -589,16 +582,33 @@ export function AlumniCanvas3D() {
       const bulbMat = track(
         new THREE.MeshBasicMaterial({ color: '#ffd280', transparent: true, toneMapped: false })
       );
-      const bulb = new THREE.Mesh(track(new THREE.SphereGeometry(0.1, 16, 12)), bulbMat);
+      const bulb = new THREE.Mesh(track(new THREE.SphereGeometry(0.1, 12, 10)), bulbMat);
       bulb.position.set(0, 0, 0.18);
       grp.add(bulb);
 
-      const ptLight = new THREE.PointLight('#ffae52', 6.5, 9, 1.5);
-      ptLight.position.set(0, 0, 0.5);
-      grp.add(ptLight);
+      const halo = new THREE.Mesh(
+        track(new THREE.PlaneGeometry(1.8, 1.8)),
+        track(
+          new THREE.MeshBasicMaterial({
+            map: spotlightTex,
+            color: '#ffb95e',
+            transparent: true,
+            opacity: 0.28,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            toneMapped: false,
+          })
+        )
+      );
+      halo.position.set(0, -0.45, 0.14);
+      grp.add(halo);
 
       scene.add(grp);
-      lanternRefs.push({ light: ptLight, glow: bulbMat, phase: idx * 2.1 });
+      lanternRefs.push({
+        glow: bulbMat,
+        phase: idx * 2.1,
+        pos: new THREE.Vector3(l.x, 2.75, l.z),
+      });
     });
 
     // Build Feature Wall Murals
@@ -637,7 +647,7 @@ export function AlumniCanvas3D() {
               roughness: 0.2,
             })
           : new THREE.MeshStandardMaterial({
-              map: track(toCanvasTexture(age < 0.8 ? walnutCanvas : plasterCanvas, maxAniso)),
+              map: age < 0.8 ? walnutTex : plasterTex,
               color: age < 0.8 ? '#b88254' : '#783446',
               roughness: 0.65,
               metalness: 0.15,
@@ -905,7 +915,7 @@ export function AlumniCanvas3D() {
     };
 
     // Glowing Floor Light-Stream Ribbon (ShaderMaterial)
-    const ribbonSamples = isCoarsePointer ? 480 : 1200;
+    const ribbonSamples = isCoarsePointer ? 300 : 520;
     const ribbonGeo = track(new THREE.BufferGeometry());
     const rPos = new Float32Array(ribbonSamples * 2 * 3);
     const rU = new Float32Array(ribbonSamples * 2);
@@ -989,11 +999,12 @@ export function AlumniCanvas3D() {
     );
     scene.add(new THREE.Mesh(ribbonGeo, ribbonMat));
 
-    // Floating Dust Motes
-    const moteCount = isCoarsePointer ? 650 : 1800;
+    // GPU-Animated Dust Motes (Zero CPU loop & zero buffer re-uploads per frame)
+    const moteCount = isCoarsePointer ? 360 : 850;
     const moteGeo = track(new THREE.BufferGeometry());
     const motePos = new Float32Array(moteCount * 3);
     const moteCol = new Float32Array(moteCount * 3);
+    const motePhase = new Float32Array(moteCount);
     let mSeed = 42;
     const mRand = () => {
       mSeed = (mSeed * 16807) % 2147483647;
@@ -1004,26 +1015,48 @@ export function AlumniCanvas3D() {
       const mx = WORLD_BOUNDS.x0 + 6 + mRand() * (WORLD_BOUNDS.x1 - WORLD_BOUNDS.x0 - 12);
       const mz = WORLD_BOUNDS.z0 + 8 + mRand() * (WORLD_BOUNDS.z1 - WORLD_BOUNDS.z0 - 18);
       motePos.set([mx, 0.2 + mRand() * 3.9, mz], i * 3);
+      motePhase[i] = mRand() * 6.28318;
       const rm = findRoomAt(mx, mz);
-      tmpCol.set(ROOM_META[rm.id]?.accent ?? '#ffcf8a').multiplyScalar(0.6 + 0.7 * mRand());
+      tmpCol.set(ROOM_META[rm.id]?.accent ?? '#ffcf8a').multiplyScalar(0.65 + 0.65 * mRand());
       moteCol.set([tmpCol.r, tmpCol.g, tmpCol.b], i * 3);
     }
     moteGeo.setAttribute('position', new THREE.BufferAttribute(motePos, 3));
     moteGeo.setAttribute('color', new THREE.BufferAttribute(moteCol, 3));
+    moteGeo.setAttribute('aPhase', new THREE.BufferAttribute(motePhase, 1));
     const moteMat = track(
-      new THREE.PointsMaterial({
-        size: 0.036,
+      new THREE.ShaderMaterial({
+        uniforms: { uTime: { value: 0 } },
         vertexColors: true,
         transparent: true,
-        opacity: 0.88,
-        toneMapped: false,
-        blending: THREE.AdditiveBlending,
         depthWrite: false,
-        sizeAttenuation: true,
+        blending: THREE.AdditiveBlending,
+        toneMapped: false,
+        vertexShader: `
+          attribute float aPhase;
+          uniform float uTime;
+          varying vec3 vC;
+          void main() {
+            vC = color;
+            vec3 p = position;
+            p.y = 0.18 + mod(p.y + uTime * (0.04 + mod(aPhase, 0.04)), 4.0);
+            p.x += sin(uTime * 0.45 + aPhase) * 0.14;
+            vec4 mv = modelViewMatrix * vec4(p, 1.0);
+            gl_PointSize = clamp(24.0 / max(0.6, -mv.z), 1.5, 6.0);
+            gl_Position = projectionMatrix * mv;
+          }
+        `,
+        fragmentShader: `
+          varying vec3 vC;
+          void main() {
+            float d = length(gl_PointCoord - vec2(0.5));
+            if (d > 0.5) discard;
+            float a = smoothstep(0.5, 0.05, d) * 0.85;
+            gl_FragColor = vec4(vC, a);
+          }
+        `,
       })
     );
-    const motePoints = new THREE.Points(moteGeo, moteMat);
-    scene.add(motePoints);
+    scene.add(new THREE.Points(moteGeo, moteMat));
 
     // Pointer Raycasting (Hover & Click)
     const raycaster = new THREE.Raycaster();
@@ -1141,22 +1174,22 @@ export function AlumniCanvas3D() {
         camera.updateProjectionMatrix();
       }
 
-      // Smooth scroll progress
-      motionRefs.progress = damp(motionRefs.progress, motionRefs.target, 3.0, dt);
+      // Smooth snappy scroll progress
+      motionRefs.progress = damp(motionRefs.progress, motionRefs.target, 8.5, dt);
       const u = mapScrollToSplineT(motionRefs.progress);
       splineCurve.getPoint(u, camPos);
       sampleGaze(u, gazeVec).multiplyScalar(5).add(camPos);
 
-      smoothPtr.x = damp(smoothPtr.x, motionRefs.pointer.x, 1.8, dt);
-      smoothPtr.y = damp(smoothPtr.y, motionRefs.pointer.y, 1.8, dt);
+      smoothPtr.x = damp(smoothPtr.x, motionRefs.pointer.x, 3.0, dt);
+      smoothPtr.y = damp(smoothPtr.y, motionRefs.pointer.y, 3.0, dt);
 
-      let gx = camPos.x + smoothPtr.x * 0.06;
-      let gy = camPos.y - smoothPtr.y * 0.025;
+      let gx = camPos.x + smoothPtr.x * 0.05;
+      let gy = camPos.y - smoothPtr.y * 0.02;
       let gz = camPos.z;
       let lx = gazeVec.x + smoothPtr.x * 0.02;
       let ly = gazeVec.y;
       let lz = gazeVec.z;
-      let camSpeed = 4.2;
+      let camSpeed = 7.2;
 
       // Focus glide directly in front of clicked campus exhibit
       const focusedExhibit = ui.focus ? EXHIBITS.find((e) => e.id === ui.focus) : null;
@@ -1180,7 +1213,7 @@ export function AlumniCanvas3D() {
         lx = focusedExhibit.x + cosR * sideOffset;
         lz = focusedExhibit.z - sinR * sideOffset;
         ly = gy;
-        camSpeed = 3.6;
+        camSpeed = 4.6;
 
         if (
           arrivedFocusId !== focusedExhibit.id &&
@@ -1212,7 +1245,7 @@ export function AlumniCanvas3D() {
         setExhibitionState({ room: currentRoom.id });
       }
       const targetAge = ROOM_META[currentRoom.id]?.age ?? 0;
-      lightAge.value = damp(lightAge.value, targetAge, 1.8, dt);
+      lightAge.value = damp(lightAge.value, targetAge, 3.0, dt);
 
       const s = THREE.MathUtils.clamp(lightAge.value, 0, ROOM_LIGHT_PALETTES.length - 1.001);
       const i0 = Math.floor(s);
@@ -1240,7 +1273,7 @@ export function AlumniCanvas3D() {
       // Hover lift on exhibits
       exhibitHoverGroups.forEach((grp, id) => {
         const targetZ = ui.hover === id ? 0.055 : 0;
-        grp.position.z = damp(grp.position.z, targetZ, 8, dt);
+        grp.position.z = damp(grp.position.z, targetZ, 10, dt);
       });
 
       // Bench hover tint
@@ -1253,32 +1286,36 @@ export function AlumniCanvas3D() {
         g.mesh.rotation.z += g.speed * dt;
       });
 
-      // Flicker warm lanterns
+      // Flicker shared lantern light on nearest lantern & bulb opacities
+      let nearestLantern = lanternRefs[0];
+      let bestDistSq = Infinity;
       lanternRefs.forEach((l) => {
         const flicker =
           0.84 +
           0.06 * Math.sin(8.5 * elapsed + l.phase) +
           0.05 * Math.sin(21 * elapsed + l.phase) +
           0.05 * Math.sin(3.1 * elapsed);
-        l.light.intensity = 6.5 * flicker;
         l.glow.opacity = 0.78 + 0.22 * flicker;
+        const dSq = l.pos.distanceToSquared(camera.position);
+        if (dSq < bestDistSq) {
+          bestDistSq = dSq;
+          nearestLantern = l;
+        }
       });
+      if (nearestLantern) {
+        activeLanternLight.position.copy(nearestLantern.pos);
+        const fade = Math.max(0, 1 - bestDistSq / 320);
+        activeLanternLight.intensity = 5.2 * fade;
+      }
 
-      // Update ribbon shader uniforms
+      // Update ribbon & GPU dust mote shaders
       ribbonMat.uniforms.uTime.value = elapsed;
       ribbonMat.uniforms.uHead.value = u;
+      moteMat.uniforms.uTime.value = elapsed;
 
-      // Drift dust motes
-      const posAttr = moteGeo.getAttribute('position') as THREE.BufferAttribute;
-      const arr = posAttr.array as Float32Array;
-      for (let i = 0; i < moteCount; i++) {
-        arr[i * 3 + 1] += dt * (0.045 + (i % 7) * 0.01);
-        arr[i * 3] += Math.sin(0.4 * elapsed + i) * dt * 0.025;
-        if (arr[i * 3 + 1] > 4.2) arr[i * 3 + 1] = 0.18;
+      if (!motionRefs.scrolledPastGallery) {
+        renderer.render(scene, camera);
       }
-      posAttr.needsUpdate = true;
-
-      renderer.render(scene, camera);
 
       if (isSoftwareGl) {
         const gl = renderer.getContext() as WebGL2RenderingContext;

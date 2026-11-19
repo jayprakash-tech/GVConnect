@@ -591,6 +591,32 @@ addExhibit({
 
 WAYPOINTS.push({ p: [27.0, EYE_HEIGHT, -10.0], l: [27.0, 1.65, -6.16], hold: 1.6 });
 
+// Exhibit 6 (from grizzlyvidyalaya.com): /campus/campus-atl.png
+addExhibit({
+  id: 'exhibit-atl',
+  room: 'campus',
+  kicker: 'Archive 06 · Innovation Wing',
+  title: 'ATL & Robotics Lab',
+  subtitle: 'Atal Tinkering & Electronics Studio',
+  headline: 'Hands-on circuits, robotics builds & curious young minds',
+  about:
+    'Inside the ATL Robotics Lab, students clustered around workbenches wiring sensors, programming microcontrollers, and turning textbook physics into working prototypes.',
+  facts: [
+    ['Space', 'Atal Tinkering Lab'],
+    ['Focus', 'Robotics · Electronics · STEM'],
+    ['Mentorship', 'Connect With STEM Alumni'],
+  ],
+  href: '/directory',
+  cta: 'Connect With Alumni Mentors',
+  imageSrc: '/campus/campus-atl.png',
+  x: 37.5,
+  y: 1.72,
+  z: -12.98,
+  normal: DIR_S,
+  w: 2.45,
+  h: 1.65,
+});
+
 LANTERNS.push(
   { x: 20.2, z: -1.4, rot: rotFromNormal(DIR_E) },
   { x: 40.8, z: -1.4, rot: rotFromNormal(DIR_W) },
@@ -618,6 +644,58 @@ export const BELVEDERE_WINDOW = {
 };
 
 export const BENCH_POS = { x: 23.75, z: -31.6 };
+
+// Exhibit 7 (from grizzlyvidyalaya.com): /campus/campus-slide-4.jpg
+addExhibit({
+  id: 'exhibit-science',
+  room: 'belvedere',
+  kicker: 'Archive 07 · Discovery Wing',
+  title: 'Science Laboratories',
+  subtitle: 'Biology & Practical Experiments',
+  headline: 'First glimpses through a microscope and lifelong curiosity',
+  about:
+    'Afternoon lab practicals in crisp blazers—measuring slides, sketching specimens, and discovering how theory came alive at Grizzly Vidyalaya.',
+  facts: [
+    ['Wing', 'Senior Science Laboratories'],
+    ['Legacy', 'Doctors, Engineers & Researchers'],
+    ['Directory', 'Find Science Batchmates'],
+  ],
+  href: '/directory',
+  cta: 'Explore Alumni Directory',
+  imageSrc: '/campus/campus-slide-4.jpg',
+  x: 18.75,
+  y: 1.72,
+  z: -34.98,
+  normal: DIR_S,
+  w: 2.3,
+  h: 1.6,
+});
+
+// Exhibit 8 (from grizzlyvidyalaya.com): /campus/campus-building.jpg
+addExhibit({
+  id: 'exhibit-honors',
+  room: 'belvedere',
+  kicker: 'Archive 08 · School Honors',
+  title: 'Annual Stage & Pride',
+  subtitle: 'Grizzly Vidyalaya Recognition Ceremony',
+  headline: 'Standing proud beneath the Grizzly Vidyalaya crest',
+  about:
+    'Honors assemblies, toppers, house captains, and teachers cheering side by side on stage—moments of pride etched into every alumnus memory.',
+  facts: [
+    ['Occasion', 'Academic & House Honors'],
+    ['Motto', 'Success Through Hard Work'],
+    ['Community', 'Celebrate Alumni Milestones'],
+  ],
+  href: '/auth?mode=signup',
+  cta: 'Join the Alumni Network',
+  imageSrc: '/campus/campus-building.jpg',
+  x: 29.0,
+  y: 1.72,
+  z: -34.98,
+  normal: DIR_S,
+  w: 2.45,
+  h: 1.65,
+});
 
 WAYPOINTS.push({ p: [23.75, 1.68, -26.4], l: [23.75, 1.35, -36], hold: 2.0 });
 
@@ -821,6 +899,7 @@ export const motionRefs = {
   target: 0,
   progress: 0,
   pointer: { x: 0, y: 0 },
+  scrolledPastGallery: false,
 };
 
 export function getMaxScrollDistance(): number {
@@ -856,4 +935,5 @@ export function resetExhibitionStore() {
   };
   motionRefs.target = 0;
   motionRefs.progress = 0;
+  motionRefs.scrolledPastGallery = false;
 }

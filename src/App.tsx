@@ -106,10 +106,12 @@ function AppRoutes() {
 
   if (handlingCallback) {
     return (
-      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
+      <div className="min-h-screen bg-[#120409] text-white flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#800020] to-[#600018] animate-pulse" />
-          <p className="text-sm text-[#525252] font-medium">Confirming verification link...</p>
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#800020] to-[#d4af37] animate-pulse" />
+          <p className="font-mono-tabular text-xs uppercase tracking-[0.22em] text-[#ffcf8a]">
+            Confirming verification link...
+          </p>
         </div>
       </div>
     );
@@ -144,7 +146,7 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <HashRouter>
+    <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthProvider>
         <AppRoutes />
       </AuthProvider>

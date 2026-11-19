@@ -49,7 +49,6 @@ export function CompleteProfile({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Strict guard: only render after the user has clicked the verification link in their email
   if (!isEmailVerified || !verifiedEmail || !userId) {
     return null;
   }
@@ -108,35 +107,35 @@ export function CompleteProfile({
   };
 
   return (
-    <div>
+    <div className="text-white">
       <div className="mb-5">
-        <p className="text-xs font-semibold text-[#800020] mb-1.5">
-          Step 3 of 3 · Complete Profile &amp; Batch Compliance
+        <p className="font-mono-tabular text-[11px] uppercase tracking-[0.26em] text-[#ffcf8a] mb-1.5">
+          Step 3 of 3 · Profile &amp; Batch Compliance
         </p>
-        <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#1a1a1a] tracking-tight">
+        <h1 className="font-display text-2xl sm:text-3xl font-bold text-white tracking-wide">
           Complete Profile
         </h1>
-        <p className="mt-1.5 text-[#525252] text-[15px]">
-          Enter your alumni details, select PASSOUT / Class and Batch (passout year) for compliance, and open your dashboard.
+        <p className="mt-1.5 text-white/70 text-sm leading-relaxed">
+          Enter your Grizzly Vidyalya alumni details and confirm your batch year to unlock your dashboard.
         </p>
       </div>
 
       {error && (
-        <div className="mb-4 rounded-xl border border-[#fecaca] bg-[#fef2f2] p-3.5 text-sm text-[#b91c1c]">
+        <div className="mb-4 rounded-xl border border-red-400/35 bg-red-950/50 p-3.5 text-sm text-red-200">
           {error}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="rounded-xl border border-[#e5e5e5] bg-[#fafafa] px-4 py-3 text-xs text-[#525252] flex flex-wrap items-center gap-x-2 gap-y-1">
-          <CheckCircle2 className="w-4 h-4 text-[#166534] shrink-0" />
+        <div className="rounded-xl border border-white/12 bg-[#120409] px-4 py-3 text-xs text-white/75 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>
-            Verified: <strong className="text-[#1a1a1a]">{verifiedEmail}</strong>
+            Verified: <strong className="text-white">{verifiedEmail}</strong>
           </span>
           {verifiedUsername && (
             <>
               <span aria-hidden="true">·</span>
-              <span>@{verifiedUsername}</span>
+              <span className="text-[#ffcf8a]">@{verifiedUsername}</span>
             </>
           )}
         </div>
@@ -144,7 +143,7 @@ export function CompleteProfile({
         <div>
           <label
             htmlFor="complete-profile-fullname"
-            className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
+            className="block text-xs font-medium uppercase tracking-wider text-white/80 mb-1.5"
           >
             Full Name
           </label>
@@ -154,15 +153,15 @@ export function CompleteProfile({
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             required
-            className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#800020]/20 focus:border-[#800020] text-[15px]"
-            placeholder="e.g., Rahul Sharma"
+            className="w-full px-4 py-3 rounded-xl border border-white/15 bg-[#120409] text-white placeholder:text-white/35 focus:outline-none focus:ring-2 focus:ring-[#d4af37]/30 focus:border-[#d4af37] text-sm"
+            placeholder="Enter your full name"
           />
         </div>
 
         <div>
           <label
             htmlFor="complete-profile-admission"
-            className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
+            className="block text-xs font-medium uppercase tracking-wider text-white/80 mb-1.5"
           >
             Admission Number
           </label>
@@ -172,8 +171,8 @@ export function CompleteProfile({
             value={admissionNumber}
             onChange={(e) => setAdmissionNumber(e.target.value)}
             required
-            className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#800020]/20 focus:border-[#800020] text-[15px]"
-            placeholder="e.g., GV-2018-045"
+            className="w-full px-4 py-3 rounded-xl border border-white/15 bg-[#120409] text-white placeholder:text-white/35 focus:outline-none focus:ring-2 focus:ring-[#d4af37]/30 focus:border-[#d4af37] text-sm"
+            placeholder="Your school admission number"
           />
         </div>
 
@@ -181,7 +180,7 @@ export function CompleteProfile({
           <div>
             <label
               htmlFor="complete-profile-class"
-              className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
+              className="block text-xs font-medium uppercase tracking-wider text-white/80 mb-1.5"
             >
               Class (or Passout)
             </label>
@@ -190,7 +189,7 @@ export function CompleteProfile({
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
               required
-              className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#800020]/20 focus:border-[#800020] text-[15px]"
+              className="w-full px-4 py-3 rounded-xl border border-white/15 bg-[#120409] text-white focus:outline-none focus:ring-2 focus:ring-[#d4af37]/30 focus:border-[#d4af37] text-sm"
             >
               <option value="">Select Class</option>
               {CLASS_OPTIONS.map((c) => (
@@ -204,7 +203,7 @@ export function CompleteProfile({
           <div>
             <label
               htmlFor="complete-profile-batch"
-              className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
+              className="block text-xs font-medium uppercase tracking-wider text-white/80 mb-1.5"
             >
               Batch (Passout Year)
             </label>
@@ -213,7 +212,7 @@ export function CompleteProfile({
               value={batchYear}
               onChange={(e) => setBatchYear(e.target.value)}
               required
-              className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#800020]/20 focus:border-[#800020] text-[15px] tabular-nums"
+              className="w-full px-4 py-3 rounded-xl border border-white/15 bg-[#120409] text-white focus:outline-none focus:ring-2 focus:ring-[#d4af37]/30 focus:border-[#d4af37] text-sm font-mono-tabular"
             >
               <option value="">Select Batch</option>
               {BATCH_OPTIONS.map((yr) => (
@@ -228,7 +227,7 @@ export function CompleteProfile({
         <div>
           <label
             htmlFor="complete-profile-goal"
-            className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
+            className="block text-xs font-medium uppercase tracking-wider text-white/80 mb-1.5"
           >
             What brings you to GVConnect?
           </label>
@@ -236,7 +235,7 @@ export function CompleteProfile({
             id="complete-profile-goal"
             value={onboardingGoal}
             onChange={(e) => setOnboardingGoal(e.target.value)}
-            className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#800020]/20 focus:border-[#800020] text-[15px]"
+            className="w-full px-4 py-3 rounded-xl border border-white/15 bg-[#120409] text-white focus:outline-none focus:ring-2 focus:ring-[#d4af37]/30 focus:border-[#d4af37] text-sm"
           >
             {ONBOARDING_GOALS.map((goal) => (
               <option key={goal} value={goal}>
@@ -249,7 +248,7 @@ export function CompleteProfile({
         <div>
           <label
             htmlFor="complete-profile-bio"
-            className="block text-sm font-medium text-[#1a1a1a] mb-1.5"
+            className="block text-xs font-medium uppercase tracking-wider text-white/80 mb-1.5"
           >
             Current Role or City (Optional)
           </label>
@@ -258,19 +257,19 @@ export function CompleteProfile({
             type="text"
             value={onboardingBio}
             onChange={(e) => setOnboardingBio(e.target.value)}
-            className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#800020]/20 focus:border-[#800020] text-[15px]"
-            placeholder="e.g., Product Engineer · Bengaluru"
+            className="w-full px-4 py-3 rounded-xl border border-white/15 bg-[#120409] text-white placeholder:text-white/35 focus:outline-none focus:ring-2 focus:ring-[#d4af37]/30 focus:border-[#d4af37] text-sm"
+            placeholder="Your role, university, or city"
           />
         </div>
 
-        <label className="flex items-start gap-3 rounded-xl border border-[#e5e5e5] bg-[#fafafa] p-3.5 cursor-pointer">
+        <label className="flex items-start gap-3 rounded-xl border border-white/12 bg-[#120409] p-3.5 cursor-pointer">
           <input
             type="checkbox"
             checked={complianceAccepted}
             onChange={(e) => setComplianceAccepted(e.target.checked)}
-            className="mt-0.5 h-4 w-4 accent-[#800020]"
+            className="mt-0.5 h-4 w-4 accent-[#d4af37]"
           />
-          <span className="text-xs text-[#404040] leading-relaxed">
+          <span className="text-xs text-white/75 leading-relaxed">
             I confirm my selected Batch year is accurate for alumni verification compliance and agree to the GVConnect community guidelines.
           </span>
         </label>
@@ -278,7 +277,7 @@ export function CompleteProfile({
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-[#800020] text-[#D4AF37] hover:bg-[#600018] disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+          className="w-full py-3.5 px-6 rounded-xl font-semibold text-sm bg-[#d4af37] text-[#1c040b] hover:bg-[#ffcf8a] disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer"
         >
           {loading ? 'Finishing Setup...' : 'Finish Onboarding & Open Dashboard'}
           <ArrowRight className="w-4 h-4" />
@@ -289,7 +288,7 @@ export function CompleteProfile({
             type="button"
             disabled={loading}
             onClick={() => onSignOut()}
-            className="w-full text-center text-xs text-[#525252] hover:text-[#1a1a1a] pt-1"
+            className="w-full text-center text-xs text-white/60 hover:text-[#ffcf8a] pt-1 cursor-pointer"
           >
             Not your account? Sign out and use another email
           </button>

@@ -38,10 +38,14 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (loading || (user && user.email_verified && deviceVerified && !profileChecked)) {
     return (
-      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
+      <div className="min-h-screen bg-[#120409] flex items-center justify-center text-white">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#800020] to-[#600018] animate-pulse" />
-          <p className="text-sm text-[#525252] font-medium">Loading...</p>
+          <div className="w-10 h-10 rounded-full border border-[#d4af37]/40 bg-[#1a060e] flex items-center justify-center animate-pulse">
+            <span className="h-3 w-3 rounded-full bg-[#ffcf8a]" />
+          </div>
+          <p className="font-mono-tabular text-xs uppercase tracking-[0.26em] text-[#ffcf8a]">
+            Verifying Session...
+          </p>
         </div>
       </div>
     );

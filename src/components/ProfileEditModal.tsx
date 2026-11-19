@@ -10,6 +10,8 @@ import {
   Trash2,
   Laptop,
   Plus,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -27,6 +29,13 @@ import {
   validatePasswordPolicy,
 } from '../services/authService';
 import { CLASS_OPTIONS } from '../utils/authRules';
+
+const ONBOARDING_GOALS = [
+  'Reconnect with batchmates',
+  'Career & mentorship',
+  'Campus events & reunions',
+  'Mentor current students',
+];
 
 interface ProfileEditModalProps {
   isOpen: boolean;
@@ -57,6 +66,10 @@ export function ProfileEditModal({
   const [admissionNumber, setAdmissionNumber] = useState(currentProfile.admission_number);
   const [selectedClass, setSelectedClass] = useState(currentProfile.class);
   const [batchYear, setBatchYear] = useState(currentProfile.batch);
+  const [onboardingGoal, setOnboardingGoal] = useState(
+    currentProfile.onboarding_goal || ONBOARDING_GOALS[0]
+  );
+  const [onboardingBio, setOnboardingBio] = useState(currentProfile.onboarding_bio || '');
   const [avatarUrl, setAvatarUrl] = useState<string>(currentProfile.avatar_url || '');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -65,6 +78,9 @@ export function ProfileEditModal({
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPwd, setShowCurrentPwd] = useState(false);
+  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
 
   // Security: Passkeys & Trusted Devices
   const [passkeys, setPasskeys] = useState<PasskeyCredentialRecord[]>([]);
@@ -80,6 +96,8 @@ export function ProfileEditModal({
       setAdmissionNumber(currentProfile.admission_number);
       setSelectedClass(currentProfile.class);
       setBatchYear(currentProfile.batch);
+      setOnboardingGoal(currentProfile.onboarding_goal || ONBOARDING_GOALS[0]);
+      setOnboardingBio(currentProfile.onboarding_bio || '');
       setAvatarUrl(currentProfile.avatar_url || '');
       setAvatarFile(null);
       setAvatarPreview(null);
@@ -88,6 +106,15 @@ export function ProfileEditModal({
       loadSecurityData();
     }
   }, [isOpen, currentProfile, defaultTab]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
 
   const loadSecurityData = async () => {
     const [pk, devices] = await Promise.all([
@@ -130,13 +157,15 @@ export function ProfileEditModal({
         admission_number: admissionNumber,
         class: selectedClass,
         batch: batchYear,
+        onboarding_goal: onboardingGoal,
+        onboarding_bio: onboardingBio,
         avatar_url: avatarUrl,
         avatarFile,
       });
 
       setSuccess('Profile updated successfully.');
       onProfileUpdate(updated);
-      setTimeout(() => onClose(), 1000);
+      setTimeout(() => onClose(), 900);
     } catch (err: any) {
       setError(err.message || 'Failed to update profile');
     } finally {
@@ -224,89 +253,98 @@ export function ProfileEditModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.96 }}
             transition={{ duration: 0.16 }}
-            className="bg-white rounded-2xl border border-[#e5e5e5] shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
+            className="hud-card relative bg-[#14040a] rounded-xl border border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.85)] max-w-2xl w-full max-h-[90vh] overflow-hidden text-white"
           >
             {/* Header */}
-            <div className="bg-gradient-to-r from-[#800020] to-[#600018] p-6 flex items-center justify-between">
-              <h2 className="text-2xl font-serif font-bold text-[#D4AF37]">
-                Account & Security
-              </h2>
+            <div className="bg-gradient-to-r from-[#240612] via-[#1a060e] to-[#14040a] border-b border-white/12 p-6 flex items-center justify-between">
+              <div>
+                <p className="font-mono-tabular text-[10px] uppercase tracking-[0.28em] text-[#ffcf8a]">
+                  Alumni Member Settings
+                </p>
+                <h2 className="font-display text-2xl font-bold text-white mt-0.5">
+                  Account &amp; Security
+                </h2>
+              </div>
               <button
+                type="button"
                 onClick={onClose}
-                className="text-white/80 hover:text-white transition-colors"
+                className="rounded-md border border-white/15 p-1.5 text-white/75 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
                 aria-label="Close modal"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Tabs */}
-            <div className="border-b border-[#e5e5e5]">
+            <div className="border-b border-white/10 bg-[#120409]">
               <div className="flex">
                 <button
+                  type="button"
                   onClick={() => {
                     setActiveTab('profile');
                     setError('');
                     setSuccess('');
                   }}
-                  className={`flex-1 py-3.5 px-4 text-sm font-semibold transition-all whitespace-nowrap ${
+                  className={`flex-1 py-3.5 px-4 text-xs font-semibold uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${
                     activeTab === 'profile'
-                      ? 'text-[#800020] border-b-2 border-[#D4AF37]'
-                      : 'text-[#525252] hover:text-[#800020]'
+                      ? 'text-[#ffcf8a] border-b-2 border-[#d4af37] bg-[#1a060e]/60'
+                      : 'text-white/60 hover:text-white'
                   }`}
                 >
-                  <User className="w-4 h-4 inline-block mr-1.5" />
+                  <User className="w-3.5 h-3.5 inline-block mr-1.5 -mt-0.5" />
                   Profile
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     setActiveTab('password');
                     setError('');
                     setSuccess('');
                   }}
-                  className={`flex-1 py-3.5 px-4 text-sm font-semibold transition-all whitespace-nowrap ${
+                  className={`flex-1 py-3.5 px-4 text-xs font-semibold uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${
                     activeTab === 'password'
-                      ? 'text-[#800020] border-b-2 border-[#D4AF37]'
-                      : 'text-[#525252] hover:text-[#800020]'
+                      ? 'text-[#ffcf8a] border-b-2 border-[#d4af37] bg-[#1a060e]/60'
+                      : 'text-white/60 hover:text-white'
                   }`}
                 >
-                  <Lock className="w-4 h-4 inline-block mr-1.5" />
+                  <Lock className="w-3.5 h-3.5 inline-block mr-1.5 -mt-0.5" />
                   Password
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     setActiveTab('security');
                     setError('');
                     setSuccess('');
                   }}
-                  className={`flex-1 py-3.5 px-4 text-sm font-semibold transition-all whitespace-nowrap ${
+                  className={`flex-1 py-3.5 px-4 text-xs font-semibold uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${
                     activeTab === 'security'
-                      ? 'text-[#800020] border-b-2 border-[#D4AF37]'
-                      : 'text-[#525252] hover:text-[#800020]'
+                      ? 'text-[#ffcf8a] border-b-2 border-[#d4af37] bg-[#1a060e]/60'
+                      : 'text-white/60 hover:text-white'
                   }`}
                 >
-                  <ShieldCheck className="w-4 h-4 inline-block mr-1.5" />
-                  Passkeys & Devices
+                  <ShieldCheck className="w-3.5 h-3.5 inline-block mr-1.5 -mt-0.5" />
+                  Passkeys &amp; Devices
                 </button>
               </div>
             </div>
 
             {/* Content */}
-            <div className="p-6 overflow-y-auto max-h-[64vh]">
+            <div className="p-6 overflow-y-auto max-h-[65vh]">
               {error && (
-                <div className="mb-4 p-3 bg-[#fef2f2] border border-[#fecaca] rounded-lg text-[#b91c1c] text-sm">
+                <div className="mb-4 p-3 bg-red-950/50 border border-red-400/35 rounded-xl text-red-200 text-sm">
                   {error}
                 </div>
               )}
 
               {success && (
-                <div className="mb-4 p-3 bg-[#f0fdf4] border border-[#bbf7d0] rounded-lg text-[#166534] text-sm">
+                <div className="mb-4 p-3 bg-emerald-950/50 border border-emerald-400/35 rounded-xl text-emerald-200 text-sm">
                   {success}
                 </div>
               )}
@@ -315,13 +353,13 @@ export function ProfileEditModal({
                 <form onSubmit={handleProfileUpdate} className="space-y-5">
                   <div className="flex flex-col items-center">
                     <div className="relative group">
-                      <div className="w-28 h-28 rounded-full overflow-hidden bg-[#fff5f7] border-4 border-[#D4AF37]">
+                      <div className="w-24 h-24 rounded-full overflow-hidden bg-[#1a060e] border-2 border-[#d4af37]">
                         {avatarPreview ? (
                           <img src={avatarPreview} alt="Preview" className="w-full h-full object-cover" />
                         ) : avatarUrl ? (
                           <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-[#800020] text-3xl font-bold">
+                          <div className="w-full h-full flex items-center justify-center text-[#ffcf8a] font-display text-3xl font-bold">
                             {fullName.charAt(0).toUpperCase() || 'G'}
                           </div>
                         )}
@@ -329,7 +367,8 @@ export function ProfileEditModal({
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="absolute bottom-0 right-0 w-9 h-9 bg-[#800020] text-[#D4AF37] rounded-full flex items-center justify-center hover:bg-[#600018] transition-colors shadow-lg"
+                        aria-label="Upload profile picture"
+                        className="absolute bottom-0 right-0 w-8 h-8 bg-[#d4af37] text-[#1c040b] rounded-full flex items-center justify-center hover:bg-[#ffcf8a] transition-colors shadow-lg cursor-pointer"
                       >
                         <Camera className="w-4 h-4" />
                       </button>
@@ -341,13 +380,13 @@ export function ProfileEditModal({
                       onChange={handleAvatarChange}
                       className="hidden"
                     />
-                    <p className="text-xs text-[#525252] mt-2">
-                      Click camera icon to change profile picture (max 5MB)
+                    <p className="text-xs text-white/55 mt-2">
+                      Click the camera icon to upload a portrait (max 5MB)
                     </p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
+                    <label className="block text-xs font-medium uppercase tracking-wider text-white/80 mb-1.5">
                       Full Name
                     </label>
                     <input
@@ -355,12 +394,12 @@ export function ProfileEditModal({
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       required
-                      className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:border-[#800020]"
+                      className="w-full px-4 py-3 rounded-xl border border-white/15 bg-[#120409] text-white focus:outline-none focus:border-[#d4af37] text-sm"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
+                    <label className="block text-xs font-medium uppercase tracking-wider text-white/80 mb-1.5">
                       Admission Number
                     </label>
                     <input
@@ -368,38 +407,38 @@ export function ProfileEditModal({
                       value={admissionNumber}
                       onChange={(e) => setAdmissionNumber(e.target.value)}
                       required
-                      className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:border-[#800020]"
+                      className="w-full px-4 py-3 rounded-xl border border-white/15 bg-[#120409] text-white focus:outline-none focus:border-[#d4af37] text-sm font-mono-tabular"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
+                      <label className="block text-xs font-medium uppercase tracking-wider text-white/80 mb-1.5">
                         Class
                       </label>
                       <select
                         value={selectedClass}
                         onChange={(e) => setSelectedClass(e.target.value)}
                         required
-                        className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl bg-white focus:outline-none focus:border-[#800020]"
+                        className="w-full px-4 py-3 rounded-xl border border-white/15 bg-[#120409] text-white focus:outline-none focus:border-[#d4af37] text-sm"
                       >
                         {classes.map((cls) => (
                           <option key={cls} value={cls}>
-                            {cls}
+                            {cls === 'PASSOUT' ? 'PASSOUT (Alumni)' : cls}
                           </option>
                         ))}
                       </select>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
+                      <label className="block text-xs font-medium uppercase tracking-wider text-white/80 mb-1.5">
                         Batch Year
                       </label>
                       <select
                         value={batchYear}
                         onChange={(e) => setBatchYear(e.target.value)}
                         required
-                        className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl bg-white focus:outline-none focus:border-[#800020]"
+                        className="w-full px-4 py-3 rounded-xl border border-white/15 bg-[#120409] text-white focus:outline-none focus:border-[#d4af37] text-sm font-mono-tabular"
                       >
                         {batches.map((batch) => (
                           <option key={batch} value={batch}>
@@ -410,10 +449,40 @@ export function ProfileEditModal({
                     </div>
                   </div>
 
+                  <div>
+                    <label className="block text-xs font-medium uppercase tracking-wider text-white/80 mb-1.5">
+                      Network Focus
+                    </label>
+                    <select
+                      value={onboardingGoal}
+                      onChange={(e) => setOnboardingGoal(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-white/15 bg-[#120409] text-white focus:outline-none focus:border-[#d4af37] text-sm"
+                    >
+                      {ONBOARDING_GOALS.map((goal) => (
+                        <option key={goal} value={goal}>
+                          {goal}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium uppercase tracking-wider text-white/80 mb-1.5">
+                      Current Role or City
+                    </label>
+                    <input
+                      type="text"
+                      value={onboardingBio}
+                      onChange={(e) => setOnboardingBio(e.target.value)}
+                      placeholder="Your role, university, or city"
+                      className="w-full px-4 py-3 rounded-xl border border-white/15 bg-[#120409] text-white placeholder:text-white/35 focus:outline-none focus:border-[#d4af37] text-sm"
+                    />
+                  </div>
+
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-[#800020] text-[#D4AF37] hover:bg-[#600018] disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3.5 px-6 rounded-xl font-semibold text-sm bg-[#d4af37] text-[#1c040b] hover:bg-[#ffcf8a] disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Save className="w-4 h-4" />
                     {loading ? 'Saving...' : 'Save Changes'}
@@ -423,56 +492,86 @@ export function ProfileEditModal({
 
               {activeTab === 'password' && (
                 <form onSubmit={handlePasswordChange} className="space-y-5">
-                  <div className="bg-[#fafafa] border border-[#e5e5e5] p-4 rounded-xl text-sm text-[#404040]">
+                  <div className="bg-[#120409] border border-white/12 p-4 rounded-xl text-xs text-white/75 leading-relaxed">
                     New passwords must be at least 15 characters, or 8+ characters including a lowercase letter and a number.
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
+                    <label className="block text-xs font-medium uppercase tracking-wider text-white/80 mb-1.5">
                       Current Password
                     </label>
-                    <input
-                      type="password"
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      required
-                      className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:border-[#800020]"
-                      placeholder="Enter current password"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showCurrentPwd ? 'text' : 'password'}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        required
+                        className="w-full pl-4 pr-11 py-3 rounded-xl border border-white/15 bg-[#120409] text-white placeholder:text-white/35 focus:outline-none focus:border-[#d4af37] text-sm"
+                        placeholder="Enter current password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPwd((p) => !p)}
+                        aria-label={showCurrentPwd ? 'Hide password' : 'Show password'}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-white/55 hover:text-[#ffcf8a] p-1 cursor-pointer"
+                      >
+                        {showCurrentPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
+                    <label className="block text-xs font-medium uppercase tracking-wider text-white/80 mb-1.5">
                       New Password
                     </label>
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      required
-                      className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:border-[#800020]"
-                      placeholder="15+ chars or 8+ with number & lowercase"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showNewPwd ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        required
+                        className="w-full pl-4 pr-11 py-3 rounded-xl border border-white/15 bg-[#120409] text-white placeholder:text-white/35 focus:outline-none focus:border-[#d4af37] text-sm"
+                        placeholder="15+ chars or 8+ with number & lowercase"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPwd((p) => !p)}
+                        aria-label={showNewPwd ? 'Hide password' : 'Show password'}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-white/55 hover:text-[#ffcf8a] p-1 cursor-pointer"
+                      >
+                        {showNewPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-[#1a1a1a] mb-1.5">
+                    <label className="block text-xs font-medium uppercase tracking-wider text-white/80 mb-1.5">
                       Confirm New Password
                     </label>
-                    <input
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      required
-                      className="w-full px-4 py-3 border border-[#e5e5e5] rounded-xl focus:outline-none focus:border-[#800020]"
-                      placeholder="Confirm new password"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showConfirmPwd ? 'text' : 'password'}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
+                        className="w-full pl-4 pr-11 py-3 rounded-xl border border-white/15 bg-[#120409] text-white placeholder:text-white/35 focus:outline-none focus:border-[#d4af37] text-sm"
+                        placeholder="Confirm new password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPwd((p) => !p)}
+                        aria-label={showConfirmPwd ? 'Hide password' : 'Show password'}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-white/55 hover:text-[#ffcf8a] p-1 cursor-pointer"
+                      >
+                        {showConfirmPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
 
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3.5 px-6 rounded-xl font-semibold text-[15px] bg-[#800020] text-[#D4AF37] hover:bg-[#600018] disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3.5 px-6 rounded-xl font-semibold text-sm bg-[#d4af37] text-[#1c040b] hover:bg-[#ffcf8a] disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Lock className="w-4 h-4" />
                     {loading ? 'Changing Password...' : 'Change Password'}
@@ -482,15 +581,14 @@ export function ProfileEditModal({
 
               {activeTab === 'security' && (
                 <div className="space-y-6">
-                  {/* Passkeys Section */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-4">
                       <div>
-                        <h3 className="text-base font-semibold text-[#1a1a1a] flex items-center gap-2">
-                          <Fingerprint className="w-4 h-4 text-[#800020]" />
+                        <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                          <Fingerprint className="w-4 h-4 text-[#ffcf8a]" />
                           Configured Passkeys
                         </h3>
-                        <p className="text-xs text-[#525252] mt-0.5">
+                        <p className="text-xs text-white/60 mt-0.5">
                           Sign in faster using your device biometrics or hardware security key.
                         </p>
                       </div>
@@ -498,7 +596,7 @@ export function ProfileEditModal({
                         type="button"
                         onClick={handleRegisterPasskey}
                         disabled={loading}
-                        className="px-3.5 py-2 rounded-lg bg-[#800020] text-[#D4AF37] text-xs font-semibold hover:bg-[#600018] transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
+                        className="px-3.5 py-2 rounded-lg bg-[#d4af37] text-[#1c040b] text-xs font-semibold hover:bg-[#ffcf8a] transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         Add Passkey
@@ -506,26 +604,26 @@ export function ProfileEditModal({
                     </div>
 
                     {passkeys.length === 0 ? (
-                      <div className="rounded-xl border border-[#e5e5e5] bg-[#fafafa] p-4 text-xs text-[#525252]">
-                        No passkeys configured yet. Click "Add Passkey" to enroll this device.
+                      <div className="rounded-xl border border-white/10 bg-[#120409] p-4 text-xs text-white/65">
+                        No passkeys configured yet. Click &ldquo;Add Passkey&rdquo; to enroll this device.
                       </div>
                     ) : (
-                      <div className="divide-y divide-[#e5e5e5] rounded-xl border border-[#e5e5e5]">
+                      <div className="divide-y divide-white/10 rounded-xl border border-white/12 bg-[#120409]">
                         {passkeys.map((pk) => (
                           <div
                             key={pk.id}
                             className="p-3.5 flex items-center justify-between gap-3 text-sm"
                           >
                             <div>
-                              <p className="font-medium text-[#1a1a1a]">{pk.label}</p>
-                              <p className="text-xs text-[#737373]">
+                              <p className="font-medium text-white">{pk.label}</p>
+                              <p className="text-xs text-white/55 font-mono-tabular">
                                 Added {new Date(pk.createdAt).toLocaleDateString()}
                               </p>
                             </div>
                             <button
                               type="button"
                               onClick={() => handleRemovePasskey(pk.id)}
-                              className="p-2 text-[#525252] hover:text-[#b91c1c] rounded-lg transition-colors"
+                              className="p-2 text-white/55 hover:text-red-300 rounded-lg transition-colors cursor-pointer"
                               aria-label="Remove passkey"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -536,42 +634,41 @@ export function ProfileEditModal({
                     )}
                   </div>
 
-                  {/* Trusted Devices Section */}
-                  <div className="space-y-3 pt-4 border-t border-[#e5e5e5]">
+                  <div className="space-y-3 pt-4 border-t border-white/10">
                     <div>
-                      <h3 className="text-base font-semibold text-[#1a1a1a] flex items-center gap-2">
-                        <Laptop className="w-4 h-4 text-[#800020]" />
+                      <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                        <Laptop className="w-4 h-4 text-[#ffcf8a]" />
                         Trusted Devices
                       </h3>
-                      <p className="text-xs text-[#525252] mt-0.5">
+                      <p className="text-xs text-white/60 mt-0.5">
                         Logging in from an unrecognized device triggers an email OTP verification challenge.
                       </p>
                     </div>
 
                     {trustedDevices.length === 0 ? (
-                      <div className="rounded-xl border border-[#e5e5e5] bg-[#fafafa] p-4 text-xs text-[#525252]">
+                      <div className="rounded-xl border border-white/10 bg-[#120409] p-4 text-xs text-white/65">
                         No trusted devices recorded. Your next login will ask for an email OTP verification code.
                       </div>
                     ) : (
-                      <div className="divide-y divide-[#e5e5e5] rounded-xl border border-[#e5e5e5]">
+                      <div className="divide-y divide-white/10 rounded-xl border border-white/12 bg-[#120409]">
                         {trustedDevices.map((dev) => (
                           <div
                             key={dev.id}
                             className="p-3.5 flex items-center justify-between gap-3 text-sm"
                           >
                             <div>
-                              <p className="font-medium text-[#1a1a1a]">
+                              <p className="font-medium text-white">
                                 {dev.label}
                                 {dev.id === currentDeviceId ? ' · Current Browser' : ''}
                               </p>
-                              <p className="text-xs text-[#737373]">
+                              <p className="text-xs text-white/55 font-mono-tabular">
                                 Trusted {new Date(dev.addedAt).toLocaleDateString()}
                               </p>
                             </div>
                             <button
                               type="button"
                               onClick={() => handleRevokeDevice(dev.id)}
-                              className="text-xs font-medium text-[#b91c1c] hover:underline whitespace-nowrap"
+                              className="text-xs font-medium text-red-300 hover:text-red-200 hover:underline whitespace-nowrap cursor-pointer"
                             >
                               Revoke Trust
                             </button>

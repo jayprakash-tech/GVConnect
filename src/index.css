@@ -22,18 +22,17 @@ body {
   padding: 0;
   width: 100%;
   min-height: 100%;
+  background-color: #120409;
+  color: #ffffff;
   font-family: var(--font-sans);
+  scroll-behavior: smooth;
 }
 
 html.light,
-html.light body {
-  background-color: #ffffff;
-  color: #000000;
-}
-
+html.light body,
 html.dark,
 html.dark body {
-  background-color: #14050a;
+  background-color: #120409;
   color: #ffffff;
 }
 
@@ -131,11 +130,17 @@ html.dark body {
 .gallery-cursor {
   mix-blend-mode: difference;
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.2s ease;
 }
 
 .gallery-cursor.is-on {
   opacity: 1;
+}
+
+html.exhibition-cursor-hidden,
+html.exhibition-cursor-hidden body,
+html.exhibition-cursor-hidden * {
+  cursor: none !important;
 }
 
 .hud-card::before,
@@ -197,6 +202,10 @@ html.dark body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html,
+  body {
+    scroll-behavior: auto !important;
+  }
   .gallery-scroll-dot,
   .memory-node,
   .loader-orbit,
