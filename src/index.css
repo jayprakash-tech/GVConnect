@@ -1,11 +1,28 @@
 @import "tailwindcss";
+@import "@fontsource/cinzel/600.css";
+@import "@fontsource/cinzel/700.css";
+@import "@fontsource/plus-jakarta-sans/400.css";
+@import "@fontsource/plus-jakarta-sans/500.css";
+@import "@fontsource/plus-jakarta-sans/600.css";
+@import "@fontsource/plus-jakarta-sans/700.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --font-display: "Cinzel", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
 
 html,
 body {
   margin: 0;
   padding: 0;
   width: 100%;
-  height: 100%;
+  min-height: 100%;
+  font-family: var(--font-sans);
 }
 
 html.light,
@@ -16,7 +33,179 @@ html.light body {
 
 html.dark,
 html.dark body {
-  background-color: #1a1a1a;
+  background-color: #14050a;
   color: #ffffff;
 }
 
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono-tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Techkriti-inspired Exhibition Keyframes */
+@keyframes fest-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes register-sweep {
+  0% {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  55%,
+  to {
+    transform: translateX(420%) skewX(-18deg);
+  }
+}
+
+@keyframes hall-core {
+  0%,
+  to {
+    opacity: 0.52;
+  }
+  50% {
+    opacity: 0.98;
+  }
+}
+
+@keyframes pad-twinkle {
+  0%,
+  to {
+    opacity: 0.42;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.15);
+  }
+}
+
+@keyframes gallery-scroll-dot {
+  0% {
+    left: 0;
+  }
+  70%,
+  to {
+    left: calc(100% - 7px);
+  }
+}
+
+@keyframes loader-orbit {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes trace-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes trace-pulse {
+  0% {
+    stroke-dashoffset: 36px;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  to {
+    stroke-dashoffset: -520px;
+    opacity: 0;
+  }
+}
+
+.gallery-scroll-dot {
+  animation: gallery-scroll-dot 2.6s cubic-bezier(0.65, 0, 0.35, 1) infinite alternate;
+}
+
+.gallery-cursor {
+  mix-blend-mode: difference;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.gallery-cursor.is-on {
+  opacity: 1;
+}
+
+.hud-card::before,
+.hud-card::after {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-color: var(--hud, #ffcf8a);
+  border-style: solid;
+  pointer-events: none;
+}
+
+.hud-card::before {
+  top: -1px;
+  left: -1px;
+  border-width: 2px 0 0 2px;
+}
+
+.hud-card::after {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 2px 2px 0;
+}
+
+.memory-node {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: #fff3d6;
+  transform: translate(-50%, -50%);
+  box-shadow:
+    0 0 6px 2px rgba(255, 220, 160, 0.95),
+    0 0 16px 4px rgba(255, 179, 71, 0.65),
+    0 0 32px 8px rgba(128, 0, 32, 0.45);
+  animation: pad-twinkle 3.4s ease-in-out infinite;
+}
+
+.loader-orbit {
+  animation: loader-orbit 3.2s linear infinite;
+}
+
+.trace-draw {
+  stroke-dasharray: 600;
+  stroke-dashoffset: 600px;
+  animation: trace-draw 1.6s ease-out forwards;
+}
+
+.trace-pulse {
+  stroke-dasharray: 36 600;
+  stroke-dashoffset: 36px;
+  opacity: 0;
+  animation: trace-pulse 2.8s ease-in-out infinite;
+}
+
+.tree-pad-dot {
+  animation: pad-twinkle 3.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gallery-scroll-dot,
+  .memory-node,
+  .loader-orbit,
+  .trace-pulse,
+  .tree-pad-dot {
+    animation: none !important;
+  }
+  .trace-draw {
+    stroke-dashoffset: 0;
+    animation: none !important;
+  }
+}

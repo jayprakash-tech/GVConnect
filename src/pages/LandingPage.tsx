@@ -1,321 +1,493 @@
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import {
+  ArrowRight,
+  Calendar,
+  CheckCircle,
+  ChevronDown,
+  MessageCircle,
+  Users,
+} from 'lucide-react';
 import { Navbar } from '../components/Navbar';
-import { ArrowRight, Users, MessageCircle, Calendar, CheckCircle } from 'lucide-react';
+import { AlumniCanvas3D } from '../components/exhibition/AlumniCanvas3D';
+import {
+  BenchModal,
+  ExhibitDetailModal,
+  ExhibitionCursor,
+  ExhibitionLoader,
+  FloatingInviteCTA,
+  HeroCurtain,
+  RoomHudAndChapters,
+  WebGLFallbackShowcase,
+} from '../components/exhibition/ExhibitionOverlays';
+import { MagneticButton } from '../components/exhibition/MagneticButton';
+import {
+  EXHIBITS,
+  getMaxScrollDistance,
+  motionRefs,
+  resetExhibitionStore,
+  scrollToProgress,
+  scrollTrackRef,
+  useExhibitionStore,
+} from '../data/exhibitionData';
+
+const COMMUNITY_PILLARS = [
+  {
+    icon: Users,
+    kicker: 'Verified Network',
+    title: 'Alumni Directory',
+    description:
+      'Find batchmates from your graduating year or connect across senior and junior batches worldwide.',
+    cta: 'Browse Directory',
+    href: '/directory',
+  },
+  {
+    icon: MessageCircle,
+    kicker: 'Real-Time Conversations',
+    title: 'Group Chat & Forums',
+    description:
+      'Jump into batch rooms, hostel and bus-crew threads, and live discussions with fellow Grizzlians.',
+    cta: 'Open Alumni Chat',
+    href: '/chat',
+  },
+  {
+    icon: Calendar,
+    kicker: 'Campus Legacy',
+    title: 'Reunions & Mentorship',
+    description:
+      'Stay close to Telaiya Dam gatherings, homecoming meets, and career guidance circles.',
+    cta: 'Join the Network',
+    href: '/auth?mode=signup',
+  },
+];
+
+const WHY_JOIN_POINTS = [
+  'Reconnect with batchmates from your classrooms and bus routes',
+  'Share your career milestones and discover alumni opportunities',
+  'Mentor current Grizzly Vidyalya students and recent graduates',
+  'Coordinate chapter meetups and silver-jubilee campus reunions',
+];
+
+const FAQ_ITEMS = [
+  {
+    num: '01',
+    q: 'How do I verify my Grizzly Vidyalya alumni profile?',
+    a: 'Sign up with your email, select your graduating batch, and complete quick alumni verification to unlock full access to the directory and real-time group chats.',
+  },
+  {
+    num: '02',
+    q: 'Can I interact with the 3D Campus Exhibition?',
+    a: 'Yes. Scroll smoothly to walk through all four halls from the Main Gate to the Belvedere overlook, or click any framed campus photograph to inspect its story and jump straight into the community.',
+  },
+  {
+    num: '03',
+    q: 'How do I find friends from my specific batch or bus route?',
+    a: 'Visit the Alumni Directory after signing in to search by name, graduation year, city, or profession and reconnect one-on-one.',
+  },
+  {
+    num: '04',
+    q: 'Are there batch-specific and interest-based chats?',
+    a: 'GVConnect includes real-time group chat channels where alumni share reunion updates, campus throwback photos, and career referrals.',
+  },
+  {
+    num: '05',
+    q: 'Is GVConnect open to alumni living outside India?',
+    a: 'Absolutely. Grizzlians across cities in India and abroad use GVConnect to keep in touch with Telaiya Dam roots and local alumni chapters.',
+  },
+];
 
 export function LandingPage() {
-  const fadeInUp = {
-    initial: { opacity: 0, y: 30 },
-    whileInView: { opacity: 1, y: 0 },
-    viewport: { once: true },
-    transition: { duration: 0.6 },
+  const phase = useExhibitionStore((s) => s.phase);
+  const focus = useExhibitionStore((s) => s.focus);
+  const bench = useExhibitionStore((s) => s.bench);
+  const webglSupported = useExhibitionStore((s) => s.webglSupported);
+
+  const communityRef = useRef<HTMLElement>(null);
+  const [inGallery, setInGallery] = useState(true);
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
+
+  // Reset gallery state on entry & cleanup on leave
+  useEffect(() => {
+    resetExhibitionStore();
+    window.scrollTo(0, 0);
+    return () => {
+      document.documentElement.style.overflow = '';
+      resetExhibitionStore();
+    };
+  }, []);
+
+  // Lock scroll while loading or inspecting exhibit / bench overlook
+  useEffect(() => {
+    const locked = (webglSupported && phase === 'loading') || Boolean(focus) || bench;
+    document.documentElement.style.overflow = locked ? 'hidden' : '';
+    return () => {
+      document.documentElement.style.overflow = '';
+    };
+  }, [phase, focus, bench, webglSupported]);
+
+  // Sync window.scrollY -> Three.js camera spline target
+  useEffect(() => {
+    if (!webglSupported) {
+      setInGallery(false);
+      return;
+    }
+
+    const onScroll = () => {
+      const maxScroll = getMaxScrollDistance();
+      const raw = window.scrollY / maxScroll;
+      motionRefs.target = Math.min(1, Math.max(0, raw));
+
+      const commEl = communityRef.current;
+      if (commEl) {
+        const rect = commEl.getBoundingClientRect();
+        setInGallery(rect.top > window.innerHeight * 0.65);
+      } else {
+        setInGallery(true);
+      }
+    };
+
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [webglSupported]);
+
+  const jumpToCommunity = () => {
+    communityRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const galleryImages = [
-    { src: '/gate.png', title: 'The Gateway to Memories', size: 'large' },
-    { src: '/mess.png', title: 'Cafeteria Days', size: 'medium' },
-    { src: '/bus.png', title: 'Bus Rides Home', size: 'medium' },
-    { src: '/innerview.png', title: 'Our Beautiful Campus', size: 'large' },
-    { src: '/prayer.png', title: 'Morning Prayers', size: 'full' },
-  ];
-
-  const features = [
-    {
-      icon: Users,
-      title: 'Alumni Directory',
-      description: 'Find and connect with batchmates from your year and across batches. Search by name, batch, or class.',
-    },
-    {
-      icon: MessageCircle,
-      title: 'Group Chat & Forums',
-      description: 'Real-time conversations, batch-specific groups, and discussion forums to stay connected.',
-    },
-    {
-      icon: Calendar,
-      title: 'Events & Reunions',
-      description: 'Stay updated with alumni meets, reunions, school events, and important announcements.',
-    },
-  ];
-
-  const whyJoinPoints = [
-    'Reconnect with old friends',
-    'Share your career journey',
-    'Mentor current students',
-    'Attend exclusive alumni events',
-    'Access job opportunities',
-    'Stay updated with school news',
-  ];
-
   return (
-    <div className="min-h-screen bg-white">
-      <Navbar />
+    <div className="min-h-screen bg-[#120409] text-white selection:bg-[#d4af37] selection:text-[#1c040b]">
+      <Navbar variant="exhibition" />
 
-      {/* Hero Section */}
-      <section className="relative h-screen flex items-center justify-center overflow-hidden">
-        {/* Background Image */}
-        <img
-          src="/innerview.png"
-          alt="Grizzly Vidyalya Campus"
-          className="absolute inset-0 w-full h-full object-cover"
-          loading="eager"
-          decoding="async"
-          onError={(e) => {
-            e.currentTarget.src = 'image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080"%3E%3Crect fill="%23800020" width="1920" height="1080"/%3E%3C/svg%3E';
+      {webglSupported ? (
+        <>
+          <AlumniCanvas3D />
+          <ExhibitionLoader />
+          <HeroCurtain />
+          <ExhibitionCursor />
+          <RoomHudAndChapters
+            inGallery={inGallery}
+            onJumpCommunity={jumpToCommunity}
+          />
+          <FloatingInviteCTA inGallery={inGallery} />
+          <ExhibitDetailModal />
+          <BenchModal />
+
+          {/* Virtual Museum Scroll Track */}
+          <div
+            ref={(el) => {
+              scrollTrackRef.el = el;
+            }}
+            className="relative z-10 pointer-events-none"
+            style={{ height: '650svh' }}
+          >
+            {/* Screen-reader & keyboard accessible index of exhibits */}
+            <div className="sr-only">
+              <h2>Grizzly Vidyalya Virtual Alumni Exhibition</h2>
+              <ul>
+                {EXHIBITS.map((ex, idx) => (
+                  <li key={ex.id}>
+                    <button
+                      type="button"
+                      onClick={() => scrollToProgress((idx + 1) / (EXHIBITS.length + 2))}
+                    >
+                      {ex.title} — {ex.subtitle}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </>
+      ) : (
+        <WebGLFallbackShowcase onJumpCommunity={jumpToCommunity} />
+      )}
+
+      {/* Post-Exhibition Community Section */}
+      <section
+        id="community"
+        ref={communityRef}
+        className="relative z-20 border-t border-[#d4af37]/25 bg-[#120409] px-4 py-24 sm:px-6 lg:px-8"
+      >
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-64 opacity-40"
+          style={{
+            background:
+              'radial-gradient(ellipse at top, rgba(128, 0, 32, 0.55), transparent 70%)',
           }}
         />
-        
-        {/* Dark Maroon Overlay - CRITICAL FOR TEXT VISIBILITY */}
-        <div className="absolute inset-0 bg-[#800020]/70" />
 
-        {/* Content */}
-        <div className="relative z-10 text-center px-4 max-w-5xl mx-auto">
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-5xl md:text-7xl font-serif font-bold text-[#D4AF37] mb-6 leading-tight"
-            style={{ fontWeight: 700 }}
-          >
-            Welcome Home, Grizzlian!
-          </motion.h1>
-          
-          <motion.p
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="text-xl md:text-2xl text-white mb-10 leading-relaxed max-w-3xl mx-auto"
-          >
-            Join thousands of Grizzly Vidyalya alumni reconnecting with their roots
-          </motion.p>
-
-          {/* CTA Buttons */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.6 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center"
-          >
-            <Link
-              to="/auth?mode=signup"
-              className="px-10 py-4 bg-[#D4AF37] text-[#800020] rounded-full font-bold text-lg hover:bg-white transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 group inline-flex items-center justify-center gap-3"
-            >
-              Join the Community
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </Link>
-            <Link
-              to="/directory"
-              className="px-10 py-4 border-2 border-[#D4AF37] text-[#D4AF37] rounded-full font-bold text-lg hover:bg-[#D4AF37] hover:text-[#800020] transition-all duration-300 inline-flex items-center justify-center"
-            >
-              Explore Directory
-            </Link>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Nostalgia Gallery Section */}
-      <section className="py-20 px-4 bg-white" style={{ marginTop: '80px' }}>
-        <div className="max-w-7xl mx-auto">
-          <motion.div {...fadeInUp} className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-serif font-bold text-[#800020] mb-4">
-              Relive the Memories
-            </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Every corner holds a memory, every moment tells a story
+        <div className="relative max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="max-w-3xl">
+            <p className="text-xs font-mono-tabular uppercase tracking-[0.32em] text-[#ffcf8a]">
+              Beyond the Exhibition
             </p>
-          </motion.div>
+            <h2 className="font-display mt-3 text-3xl sm:text-5xl font-bold text-white">
+              Connect, Share &amp; Grow Together
+            </h2>
+            <p className="mt-4 text-base sm:text-lg text-white/70 leading-relaxed">
+              The nostalgia of Telaiya Dam lives on through the people you walked
+              those corridors with. Step into the active GVConnect network.
+            </p>
+          </div>
 
-          {/* Masonry Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {galleryImages.map((image, index) => (
-              <motion.div
-                key={index}
-                {...fadeInUp}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                className={`relative group overflow-hidden rounded-lg shadow-md ${
-                  image.size === 'full' ? 'col-span-2 md:col-span-4' : ''
-                } ${image.size === 'large' ? 'col-span-2 row-span-2' : ''}`}
-              >
+          {/* 3 Feature Pillars */}
+          <div className="mt-14 grid gap-6 md:grid-cols-3">
+            {COMMUNITY_PILLARS.map((item) => {
+              const Icon = item.icon;
+              return (
+                <div
+                  key={item.title}
+                  className="group flex flex-col justify-between rounded-2xl border border-white/10 bg-[#1a060e]/85 p-7 transition-all duration-300 hover:-translate-y-1 hover:border-[#d4af37]/45"
+                >
+                  <div>
+                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[#d4af37]/30 bg-[#800020]/30 text-[#ffcf8a]">
+                      <Icon className="h-6 w-6" />
+                    </div>
+                    <p className="mt-5 text-[11px] font-mono-tabular uppercase tracking-[0.26em] text-[#ffcf8a]/80">
+                      {item.kicker}
+                    </p>
+                    <h3 className="font-display mt-1.5 text-2xl font-bold text-white">
+                      {item.title}
+                    </h3>
+                    <p className="mt-3 text-sm leading-relaxed text-white/70">
+                      {item.description}
+                    </p>
+                  </div>
+
+                  <Link
+                    to={item.href}
+                    className="mt-7 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#ffcf8a] hover:text-white transition-colors"
+                  >
+                    {item.cta}
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Heritage Spotlight Split (Real Campus Archives: /prayer.png & /bus.png) */}
+          <div className="mt-24 grid items-center gap-12 lg:grid-cols-12">
+            <div className="lg:col-span-6 relative">
+              <div className="overflow-hidden rounded-2xl border border-[#d4af37]/30 bg-[#1a060e] p-2 shadow-2xl">
                 <img
-                  src={image.src}
-                  alt={image.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  style={{ minHeight: image.size === 'large' ? '400px' : '200px' }}
+                  src="/prayer.png"
+                  alt="Morning Prayers at Grizzly Vidyalya"
+                  className="aspect-[16/10] w-full rounded-xl object-cover"
                   loading="lazy"
                   decoding="async"
-                  onError={(e) => {
-                    e.currentTarget.src = `image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='600'%3E%3Crect fill='%23800020' width='800' height='600'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='serif' font-size='24' fill='%23D4AF37'%3E${image.title}%3C/text%3E%3C/svg%3E`;
-                  }}
+                  referrerPolicy="no-referrer"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#800020]/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-6">
-                  <h3 className="text-[#D4AF37] text-xl font-serif font-bold">
-                    {image.title}
-                  </h3>
-                </div>
-              </motion.div>
-            ))}
+              </div>
+              <div className="mt-4 sm:mt-0 sm:absolute sm:-bottom-8 sm:-right-6 sm:w-56 overflow-hidden rounded-xl border border-[#d4af37]/40 bg-[#120409] p-1.5 shadow-2xl">
+                <img
+                  src="/bus.png"
+                  alt="Grizzly Vidyalya School Buses"
+                  className="aspect-[16/10] w-full rounded-lg object-cover"
+                  loading="lazy"
+                  decoding="async"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+            </div>
+
+            <div className="lg:col-span-6 lg:pl-6">
+              <p className="text-xs font-mono-tabular uppercase tracking-[0.3em] text-[#ffcf8a]">
+                Grizzly Vidyalya Brotherhood
+              </p>
+              <h3 className="font-display mt-3 text-3xl sm:text-4xl font-bold text-white">
+                Why Join GVConnect?
+              </h3>
+              <ul className="mt-6 space-y-4">
+                {WHY_JOIN_POINTS.map((point) => (
+                  <li key={point} className="flex items-start gap-3">
+                    <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#d4af37]" />
+                    <span className="text-base text-white/80">{point}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-8 flex flex-wrap items-center gap-5">
+                <MagneticButton
+                  tone="amber"
+                  label="Create Alumni Profile"
+                  to="/auth?mode=signup"
+                />
+                {webglSupported && (
+                  <button
+                    type="button"
+                    onClick={() => scrollToProgress(0)}
+                    className="text-xs font-semibold uppercase tracking-[0.2em] text-white/65 hover:text-[#ffcf8a] transition-colors cursor-pointer"
+                  >
+                    ↑ Revisit Hall I
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </section>
 
-      {/* Features Section */}
-      <section className="py-20 px-4" style={{ backgroundColor: '#fff5f7' }}>
-        <div className="max-w-7xl mx-auto">
-          <motion.div {...fadeInUp} className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-serif font-bold text-[#800020] mb-4">
-              Connect, Share, Grow
-            </h2>
-          </motion.div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <motion.div
-                key={index}
-                {...fadeInUp}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                className="bg-white rounded-lg p-8 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group border-t-4 border-[#D4AF37]"
-                style={{ boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
-              >
-                <feature.icon className="w-12 h-12 text-[#D4AF37] mb-6 group-hover:scale-110 transition-transform duration-300" />
-                <h3 className="text-xl font-serif font-bold text-[#800020] mb-3">
-                  {feature.title}
-                </h3>
-                <p className="text-gray-600 leading-relaxed">
-                  {feature.description}
+          {/* Techkriti-Style Frosted FAQ Accordion */}
+          <div id="faq" className="mt-28 pt-16 border-t border-white/10">
+            <div className="grid gap-10 lg:grid-cols-12">
+              <div className="lg:col-span-4">
+                <p className="text-xs font-mono-tabular uppercase tracking-[0.3em] text-[#ffcf8a]">
+                  Questions
                 </p>
-              </motion.div>
-            ))}
+                <h3 className="font-display mt-2 text-3xl font-bold text-white">
+                  Frequently Asked
+                </h3>
+                <p className="mt-3 text-sm leading-relaxed text-white/65">
+                  Everything you need to know about joining GVConnect and walking
+                  the interactive alumni gallery.
+                </p>
+              </div>
+
+              <div className="lg:col-span-8 space-y-3">
+                {FAQ_ITEMS.map((item, idx) => {
+                  const isOpen = openFaq === idx;
+                  return (
+                    <div
+                      key={item.num}
+                      className="rounded-xl border border-white/10 bg-[#19060d]/80 backdrop-blur-md transition-colors hover:border-[#d4af37]/35"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setOpenFaq(isOpen ? null : idx)}
+                        aria-expanded={isOpen}
+                        className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left cursor-pointer"
+                      >
+                        <div className="flex items-center gap-4">
+                          <span className="font-mono-tabular text-xs text-[#ffcf8a]/80">
+                            {item.num}
+                          </span>
+                          <span className="text-sm sm:text-base font-semibold text-white">
+                            {item.q}
+                          </span>
+                        </div>
+                        <ChevronDown
+                          className={`h-4 w-4 shrink-0 text-[#ffcf8a] transition-transform duration-300 ${
+                            isOpen ? 'rotate-180' : ''
+                          }`}
+                        />
+                      </button>
+                      {isOpen && (
+                        <div className="border-t border-white/10 px-6 pb-5 pt-3 text-sm leading-relaxed text-white/75 pl-14">
+                          {item.a}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
-      </section>
-
-      {/* Why Join Section */}
-      <section className="py-20 px-4 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <motion.div {...fadeInUp} className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-serif font-bold text-[#800020] mb-4">
-              Why Join GVConnect?
-            </h2>
-          </motion.div>
-
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            {/* Image */}
-            <motion.div {...fadeInUp} className="relative">
-              <img
-                src="/prayer.png"
-                alt="Morning Prayers at Grizzly Vidyalya"
-                className="w-full rounded-lg shadow-lg"
-                loading="lazy"
-                decoding="async"
-                onError={(e) => {
-                  e.currentTarget.src = 'image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="600"%3E%3Crect fill="%23800020" width="800" height="600"/%3E%3C/svg%3E';
-                }}
-              />
-            </motion.div>
-
-            {/* Points */}
-            <motion.div {...fadeInUp} className="space-y-4">
-              {whyJoinPoints.map((point, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, x: -20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                  className="flex items-start gap-3"
-                >
-                  <CheckCircle className="w-6 h-6 text-[#D4AF37] flex-shrink-0 mt-0.5" />
-                  <p className="text-lg text-gray-700">{point}</p>
-                </motion.div>
-              ))}
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Banner */}
-      <section className="py-20 px-4 bg-[#800020]">
-        <motion.div {...fadeInUp} className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl md:text-5xl font-serif font-bold text-[#D4AF37] mb-6">
-            Ready to Reconnect?
-          </h2>
-          <p className="text-xl text-white mb-10 max-w-2xl mx-auto">
-            Join thousands of Grizzlian alumni today
-          </p>
-          <Link
-            to="/auth?mode=signup"
-            className="inline-flex items-center gap-3 px-12 py-5 bg-[#D4AF37] text-[#800020] rounded-full font-bold text-lg hover:bg-[#e6c65c] transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 group"
-          >
-            Join Us
-            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </Link>
-        </motion.div>
       </section>
 
       {/* Footer */}
-      <footer className="py-16 px-4" style={{ backgroundColor: '#600018' }}>
+      <footer className="relative z-20 border-t border-white/10 bg-[#0b0205] px-4 py-14 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-4 gap-8 mb-12">
-            {/* Column 1: Logo & School Info */}
-            <div className="md:col-span-1">
-              <div className="flex items-center gap-3 mb-4">
+          <div className="grid gap-10 md:grid-cols-4">
+            <div className="md:col-span-2">
+              <div className="flex items-center gap-3">
                 <img
                   src="/gvlogo.png"
                   alt="GVConnect Logo"
-                  className="h-[60px] w-auto"
+                  className="h-12 w-12 object-contain"
                   loading="lazy"
                   decoding="async"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
+                  referrerPolicy="no-referrer"
                 />
-                <div className="flex flex-col">
-                  <h3 className="text-xl font-bold text-[#D4AF37] leading-tight">GVConnect</h3>
-                  <p className="text-sm text-white/90 leading-tight">Telaiya Dam, Koderma</p>
+                <div>
+                  <h4 className="font-display text-xl font-bold text-[#ffcf8a]">
+                    GVConnect
+                  </h4>
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/60">
+                    Grizzly Vidyalya · Telaiya Dam, Koderma
+                  </p>
                 </div>
               </div>
-              <p className="text-white/70 leading-relaxed text-sm">
-                Reconnecting Grizzly Vidyalya alumni worldwide
+              <p className="mt-4 max-w-md text-sm leading-relaxed text-white/60">
+                Connecting generations of Grizzlians across campuses, industries,
+                and time zones—preserving our shared memories while building
+                tomorrow’s alumni mentorship network.
               </p>
             </div>
 
-            {/* Column 2: Quick Links */}
             <div>
-              <h4 className="text-[#D4AF37] font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2">
-                <li><Link to="/" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">Home</Link></li>
-                <li><Link to="/directory" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">Directory</Link></li>
-                <li><Link to="/events" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">Events</Link></li>
-                <li><Link to="/about" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">About</Link></li>
+              <h5 className="text-xs font-mono-tabular uppercase tracking-[0.24em] text-[#ffcf8a]">
+                Explore
+              </h5>
+              <ul className="mt-4 space-y-2.5 text-sm">
+                <li>
+                  <Link
+                    to="/directory"
+                    className="text-white/70 hover:text-[#ffcf8a] transition-colors"
+                  >
+                    Alumni Directory
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/chat"
+                    className="text-white/70 hover:text-[#ffcf8a] transition-colors"
+                  >
+                    Group Chat
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/dashboard"
+                    className="text-white/70 hover:text-[#ffcf8a] transition-colors"
+                  >
+                    Member Dashboard
+                  </Link>
+                </li>
               </ul>
             </div>
 
-            {/* Column 3: Features */}
             <div>
-              <h4 className="text-[#D4AF37] font-semibold mb-4">Features</h4>
-              <ul className="space-y-2">
-                <li><a href="#" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">Group Chat</a></li>
-                <li><a href="#" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">Alumni Directory</a></li>
-                <li><a href="#" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">Events</a></li>
-                <li><a href="#" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">News & Updates</a></li>
-              </ul>
-            </div>
-
-            {/* Column 4: Contact */}
-            <div>
-              <h4 className="text-[#D4AF37] font-semibold mb-4">Contact</h4>
-              <ul className="space-y-2">
-                <li><a href="mailto:info@gvconnect.com" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">info@gvconnect.com</a></li>
-                <li><a href="#" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">Facebook</a></li>
-                <li><a href="#" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">Instagram</a></li>
-                <li><a href="#" className="text-white/70 hover:text-[#D4AF37] transition-colors text-sm">LinkedIn</a></li>
+              <h5 className="text-xs font-mono-tabular uppercase tracking-[0.24em] text-[#ffcf8a]">
+                Account &amp; Support
+              </h5>
+              <ul className="mt-4 space-y-2.5 text-sm">
+                <li>
+                  <Link
+                    to="/auth?mode=signup"
+                    className="text-white/70 hover:text-[#ffcf8a] transition-colors"
+                  >
+                    Join Network
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/auth?mode=login"
+                    className="text-white/70 hover:text-[#ffcf8a] transition-colors"
+                  >
+                    Sign In
+                  </Link>
+                </li>
+                <li>
+                  <a
+                    href="mailto:info@gvconnect.com"
+                    className="text-white/70 hover:text-[#ffcf8a] transition-colors"
+                  >
+                    info@gvconnect.com
+                  </a>
+                </li>
               </ul>
             </div>
           </div>
 
-          <div className="border-t border-white/10 pt-8 text-center">
-            <p className="text-white/60 text-sm">
-              © 2026 GVConnect. Made with ❤️ for Grizzly Vidyalya
-            </p>
+          <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-white/10 pt-6 text-xs text-white/45">
+            <p>© 2026 GVConnect · Grizzly Vidyalya Alumni Association</p>
+            <p>Telaiya Dam, Koderma, Jharkhand</p>
           </div>
         </div>
       </footer>
