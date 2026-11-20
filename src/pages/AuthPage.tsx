@@ -914,7 +914,7 @@ export function AuthPage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-[#120409]/85 via-transparent to-transparent" />
                 <div className="absolute bottom-3 left-3.5 right-3.5">
                   <p className="font-mono-tabular text-[10px] uppercase tracking-[0.24em] text-[#ffcf8a]">
-                    Hall I · Telaiya Dam, Koderma
+                    Campus I · Telaiya Dam, Koderma
                   </p>
                   <p className="font-display text-sm font-semibold text-white mt-0.5">
                     Verified Alumni Network

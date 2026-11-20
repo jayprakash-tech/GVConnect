@@ -36,7 +36,7 @@ export function ChatPage() {
 
   const rooms = useMemo(() => {
     const base = [
-      { id: 'batch_main', label: 'All Alumni Hall' },
+      { id: 'batch_main', label: 'All Alumni Campus' },
       { id: 'reunions', label: 'Reunions & Chapters' },
       { id: 'mentorship', label: 'Mentorship & Careers' },
     ];

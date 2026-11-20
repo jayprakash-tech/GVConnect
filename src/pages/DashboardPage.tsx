@@ -273,7 +273,7 @@ export function DashboardPage() {
                 Heritage &amp; Chapters
               </h2>
               <p className="text-sm text-white/70 leading-relaxed">
-                Revisit the 4-hall 3D campus exhibition or join the reunions channel to plan local batch meetups.
+                Revisit the 4-wing 3D campus exhibition or join the reunions channel to plan local batch meetups.
               </p>
             </div>
 

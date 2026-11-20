@@ -18,6 +18,7 @@ import {
   setExhibitionState,
   useExhibitionStore,
 } from '../../data/exhibitionData';
+import { CampusMasonryGallery } from './CampusMasonryGallery';
 import { MagneticButton } from './MagneticButton';
 
 // =========================================================================
@@ -124,7 +125,7 @@ export function ExhibitionLoader() {
           {displayNum}
         </p>
         <p className="mt-2 text-[11px] uppercase tracking-[0.38em] text-white/60">
-          Grizzly Vidyalya Alumni Hall
+          Grizzly Vidyalya Alumni Campus
         </p>
 
         <button
@@ -262,7 +263,7 @@ export function HeroCurtain({ scrollTrackHeight }: { scrollTrackHeight?: number 
       const el = curtainRef.current;
       if (el) {
         const raw = motionRefs.progress;
-        const t = Math.min(1, Math.max(0, raw / 0.036));
+        const t = Math.min(1, Math.max(0, raw / 0.03));
         if (Math.abs(t - lastT) > 0.0005 || lastT < 0) {
           lastT = t;
           const eased = t * t * (3 - 2 * t);
@@ -328,7 +329,7 @@ export function HeroCurtain({ scrollTrackHeight }: { scrollTrackHeight?: number 
             </h1>
 
             <p className="mt-5 max-w-xl text-sm sm:text-base leading-relaxed text-white/75">
-              Walk the virtual halls of Grizzly Vidyalya—from the first morning at
+              Walk the virtual campus of Grizzly Vidyalya—from the first morning at
               our main gates, through sunlit courtyards and mess tables, to the
               alumni network uniting batches worldwide.
             </p>
@@ -375,8 +376,8 @@ export function HeroCurtain({ scrollTrackHeight }: { scrollTrackHeight?: number 
             <div className="mt-7 flex flex-wrap items-center gap-5">
               <MagneticButton
                 tone="amber"
-                label="Walk The Halls"
-                onClick={() => scrollToProgress(0.052)}
+                label="Walk The Campus"
+                onClick={() => scrollToProgress(0.042)}
               />
               <Link
                 to="/auth?mode=signup"
@@ -391,12 +392,12 @@ export function HeroCurtain({ scrollTrackHeight }: { scrollTrackHeight?: number 
           {/* Right Layered Campus Memory Collage (Real Photos + Twinkling Memory Nodes) */}
           <div className="hidden md:block lg:col-span-5">
             <div className="relative mx-auto max-w-md">
-              {/* Primary Framed Photo: /gate.png */}
+              {/* Primary Framed Photo: /campus/campus-fire-drill.jpg */}
               <div className="relative overflow-hidden rounded-xl border border-[#d4af37]/35 bg-[#120409] p-2 shadow-[0_24px_60px_rgba(0,0,0,0.65)]">
                 <div className="relative aspect-[4/3] overflow-hidden rounded-lg">
                   <img
-                    src="/gate.png"
-                    alt="Grizzly Vidyalya Main Gate"
+                    src="/campus/campus-fire-drill.jpg"
+                    alt="Grizzly Vidyalaya Yellow Campus Facade & Courtyard"
                     className="h-full w-full object-cover"
                     referrerPolicy="no-referrer"
                   />
@@ -419,28 +420,28 @@ export function HeroCurtain({ scrollTrackHeight }: { scrollTrackHeight?: number 
                   <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between">
                     <div>
                       <p className="text-[10px] font-mono-tabular uppercase tracking-[0.26em] text-[#ffcf8a]">
-                        Hall I · Memory 01
+                        Campus I · Telaiya Dam
                       </p>
                       <p className="font-display text-base font-semibold text-white">
-                        The Gateway to Memories
+                        Grizzly Vidyalaya Heritage
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Overlapping Secondary Frame: /innerview.png */}
+              {/* Overlapping Secondary Frame: /campus/campus-robotics-workshop.png */}
               <div className="absolute -bottom-8 -left-6 w-48 overflow-hidden rounded-lg border border-[#d4af37]/40 bg-[#140409] p-1.5 shadow-2xl">
                 <div className="relative aspect-[16/10] overflow-hidden rounded">
                   <img
-                    src="/innerview.png"
-                    alt="Grizzly Vidyalya Courtyard"
+                    src="/campus/campus-robotics-workshop.png"
+                    alt="Grizzly Vidyalaya STEM & Robotics Lab"
                     className="h-full w-full object-cover"
                     referrerPolicy="no-referrer"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent" />
                   <p className="absolute bottom-1.5 left-2 text-[10px] font-medium uppercase tracking-[0.18em] text-[#ffcf8a]">
-                    Campus Courtyard
+                    STEM Innovation
                   </p>
                 </div>
               </div>
@@ -450,10 +451,10 @@ export function HeroCurtain({ scrollTrackHeight }: { scrollTrackHeight?: number 
 
         {/* Bottom bar inside curtain */}
         <div className="flex items-center justify-between pt-4 border-t border-white/10 text-[11px] uppercase tracking-[0.26em] text-white/55">
-          <span className="hidden sm:inline">4 Interactive 3D Exhibition Halls</span>
+          <span className="hidden sm:inline">4 Interactive 3D Campus Wings</span>
           <button
             type="button"
-            onClick={() => scrollToProgress(0.052)}
+            onClick={() => scrollToProgress(0.042)}
             className="ml-auto flex items-center gap-3 text-[#ffcf8a]/90 hover:text-white transition-colors cursor-pointer"
           >
             <span>Scroll to walk</span>
@@ -549,8 +550,8 @@ export function ExhibitionCursor() {
     document.addEventListener('mouseleave', onLeave);
 
     const tick = () => {
-      smoothPos.x += (targetPos.x - smoothPos.x) * 0.34;
-      smoothPos.y += (targetPos.y - smoothPos.y) * 0.34;
+      smoothPos.x += (targetPos.x - smoothPos.x) * 0.28;
+      smoothPos.y += (targetPos.y - smoothPos.y) * 0.28;
 
       if (cursorEl) {
         cursorEl.style.transform = `translate3d(${smoothPos.x}px, ${smoothPos.y}px, 0)`;
@@ -839,7 +840,7 @@ export function ExhibitDetailModal() {
                 Previous
               </button>
               <span className="font-mono-tabular text-[11px] text-white/40">
-                0{exhibitIdx + 1} / 0{EXHIBITS.length}
+                {String(exhibitIdx + 1).padStart(2, '0')} / {String(EXHIBITS.length).padStart(2, '0')}
               </span>
               <button
                 type="button"
@@ -880,8 +881,8 @@ export function BenchModal() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-[#0c0a14]">
       <img
-        src="/innerview.png"
-        alt="View across Grizzly Vidyalya Courtyard"
+        src="/campus/campus-gallery-4.jpg"
+        alt="Students reading in the Grizzly Vidyalya Library"
         className="absolute inset-0 h-full w-full object-cover opacity-50 scale-105"
         referrerPolicy="no-referrer"
       />
@@ -895,7 +896,7 @@ export function BenchModal() {
 
       <div className="relative z-10 mx-auto max-w-2xl px-6 text-center">
         <p className="text-[11px] font-mono-tabular uppercase tracking-[0.34em] text-[#f4a261]">
-          Hall III · Telaiya Dam Overlook
+          Campus III · Telaiya Dam Overlook
         </p>
         <h2 className="font-display mt-3 text-4xl sm:text-5xl font-bold text-white">
           Where It All Began
@@ -908,13 +909,13 @@ export function BenchModal() {
 
         <div className="mt-8 mx-auto max-w-sm overflow-hidden rounded-xl border border-[#d4af37]/30 bg-black/40 p-2 backdrop-blur-md">
           <img
-            src="/prayer.png"
-            alt="Morning Prayers at Grizzly Vidyalya"
+            src="/campus/campus-robotics-workshop.png"
+            alt="STEM Robotics Workshop and Mentors at Grizzly Vidyalaya"
             className="h-44 w-full rounded-lg object-cover"
             referrerPolicy="no-referrer"
           />
           <p className="mt-2 pb-1 text-xs uppercase tracking-[0.22em] text-[#ffcf8a]">
-            Morning Assembly · Shared Roots
+            Campus Mentors · Shared Roots
           </p>
         </div>
 
@@ -931,7 +932,7 @@ export function BenchModal() {
 }
 
 // =========================================================================
-// 7. FLOATING REUNION CTA (APPEARS IN HALL IV)
+// 7. FLOATING REUNION CTA (APPEARS IN CAMPUS IV)
 // =========================================================================
 
 export function FloatingInviteCTA({ inGallery }: { inGallery: boolean }) {
@@ -1034,6 +1035,8 @@ export function WebGLFallbackShowcase({
             </button>
           ))}
         </div>
+
+        <CampusMasonryGallery show3DJumps={false} />
       </div>
 
       {selected && (

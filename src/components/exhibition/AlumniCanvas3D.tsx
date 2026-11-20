@@ -122,7 +122,7 @@ export function AlumniCanvas3D() {
     pmremGenerator.dispose();
 
     const camera = new THREE.PerspectiveCamera(
-      47,
+      50,
       (container.clientWidth || window.innerWidth) / (container.clientHeight || window.innerHeight),
       0.1,
       90
@@ -239,6 +239,30 @@ export function AlumniCanvas3D() {
       }
     });
 
+    // Shared architectural moulding & pilaster materials
+    const warmMouldingMat = track(
+      new THREE.MeshStandardMaterial({ color: '#b88946', roughness: 0.42, metalness: 0.65 })
+    );
+    const coolMouldingMat = track(
+      new THREE.MeshStandardMaterial({ color: '#c8bfb4', roughness: 0.52, metalness: 0.15 })
+    );
+    const panelLineDarkMat = track(
+      new THREE.MeshBasicMaterial({
+        color: '#000000',
+        transparent: true,
+        opacity: 0.14,
+        depthWrite: false,
+      })
+    );
+    const panelLineLightMat = track(
+      new THREE.MeshBasicMaterial({
+        color: '#ffffff',
+        transparent: true,
+        opacity: 0.14,
+        depthWrite: false,
+      })
+    );
+
     // Build Walls
     WALLS.forEach((w) => {
       const hasFeature = FEATURE_WALLS.some((fw) => fw.wall === w.id);
@@ -280,20 +304,35 @@ export function AlumniCanvas3D() {
 
       // Baseboard trim
       const baseGeo = track(new THREE.PlaneGeometry(len, 0.24));
-      const baseMat = track(
-        new THREE.MeshBasicMaterial({
-          color: '#000000',
-          transparent: true,
-          opacity: 0.15,
-          depthWrite: false,
-        })
-      );
-      const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+      const baseMesh = new THREE.Mesh(baseGeo, panelLineDarkMat);
       baseMesh.position.set(0, 0.12, 0.004);
       grp.add(baseMesh);
 
-      // Subtle glowing ceiling & floor trim strips on non-feature walls
+      // Architectural dado rail, cornice & bay pilasters on non-feature walls
       if (!hasFeature) {
+        const mouldingMat = age < 2.2 ? warmMouldingMat : coolMouldingMat;
+        const dadoMesh = new THREE.Mesh(track(new THREE.PlaneGeometry(len, 0.036)), mouldingMat);
+        dadoMesh.position.set(0, 0.58, 0.005);
+        grp.add(dadoMesh);
+
+        const corniceMesh = new THREE.Mesh(track(new THREE.PlaneGeometry(len, 0.055)), mouldingMat);
+        corniceMesh.position.set(0, WALL_HEIGHT - 0.14, 0.005);
+        grp.add(corniceMesh);
+
+        if (len >= 2.6) {
+          const bayCount = Math.max(2, Math.round(len / 3.4));
+          const pilasterGeo = track(new THREE.PlaneGeometry(0.045, WALL_HEIGHT - 0.78));
+          for (let i = 1; i < bayCount; i++) {
+            const px = -len / 2 + (len * i) / bayCount;
+            const pilaster = new THREE.Mesh(
+              pilasterGeo,
+              age < 2.2 ? panelLineLightMat : panelLineDarkMat
+            );
+            pilaster.position.set(px, 0.58 + (WALL_HEIGHT - 0.78) / 2, 0.004);
+            grp.add(pilaster);
+          }
+        }
+
         [0.06, WALL_HEIGHT - 0.46].forEach((yPos) => {
           const stripGeo = track(new THREE.PlaneGeometry(len, 0.028));
           const stripMat = track(
@@ -406,6 +445,25 @@ export function AlumniCanvas3D() {
         sideWall.position.set(totalSpan / 2, WALL_HEIGHT / 2, zOff);
         grp.add(sideWall);
       });
+
+      // Decorative brass heritage medallions inside colonnade bays
+      const medallionRingGeo = track(new THREE.RingGeometry(0.24, 0.3, 24));
+      const medallionCoreGeo = track(new THREE.CircleGeometry(0.14, 20));
+      for (let i = 1; i < archCount - 1; i += 2) {
+        const xBay = 1.05 * i + 0.54;
+        [-2.21, 2.21].forEach((zSide) => {
+          const rotY = zSide < 0 ? 0 : Math.PI;
+          const ring = new THREE.Mesh(medallionRingGeo, brassMat);
+          ring.position.set(xBay, 1.85, zSide);
+          ring.rotation.y = rotY;
+          grp.add(ring);
+
+          const core = new THREE.Mesh(medallionCoreGeo, warmMouldingMat);
+          core.position.set(xBay, 1.85, zSide);
+          core.rotation.y = rotY;
+          grp.add(core);
+        });
+      }
 
       const roof = new THREE.Mesh(
         track(new THREE.BoxGeometry(totalSpan + 0.6, 0.06, 4.9)),
@@ -716,10 +774,33 @@ export function AlumniCanvas3D() {
       scene.add(grp);
     });
 
-    // Twin Holographic Alumni Crest Plates in Final Hall
+    // Backlit Reunion Sanctuary Crest Panel behind Welcome Home plaque (on reunion-E0)
+    createHoloPlateCanvas('Grizzly Vidyalaya', 'Telaiya Dam Alumni Association', '#8fe3ff').then(
+      (canvas) => {
+        const tex = track(toCanvasTexture(canvas, maxAniso));
+        const backdropPlate = new THREE.Mesh(
+          track(new THREE.PlaneGeometry(3.8, 2.1)),
+          track(
+            new THREE.MeshBasicMaterial({
+              map: tex,
+              transparent: true,
+              opacity: 0.72,
+              blending: THREE.AdditiveBlending,
+              depthWrite: false,
+              toneMapped: false,
+            })
+          )
+        );
+        backdropPlate.position.set(52.95, 2.25, -30.5);
+        backdropPlate.rotation.y = -Math.PI / 2;
+        scene.add(backdropPlate);
+      }
+    );
+
+    // Twin Holographic Alumni Crest Plates in Final Campus
     [
       { label: 'Alumni Directory', sub: 'Find Your Batch', accent: '#63d8ff', z: HOLO_POS.zs[0] },
-      { label: 'Reunion Stories', sub: 'Grizzly Vidyalya', accent: '#ffd082', z: HOLO_POS.zs[1] },
+      { label: 'Reunion Stories', sub: 'Grizzly Vidyalaya', accent: '#ffd082', z: HOLO_POS.zs[1] },
     ].forEach((h, idx) => {
       createHoloPlateCanvas(h.label, h.sub, h.accent).then((canvas) => {
         const tex = track(toCanvasTexture(canvas, maxAniso));
@@ -1154,19 +1235,19 @@ export function AlumniCanvas3D() {
       const elapsed = clock.elapsedTime;
       const ui = getExhibitionState();
 
-      // Dynamic responsive FOV
+      // Dynamic responsive FOV (50° desktop base guarantees full uncropped exhibit + plaque framing)
       const aspect = camera.aspect || 1.5;
       const targetFov =
         aspect >= 1.5
-          ? 47
+          ? 50
           : THREE.MathUtils.clamp(
               Math.max(
-                47 + (1.5 - aspect) * 22,
+                50 + (1.5 - aspect) * 22,
                 THREE.MathUtils.radToDeg(
                   2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(27)) / aspect)
                 )
               ),
-              44,
+              46,
               88
             );
       if (Math.abs(camera.fov - targetFov) > 0.01) {
@@ -1174,22 +1255,22 @@ export function AlumniCanvas3D() {
         camera.updateProjectionMatrix();
       }
 
-      // Smooth snappy scroll progress
-      motionRefs.progress = damp(motionRefs.progress, motionRefs.target, 8.5, dt);
+      // Smooth Techkriti-matched scroll progress & camera damping
+      motionRefs.progress = damp(motionRefs.progress, motionRefs.target, 2.8, dt);
       const u = mapScrollToSplineT(motionRefs.progress);
       splineCurve.getPoint(u, camPos);
       sampleGaze(u, gazeVec).multiplyScalar(5).add(camPos);
 
-      smoothPtr.x = damp(smoothPtr.x, motionRefs.pointer.x, 3.0, dt);
-      smoothPtr.y = damp(smoothPtr.y, motionRefs.pointer.y, 3.0, dt);
+      smoothPtr.x = damp(smoothPtr.x, motionRefs.pointer.x, 1.5, dt);
+      smoothPtr.y = damp(smoothPtr.y, motionRefs.pointer.y, 1.5, dt);
 
-      let gx = camPos.x + smoothPtr.x * 0.05;
-      let gy = camPos.y - smoothPtr.y * 0.02;
+      let gx = camPos.x + smoothPtr.x * 0.06;
+      let gy = camPos.y - smoothPtr.y * 0.025;
       let gz = camPos.z;
       let lx = gazeVec.x + smoothPtr.x * 0.02;
       let ly = gazeVec.y;
       let lz = gazeVec.z;
-      let camSpeed = 7.2;
+      let camSpeed = 4.2;
 
       // Focus glide directly in front of clicked campus exhibit
       const focusedExhibit = ui.focus ? EXHIBITS.find((e) => e.id === ui.focus) : null;
@@ -1213,7 +1294,7 @@ export function AlumniCanvas3D() {
         lx = focusedExhibit.x + cosR * sideOffset;
         lz = focusedExhibit.z - sinR * sideOffset;
         ly = gy;
-        camSpeed = 4.6;
+        camSpeed = 3.4;
 
         if (
           arrivedFocusId !== focusedExhibit.id &&

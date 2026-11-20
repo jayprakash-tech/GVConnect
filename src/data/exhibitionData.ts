@@ -115,7 +115,7 @@ export const EYE_HEIGHT = 1.55;
 export const ROOM_META: Record<RoomId, RoomMeta> = {
   origin: {
     age: 0,
-    name: 'Hall I · The Gateway',
+    name: 'Campus I · The Gateway',
     era: 'Where Every Grizzlian Began',
     accent: '#ffb347',
   },
@@ -128,7 +128,7 @@ export const ROOM_META: Record<RoomId, RoomMeta> = {
   },
   campus: {
     age: 1.2,
-    name: 'Hall II · Campus Life',
+    name: 'Campus II · Campus Life',
     era: 'Courtyards, Mess & Bus Rides',
     accent: '#ffcf8a',
   },
@@ -140,7 +140,7 @@ export const ROOM_META: Record<RoomId, RoomMeta> = {
   },
   belvedere: {
     age: 2.6,
-    name: 'Hall III · The Belvedere',
+    name: 'Campus III · The Belvedere',
     era: 'Telaiya Dam Overlook',
     accent: '#f4a261',
   },
@@ -153,7 +153,7 @@ export const ROOM_META: Record<RoomId, RoomMeta> = {
   },
   reunion: {
     age: 4.8,
-    name: 'Hall IV · The Alumni Network',
+    name: 'Campus IV · The Alumni Network',
     era: 'GVConnect Brotherhood',
     accent: '#bff4ff',
   },
@@ -344,10 +344,10 @@ function addExhibit(
 }
 
 // =========================================================================
-// BUILD THE 4-HALL GRIZZLY VIDYALYA ALUMNI MUSEUM
+// BUILD THE 4-CAMPUS GRIZZLY VIDYALYA ALUMNI MUSEUM
 // =========================================================================
 
-// Hall I: The Gateway (Origin)
+// Campus I: The Gateway (Origin)
 addRoom('origin', 'black', 0, 14, -10, 0, [
   { side: 'S', from: 5.3, to: 8.7 },
   { side: 'E', from: -6.3, to: -2.7 },
@@ -361,14 +361,14 @@ addPlaque(
   'Telaiya Dam Roots',
   [
     'Every Grizzlian remembers the first morning walking past those school gates—crisp uniforms, heavy satchels, and lifelong friendships waiting inside.',
-    'Scroll through four halls of campus archives to relive the places and moments that shaped our batches.',
+    'Scroll through four campus wings of archives to relive the places and moments that shaped our batches.',
   ],
   11.3,
   0.65,
   DIR_S
 );
 
-WAYPOINTS.push({ p: [7, EYE_HEIGHT, 1.2], l: [3.2, 1.85, -5] });
+WAYPOINTS.push({ p: [7, EYE_HEIGHT, 1.4], l: [6.2, 1.75, -4.5] });
 
 // Hero Exhibit 1: /gate.png
 addExhibit({
@@ -376,7 +376,7 @@ addExhibit({
   room: 'origin',
   kicker: 'Archive 01 · The Entrance',
   title: 'The Gateway to Memories',
-  subtitle: 'Grizzly Vidyalya Main Gate, Telaiya Dam',
+  subtitle: 'Grizzly Vidyalaya Main Gate, Telaiya Dam',
   headline: 'Where every morning bell and lifelong bond began',
   about:
     'Stepping through these gates meant entering a world of curiosity, discipline, and camaraderie. Years later, across cities and time zones, that same archway still brings every batch back home.',
@@ -396,8 +396,107 @@ addExhibit({
   h: 3.2,
 });
 
-WAYPOINTS.push({ p: [5.75, 2.0, -5], l: [0.15, 2.0, -5] });
-WAYPOINTS.push({ p: [6.0, 2.0, -5], l: [0.15, 2.0, -5], hold: 3.8 });
+// Campus I South Flanking Walls (eye-level cleanly below brass gears)
+addExhibit({
+  id: 'exhibit-library',
+  room: 'origin',
+  kicker: 'Archive 02 · Knowledge Wing',
+  title: 'The School Library',
+  subtitle: 'Quiet Study & Reference Alcoves',
+  headline: 'Stacks of encyclopedias, journals, and exam-season focus',
+  about:
+    'Whispered group revisions, borrowed novels before summer break, and quiet afternoons spent preparing for Olympiads and board exams.',
+  facts: [
+    ['Collection', 'Reference & Literature Wing'],
+    ['Tradition', 'Reading Hour & Study Groups'],
+    ['Directory', 'Find Fellow Scholars'],
+  ],
+  href: '/directory',
+  cta: 'Explore Alumni Directory',
+  imageSrc: '/campus/campus-library.png',
+  x: 2.65,
+  y: 1.35,
+  z: 0,
+  normal: DIR_N,
+  w: 2.6,
+  h: 1.72,
+});
+
+addExhibit({
+  id: 'exhibit-junior-wing',
+  room: 'origin',
+  kicker: 'Archive 03 · Foundation Wing',
+  title: 'Junior Activity Circle',
+  subtitle: 'Primary Years & Guided Curiosity',
+  headline: 'Early friendships, storytelling circles, and playful discovery',
+  about:
+    'Before board exams and senior hostels, many Grizzlians spent their earliest school mornings learning through teamwork and curiosity inside the Junior Wing.',
+  facts: [
+    ['Wing', 'Primary & Foundation Block'],
+    ['Mentors', 'Caring Junior Faculty'],
+    ['Community', 'Reconnect With Childhood Friends'],
+  ],
+  href: '/directory',
+  cta: 'Find Schoolmates',
+  imageSrc: '/campus/campus-gallery-7.jpg',
+  x: 11.35,
+  y: 1.35,
+  z: 0,
+  normal: DIR_N,
+  w: 2.6,
+  h: 1.72,
+});
+
+// Campus I East Flanking Walls (beside Heritage Passage portal)
+addExhibit({
+  id: 'exhibit-courtyard-drill',
+  room: 'origin',
+  kicker: 'Archive 04 · Academic Quadrangle',
+  title: 'The Yellow Brick Facade',
+  subtitle: 'Academic Blocks & Readiness Drills',
+  headline: 'Unmistakable mustard-yellow corridors framing every school day',
+  about:
+    'Lined up in the central courtyard beside the classic yellow academic wing—from seasonal safety drills to morning line-ups under clear Jharkhand skies.',
+  facts: [
+    ['Campus', 'Main Academic Quadrangle'],
+    ['Tradition', 'Preparedness & House Unity'],
+    ['Directory', 'Browse Batchmates'],
+  ],
+  href: '/directory',
+  cta: 'Browse Alumni Directory',
+  imageSrc: '/campus/campus-fire-drill.jpg',
+  x: 14,
+  y: 1.32,
+  z: -8.15,
+  normal: DIR_W,
+  w: 2.25,
+  h: 1.48,
+});
+
+addExhibit({
+  id: 'exhibit-auditorium-hall',
+  room: 'origin',
+  kicker: 'Archive 05 · Gathering Hall',
+  title: 'The Main Auditorium',
+  subtitle: 'Assemblies, Talks & Cultural Evenings',
+  headline: 'Rows of anticipation whenever the entire school gathered indoors',
+  about:
+    'Guest lectures, orientations, debates, and cultural showcases filled the auditorium with applause and shared inspiration across batches.',
+  facts: [
+    ['Space', 'Campus Indoor Auditorium'],
+    ['Events', 'Orientations & Talks'],
+    ['Chat', 'Share Auditorium Memories'],
+  ],
+  href: '/chat',
+  cta: 'Join Alumni Chat',
+  imageSrc: '/campus/campus-auditorium.jpg',
+  x: 14,
+  y: 1.3,
+  z: -1.35,
+  normal: DIR_W,
+  w: 2.05,
+  h: 1.34,
+});
 
 addFeatureWall(
   'origin',
@@ -409,42 +508,51 @@ addFeatureWall(
   6.4
 );
 
-WAYPOINTS.push({ p: [11.6, EYE_HEIGHT, -4.5], l: [18, 1.7, -4.5] });
+// Clockwise Campus I tour visiting every framed exhibit cleanly without cropping
+WAYPOINTS.push({ p: [3.1, EYE_HEIGHT, -4.2], l: [2.65, 1.35, 0], hold: 1.1 });
+WAYPOINTS.push({ p: [7.6, 2.0, -5], l: [0.19, 2.0, -5], hold: 2.2 });
+WAYPOINTS.push({ p: [7.2, 1.75, -3.6], l: [7.2, 1.9, -10], hold: 1.0 });
+WAYPOINTS.push({ p: [9.8, EYE_HEIGHT, -7.8], l: [14, 1.32, -8.15], hold: 1.0 });
+WAYPOINTS.push({ p: [9.8, EYE_HEIGHT, -1.7], l: [14, 1.3, -1.35], hold: 1.0 });
+WAYPOINTS.push({ p: [11.35, EYE_HEIGHT, -4.2], l: [11.35, 1.35, 0], hold: 1.0 });
+WAYPOINTS.push({ p: [12.0, EYE_HEIGHT, -4.5], l: [18, 1.7, -4.5] });
 
 LANTERNS.push({ x: 13.8, z: -1.2, rot: rotFromNormal(DIR_W) });
 LANTERNS.push({ x: 0.2, z: -0.9, rot: rotFromNormal(DIR_E) });
 
 GEARS.push(
-  { x: 13.8, y: 3.0, z: -8.4, rot: rotFromNormal(DIR_W), d: 1.9, teeth: 24, dir: 1 },
-  { x: 13.8, y: 2.3, z: -7.2, rot: rotFromNormal(DIR_W), d: 1.05, teeth: 13, dir: -1 },
-  { x: 13.8, y: 3.1, z: -1.4, rot: rotFromNormal(DIR_W), d: 1.5, teeth: 19, dir: -1 },
-  { x: 3.0, y: 3.2, z: -0.15, rot: rotFromNormal(DIR_N), d: 1.7, teeth: 22, dir: 1 },
-  { x: 11.4, y: 3.25, z: -0.15, rot: rotFromNormal(DIR_N), d: 1.2, teeth: 15, dir: -1 }
+  { x: 13.8, y: 3.55, z: -8.65, rot: rotFromNormal(DIR_W), d: 1.45, teeth: 24, dir: 1 },
+  { x: 13.8, y: 3.15, z: -7.15, rot: rotFromNormal(DIR_W), d: 0.95, teeth: 13, dir: -1 },
+  { x: 13.8, y: 3.65, z: -2.0, rot: rotFromNormal(DIR_W), d: 1.15, teeth: 17, dir: -1 },
+  { x: 2.8, y: 3.45, z: -0.15, rot: rotFromNormal(DIR_N), d: 1.4, teeth: 22, dir: 1 },
+  { x: 11.35, y: 3.45, z: -0.15, rot: rotFromNormal(DIR_N), d: 1.2, teeth: 15, dir: -1 }
 );
 
 // Corridor 1: Heritage Folds
 addCorridor('fold-heritage', 'folds', [14, -4.5], 0, 6);
 
-// Hall II: Campus Life
+// Campus II: Campus Life
 addRoom('campus', 'black', 20, 41, -13, 1, [
   { side: 'W', from: -6.3, to: -2.7 },
   { side: 'N', from: 22, to: 25.5 },
 ]);
+
+WAYPOINTS.push({ p: [22.2, EYE_HEIGHT, -3.5], l: [25.5, 1.65, -2.5] });
 
 addPlaque(
   'chapter-2',
   '02',
   'Campus Life & Stories',
   [
-    'Between the corridors, the bustling mess tables, and the afternoon bus rides home, our days at Grizzly Vidyalya wrote stories we still retell at every reunion.',
+    'Between the corridors, the bustling mess tables, and the afternoon bus rides home, our days at Grizzly Vidyalaya wrote stories we still retell at every reunion.',
     'Click any framed campus archive to zoom in and explore its memory.',
   ],
-  22.4,
-  -0.3,
+  22.2,
+  -1.85,
   DIR_N
 );
 
-// Center Spine Wall inside Hall II
+// Center Spine Wall inside Campus II (11m span -> 3 balanced large exhibits per side)
 const SPINE_A: [number, number] = [24.5, -6];
 const SPINE_B: [number, number] = [35.5, -6];
 const SPINE_THICK = 0.32;
@@ -467,11 +575,37 @@ WALLS.push(
   }
 );
 
-// Exhibit 2: /innerview.png
+// Campus II W0 (South of entry portal)
+addExhibit({
+  id: 'exhibit-dining-mess',
+  room: 'campus',
+  kicker: 'Archive 06 · Boarding Dining',
+  title: 'Winter Dining Commons',
+  subtitle: 'Spacious Mess Hall & Shared Meals',
+  headline: 'Warm breakfast rows and house camaraderie every school morning',
+  about:
+    'Long gleaming stainless tables welcomed students together before classes and evening prep, turning mealtimes into cherished daily catch-ups.',
+  facts: [
+    ['Facility', 'Main Boarding Dining Hall'],
+    ['Tradition', 'Shared Meals Across Houses'],
+    ['Chat', 'Share Hostel Table Stories'],
+  ],
+  href: '/chat',
+  cta: 'Join Alumni Chat',
+  imageSrc: '/campus/campus-dining-mess.jpg',
+  x: 20,
+  y: 1.56,
+  z: -0.85,
+  normal: DIR_E,
+  w: 2.35,
+  h: 1.56,
+});
+
+// Spine South Side (3 frames: Campus, Mess, Bakery)
 addExhibit({
   id: 'exhibit-campus',
   room: 'campus',
-  kicker: 'Archive 02 · Campus Grounds',
+  kicker: 'Archive 07 · Campus Grounds',
   title: 'Our Beautiful Campus',
   subtitle: 'Academic Blocks & Open Courtyards',
   headline: 'Sunlight across the courtyard between every period',
@@ -485,44 +619,166 @@ addExhibit({
   href: '/directory',
   cta: 'Explore Alumni Directory',
   imageSrc: '/innerview.png',
-  x: 27.0,
-  y: 1.68,
+  x: 26.3,
+  y: 1.72,
   z: -5.84,
   normal: DIR_S,
-  w: 2.55,
-  h: 1.72,
+  w: 2.95,
+  h: 1.92,
 });
 
-WAYPOINTS.push({ p: [27.0, EYE_HEIGHT, -2.0], l: [27.0, 1.65, -5.84], hold: 1.6 });
-
-// Exhibit 3: /mess.png
 addExhibit({
   id: 'exhibit-mess',
   room: 'campus',
-  kicker: 'Archive 03 · Shared Tables',
+  kicker: 'Archive 08 · Shared Tables',
   title: 'Cafeteria Days',
-  subtitle: 'The School Mess & Dining Hall',
+  subtitle: 'The School Mess & Dining Commons',
   headline: 'Where tiffins, laughter, and batch legends were shared',
   about:
     'Long wooden tables, steaming meals, and debates over cricket scores and upcoming exams. Some of the closest friendships in school were forged right over lunch.',
   facts: [
-    ['Place', 'Grizzly Vidyalya Mess'],
+    ['Place', 'Grizzly Vidyalaya Mess'],
     ['Ritual', 'Midday Break & Stories'],
     ['Community', 'Join Batch Group Chats'],
   ],
   href: '/chat',
   cta: 'Open Alumni Chat',
   imageSrc: '/mess.png',
-  x: 32.8,
-  y: 1.68,
+  x: 30.0,
+  y: 1.72,
   z: -5.84,
   normal: DIR_S,
-  w: 2.55,
-  h: 1.72,
+  w: 2.95,
+  h: 1.92,
 });
 
-WAYPOINTS.push({ p: [32.8, EYE_HEIGHT, -2.0], l: [32.8, 1.65, -5.84], hold: 1.6 });
+addExhibit({
+  id: 'exhibit-bakery',
+  room: 'campus',
+  kicker: 'Archive 09 · Boarding Kitchen',
+  title: 'In-Campus Bakery',
+  subtitle: 'Freshly Baked Loaves & Evening Snacks',
+  headline: 'Warm trays straight from campus ovens before evening prep',
+  about:
+    'Few boarders forget the unmistakable aroma from the campus bakery—fresh loaves, buns, and celebratory treats baked daily right on school grounds.',
+  facts: [
+    ['Facility', 'In-House Residential Bakery'],
+    ['Favorite', 'Evening Tea & Fresh Bread'],
+    ['Stories', 'Relive Boarding Days'],
+  ],
+  href: '/chat',
+  cta: 'Share Hostel Stories',
+  imageSrc: '/campus/campus-bakery.png',
+  x: 33.7,
+  y: 1.72,
+  z: -5.84,
+  normal: DIR_S,
+  w: 2.95,
+  h: 1.92,
+});
 
+// South Outer Wall of Campus II (4 evenly spaced exhibits across x=26..38.6)
+addExhibit({
+  id: 'exhibit-boys-hostel',
+  room: 'campus',
+  kicker: 'Archive 10 · Residential Wing',
+  title: 'Boys Hostel Life',
+  subtitle: 'Evening Prep & Dorm Brotherhood',
+  headline: 'Late-night revision and friendships built across bunk rooms',
+  about:
+    'Residential life taught independence, teamwork, and a sense of belonging—with evening study hours, house camaraderie, and weekend cricket matches.',
+  facts: [
+    ['Wing', 'Senior Boys Residential Wing'],
+    ['Routine', 'Study Hours & House Activities'],
+    ['Reconnect', 'Find Hostel Batchmates'],
+  ],
+  href: '/directory',
+  cta: 'Find Dorm Mates',
+  imageSrc: '/campus/campus-boys-hostel.jpg',
+  x: 26.0,
+  y: 1.72,
+  z: 1,
+  normal: DIR_N,
+  w: 2.95,
+  h: 1.92,
+});
+
+addExhibit({
+  id: 'exhibit-girls-hostel',
+  room: 'campus',
+  kicker: 'Archive 11 · Boarding Home',
+  title: 'Girls Hostel Wing',
+  subtitle: 'Safe, Warm Residential Campus',
+  headline: 'Shared study tables, festival evenings, and sisterhood',
+  about:
+    'A second home filled with festive celebrations, collaborative exam prep, and friendships that span continents long after graduation.',
+  facts: [
+    ['Wing', 'Girls Residential Block'],
+    ['Community', 'Mentors & House Wardens'],
+    ['Network', 'Connect Across Batches'],
+  ],
+  href: '/directory',
+  cta: 'Explore Alumni Directory',
+  imageSrc: '/campus/campus-girls-hostel.jpg',
+  x: 30.2,
+  y: 1.72,
+  z: 1,
+  normal: DIR_N,
+  w: 2.95,
+  h: 1.92,
+});
+
+addExhibit({
+  id: 'exhibit-play-park',
+  room: 'campus',
+  kicker: 'Archive 12 · Recreation Wing',
+  title: 'Covered Activity Play Park',
+  subtitle: 'All-Weather Junior Recreation Grounds',
+  headline: 'Laughter and energy across covered slides and play courts',
+  about:
+    'Shaded play structures kept younger Grizzlians active in every season, bridging classroom hours with sunlit outdoor camaraderie.',
+  facts: [
+    ['Zone', 'Junior Covered Play Area'],
+    ['Focus', 'Active Balance & Teamwork'],
+    ['Explore', 'Reconnect With Classmates'],
+  ],
+  href: '/directory',
+  cta: 'Explore Alumni Directory',
+  imageSrc: '/campus/campus-play-park.png',
+  x: 34.4,
+  y: 1.72,
+  z: 1,
+  normal: DIR_N,
+  w: 2.95,
+  h: 1.92,
+});
+
+addExhibit({
+  id: 'exhibit-music',
+  room: 'campus',
+  kicker: 'Archive 13 · Cultural Arts',
+  title: 'Music & Dance Studio',
+  subtitle: 'Annual Day & Folk Rehearsals',
+  headline: 'Tabla beats, choir practices, and rhythms on stage',
+  about:
+    'From inter-house singing competitions to Annual Function choreography, the music room echoed with creative energy every afternoon.',
+  facts: [
+    ['Disciplines', 'Classical · Instrumental · Dance'],
+    ['Stage', 'Annual Day Cultural Fest'],
+    ['Chat', 'Share Campus Rehearsals'],
+  ],
+  href: '/chat',
+  cta: 'Share Memories in Chat',
+  imageSrc: '/campus/campus-music-dance.png',
+  x: 38.6,
+  y: 1.72,
+  z: 1,
+  normal: DIR_N,
+  w: 2.95,
+  h: 1.92,
+});
+
+// East Wall of Campus II (Feature Wall 02 flanked by Study Hall & Mechanized Kitchen)
 addFeatureWall(
   'campus',
   'E',
@@ -533,13 +789,61 @@ addFeatureWall(
   4.4
 );
 
-WAYPOINTS.push({ p: [36.8, EYE_HEIGHT, -6.0], l: [40.8, 1.8, -6.0], hold: 1.6 });
+addExhibit({
+  id: 'exhibit-study-hall',
+  room: 'campus',
+  kicker: 'Archive 14 · Academic Focus',
+  title: 'Evening Study & Prep Hall',
+  subtitle: 'Individual Desks & Guided Supervision',
+  headline: 'Dedicated evening preparation rows building steady exam confidence',
+  about:
+    'Quiet individual study bays gave residential batches focused hours each evening with faculty mentors nearby whenever tough questions came up.',
+  facts: [
+    ['Wing', 'Senior Prep & Study Block'],
+    ['Routine', 'Guided Evening Study Hours'],
+    ['Network', 'Find Study Group Mates'],
+  ],
+  href: '/directory',
+  cta: 'Browse Batch Directory',
+  imageSrc: '/campus/campus-study-hall.png',
+  x: 41,
+  y: 1.72,
+  z: -1.15,
+  normal: DIR_W,
+  w: 2.85,
+  h: 1.88,
+});
 
-// Exhibit 4: /bus.png
+addExhibit({
+  id: 'exhibit-kitchen',
+  room: 'campus',
+  kicker: 'Archive 15 · Culinary Facility',
+  title: 'Mechanized Campus Kitchen',
+  subtitle: 'Stainless Steel Hygiene & Daily Prep',
+  headline: 'Modern automated culinary infrastructure serving thousands of meals',
+  about:
+    'Clean stainless steel cooklines and automated chapati makers kept hot, wholesome meals flowing seamlessly to every boarding dining hall.',
+  facts: [
+    ['Facility', 'Modern Mechanized Kitchen'],
+    ['Standard', 'Stainless Hygiene & Freshness'],
+    ['Explore', 'Visit Boarding Archives'],
+  ],
+  href: '/chat',
+  cta: 'Share Hostel Memories',
+  imageSrc: '/campus/campus-kitchen.png',
+  x: 41,
+  y: 1.72,
+  z: -10.85,
+  normal: DIR_W,
+  w: 2.85,
+  h: 1.88,
+});
+
+// Spine North Side (3 frames: Bus, Morning Prayers, Debate & Oratory Hall)
 addExhibit({
   id: 'exhibit-bus',
   room: 'campus',
-  kicker: 'Archive 04 · The Journey',
+  kicker: 'Archive 16 · The Journey',
   title: 'Bus Rides Home',
   subtitle: 'Telaiya Dam & Koderma Routes',
   headline: 'Window seats, dusty roads, and songs after the last bell',
@@ -553,26 +857,23 @@ addExhibit({
   href: '/directory',
   cta: 'Reconnect With Route Mates',
   imageSrc: '/bus.png',
-  x: 32.8,
-  y: 1.68,
+  x: 33.7,
+  y: 1.72,
   z: -6.16,
   normal: DIR_N,
-  w: 2.55,
-  h: 1.72,
+  w: 2.95,
+  h: 1.92,
 });
 
-WAYPOINTS.push({ p: [32.8, EYE_HEIGHT, -10.0], l: [32.8, 1.65, -6.16], hold: 1.6 });
-
-// Exhibit 5: /prayer.png
 addExhibit({
   id: 'exhibit-prayer',
   room: 'campus',
-  kicker: 'Archive 05 · Morning Assembly',
+  kicker: 'Archive 17 · Morning Assembly',
   title: 'Morning Prayers',
   subtitle: 'The Courtyard Assembly Ground',
   headline: 'Standing shoulder to shoulder before the day began',
   about:
-    'Crisp mornings, synchronized hymns, principal announcements, and birthday applause in front of the entire school. That shared stillness grounded every single day.',
+    'Crisp mornings, synchronized hymns, principal announcements, and shared stillness grounded every single school morning.',
   facts: [
     ['Moment', 'Morning Assembly Courtyard'],
     ['Values', 'Unity · Discipline · Gratitude'],
@@ -581,26 +882,124 @@ addExhibit({
   href: '/auth?mode=signup',
   cta: 'Join the Alumni Community',
   imageSrc: '/prayer.png',
-  x: 27.0,
-  y: 1.68,
+  x: 30.0,
+  y: 1.72,
   z: -6.16,
   normal: DIR_N,
-  w: 2.55,
-  h: 1.72,
+  w: 2.95,
+  h: 1.92,
 });
 
-WAYPOINTS.push({ p: [27.0, EYE_HEIGHT, -10.0], l: [27.0, 1.65, -6.16], hold: 1.6 });
+addExhibit({
+  id: 'exhibit-oratory',
+  room: 'campus',
+  kicker: 'Archive 18 · Stage & Voice',
+  title: 'Oratory & Presentation Hall',
+  subtitle: 'Debates, Speeches & Student Seminars',
+  headline: 'Finding our voice on stage in front of peers and faculty',
+  about:
+    'Elocution contests, extempore speeches, and inter-house debates gave Grizzlians the poise and confidence they carried into universities and boardrooms.',
+  facts: [
+    ['Skill', 'Public Speaking & Debate'],
+    ['Format', 'Student Seminars & Talks'],
+    ['Connect', 'Meet Alumni Leaders'],
+  ],
+  href: '/directory',
+  cta: 'Browse Alumni Network',
+  imageSrc: '/campus/campus-computer-lab.png',
+  x: 26.3,
+  y: 1.72,
+  z: -6.16,
+  normal: DIR_N,
+  w: 2.95,
+  h: 1.92,
+});
 
-// Exhibit 6 (from grizzlyvidyalaya.com): /campus/campus-atl.png
+// North Outer Wall of Campus II (4 evenly spaced exhibits across x=25.5..41)
+addExhibit({
+  id: 'exhibit-av-lab',
+  room: 'campus',
+  kicker: 'Archive 19 · Language & Media',
+  title: 'Audio-Visual Language Lab',
+  subtitle: 'Headsets, Phonetics & Comprehension',
+  headline: 'Interactive listening booths sharpening fluency and communication',
+  about:
+    'Equipped with individual headsets and guided workbooks, the language studio helped batches master pronunciation, comprehension, and confident expression.',
+  facts: [
+    ['Lab', 'Audio-Visual Language Studio'],
+    ['Focus', 'Phonetics & Communication'],
+    ['Explore', 'Find Batchmates Worldwide'],
+  ],
+  href: '/directory',
+  cta: 'Explore Alumni Directory',
+  imageSrc: '/campus/campus-yoga.png',
+  x: 27.4,
+  y: 1.72,
+  z: -13,
+  normal: DIR_S,
+  w: 2.95,
+  h: 1.92,
+});
+
+addExhibit({
+  id: 'exhibit-smart-class',
+  room: 'campus',
+  kicker: 'Archive 20 · Digital Classroom',
+  title: 'Interactive Smart Classrooms',
+  subtitle: 'Visual Boards, Globes & Classroom Dialogues',
+  headline: 'Blending chalkboard clarity with interactive digital learning panels',
+  about:
+    'Interactive screens, world globes, and lively Q&A transformed geography, sciences, and literature into memorable classroom conversations.',
+  facts: [
+    ['Wing', 'Smart Classroom Block'],
+    ['Tools', 'Digital Boards & World Globes'],
+    ['Connect', 'Meet Your Classmates'],
+  ],
+  href: '/directory',
+  cta: 'Find Your Batchmates',
+  imageSrc: '/campus/campus-smart-class.png',
+  x: 31.3,
+  y: 1.72,
+  z: -13,
+  normal: DIR_S,
+  w: 2.95,
+  h: 1.92,
+});
+
+addExhibit({
+  id: 'exhibit-hitech',
+  room: 'campus',
+  kicker: 'Archive 21 · Informatics Wing',
+  title: 'Computer Science Lab',
+  subtitle: 'Workstations, Coding & Digital Skills',
+  headline: 'From early programming practicals to global tech careers',
+  about:
+    'Equipped computer workstations helped batches learn programming logic, build digital projects, and collaborate side by side.',
+  facts: [
+    ['Lab', 'Senior Informatics & Coding Wing'],
+    ['Legacy', 'Alumni in Software & AI'],
+    ['Directory', 'Meet Tech Alumni'],
+  ],
+  href: '/directory',
+  cta: 'Connect With Tech Alumni',
+  imageSrc: '/campus/campus-hitech-lab.png',
+  x: 35.2,
+  y: 1.72,
+  z: -13,
+  normal: DIR_S,
+  w: 2.95,
+  h: 1.92,
+});
+
 addExhibit({
   id: 'exhibit-atl',
   room: 'campus',
-  kicker: 'Archive 06 · Innovation Wing',
+  kicker: 'Archive 22 · Innovation Wing',
   title: 'ATL & Robotics Lab',
   subtitle: 'Atal Tinkering & Electronics Studio',
   headline: 'Hands-on circuits, robotics builds & curious young minds',
   about:
-    'Inside the ATL Robotics Lab, students clustered around workbenches wiring sensors, programming microcontrollers, and turning textbook physics into working prototypes.',
+    'Inside the ATL Robotics Lab, students clustered around workbenches wiring sensors, programming microcontrollers, and turning physics into prototypes.',
   facts: [
     ['Space', 'Atal Tinkering Lab'],
     ['Focus', 'Robotics · Electronics · STEM'],
@@ -609,26 +1008,99 @@ addExhibit({
   href: '/directory',
   cta: 'Connect With Alumni Mentors',
   imageSrc: '/campus/campus-atl.png',
-  x: 37.5,
+  x: 39.1,
   y: 1.72,
-  z: -12.98,
+  z: -13,
   normal: DIR_S,
-  w: 2.45,
-  h: 1.65,
+  w: 2.95,
+  h: 1.92,
+});
+
+// West Outer Wall of Campus II (W1 north of portal)
+addExhibit({
+  id: 'exhibit-fine-arts',
+  room: 'campus',
+  kicker: 'Archive 23 · Fine Arts',
+  title: 'Painting & Sketching Studio',
+  subtitle: 'Canvases, Pigments & Creative Guidance',
+  headline: 'Bringing Jharkhand landscapes and school festivals onto canvas',
+  about:
+    'Long afternoons with palettes, brushes, and art mentors nurtured expression that earned accolades across inter-school exhibitions.',
+  facts: [
+    ['Studio', 'Campus Fine Arts Room'],
+    ['Focus', 'Painting · Sketching · Design'],
+    ['Chat', 'Share Artwork Memories'],
+  ],
+  href: '/chat',
+  cta: 'Join Alumni Chat',
+  imageSrc: '/campus/campus-gallery-9.jpg',
+  x: 20,
+  y: 1.72,
+  z: -11.3,
+  normal: DIR_E,
+  w: 2.55,
+  h: 1.68,
+});
+
+addExhibit({
+  id: 'exhibit-reference-hall',
+  room: 'campus',
+  kicker: 'Archive 24 · Senior Study',
+  title: 'The Reference Reading Hall',
+  subtitle: 'Collaborative Tables & Olympiad Prep',
+  headline: 'Long reading tables where classmates solved tough problems together',
+  about:
+    'Journals, reference volumes, and peer study groups turned pre-board preparation into shared encouragement across batches.',
+  facts: [
+    ['Space', 'Senior Study & Periodicals Hall'],
+    ['Spirit', 'Peer Learning & Discipline'],
+    ['Connect', 'Join Alumni Network'],
+  ],
+  href: '/auth?mode=signup',
+  cta: 'Join the Alumni Network',
+  imageSrc: '/campus/campus-gallery-4.jpg',
+  x: 20,
+  y: 1.72,
+  z: -8.0,
+  normal: DIR_E,
+  w: 2.55,
+  h: 1.68,
 });
 
 LANTERNS.push(
-  { x: 20.2, z: -1.4, rot: rotFromNormal(DIR_E) },
-  { x: 40.8, z: -1.4, rot: rotFromNormal(DIR_W) },
-  { x: 40.8, z: -10.6, rot: rotFromNormal(DIR_W) }
+  { x: 20.2, z: 0.65, rot: rotFromNormal(DIR_E) },
+  { x: 40.8, z: -3.1, rot: rotFromNormal(DIR_W) },
+  { x: 40.8, z: -8.9, rot: rotFromNormal(DIR_W) }
 );
 
-WAYPOINTS.push({ p: [23.75, EYE_HEIGHT, -10.9], l: [23.75, 1.7, -20] });
+// Complete Figure-8 Campus II Perimeter + Spine Tour (every frame seen squarely at D = 4.0–4.6m)
+WAYPOINTS.push({ p: [24.0, EYE_HEIGHT, -0.85], l: [20, 1.56, -0.85], hold: 0.9 }); // W0 Dining Mess
+WAYPOINTS.push({ p: [26.0, EYE_HEIGHT, -3.0], l: [26.0, 1.7, 1], hold: 0.9 }); // S Boys Hostel
+WAYPOINTS.push({ p: [30.2, EYE_HEIGHT, -3.0], l: [30.2, 1.7, 1], hold: 0.9 }); // S Girls Hostel
+WAYPOINTS.push({ p: [34.4, EYE_HEIGHT, -3.0], l: [34.4, 1.7, 1], hold: 0.9 }); // S Play Park
+WAYPOINTS.push({ p: [38.6, EYE_HEIGHT, -3.0], l: [38.6, 1.7, 1], hold: 0.9 }); // S Music & Dance
+WAYPOINTS.push({ p: [36.9, EYE_HEIGHT, -1.15], l: [41, 1.68, -1.15], hold: 0.9 }); // E Study Hall
+WAYPOINTS.push({ p: [33.7, EYE_HEIGHT, -1.8], l: [33.7, 1.7, -5.84], hold: 0.9 }); // Spine S Bakery
+WAYPOINTS.push({ p: [30.0, EYE_HEIGHT, -1.8], l: [30.0, 1.7, -5.84], hold: 0.9 }); // Spine S Mess
+WAYPOINTS.push({ p: [26.3, EYE_HEIGHT, -1.8], l: [26.3, 1.7, -5.84], hold: 0.9 }); // Spine S Campus
+WAYPOINTS.push({ p: [22.4, EYE_HEIGHT, -5.5], l: [22.2, 1.65, -8.5] }); // Round Spine West safely
+WAYPOINTS.push({ p: [24.1, EYE_HEIGHT, -8.0], l: [20, 1.7, -8.0], hold: 0.9 }); // W1 Reference Hall
+WAYPOINTS.push({ p: [27.4, EYE_HEIGHT, -9.0], l: [27.4, 1.7, -13], hold: 0.9 }); // N1 AV Language Lab
+WAYPOINTS.push({ p: [31.3, EYE_HEIGHT, -9.0], l: [31.3, 1.7, -13], hold: 0.9 }); // N1 Smart Classrooms
+WAYPOINTS.push({ p: [35.2, EYE_HEIGHT, -9.0], l: [35.2, 1.7, -13], hold: 0.9 }); // N1 Computer Lab
+WAYPOINTS.push({ p: [39.1, EYE_HEIGHT, -9.0], l: [39.1, 1.7, -13], hold: 0.9 }); // N1 ATL Robotics
+WAYPOINTS.push({ p: [36.9, EYE_HEIGHT, -10.85], l: [41, 1.68, -10.85], hold: 0.9 }); // E Kitchen
+WAYPOINTS.push({ p: [36.4, 1.65, -6.0], l: [41, 1.85, -6.0], hold: 1.1 }); // E Feature Wall 02
+WAYPOINTS.push({ p: [33.7, EYE_HEIGHT, -10.2], l: [33.7, 1.7, -6.16], hold: 0.9 }); // Spine N Bus
+WAYPOINTS.push({ p: [30.0, EYE_HEIGHT, -10.2], l: [30.0, 1.7, -6.16], hold: 0.9 }); // Spine N Prayers
+WAYPOINTS.push({ p: [26.3, EYE_HEIGHT, -10.2], l: [26.3, 1.7, -6.16], hold: 0.9 }); // Spine N Oratory
+WAYPOINTS.push({ p: [24.1, EYE_HEIGHT, -11.2], l: [20, 1.7, -11.3], hold: 0.9 }); // W1 Fine Arts
+WAYPOINTS.push({ p: [23.75, EYE_HEIGHT, -10.9], l: [23.75, 1.7, -20] }); // Align Arcade North
 
 // Corridor 2: Arched Colonnade
 addCorridor('arcade', 'arcade', [23.75, -13], -Math.PI / 2, 13);
 
-// Hall III: Belvedere Overlook
+// Campus III: Belvedere Overlook
 addRoom('belvedere', 'white', 17, 31, -35, -26, [
   { side: 'S', from: 21.5, to: 26 },
   { side: 'N', from: 20.5, to: 27 },
@@ -645,59 +1117,158 @@ export const BELVEDERE_WINDOW = {
 
 export const BENCH_POS = { x: 23.75, z: -31.6 };
 
-// Exhibit 7 (from grizzlyvidyalaya.com): /campus/campus-slide-4.jpg
+// Belvedere North Wall (Physics & Chemistry Laboratories flanking Overlook Window)
 addExhibit({
-  id: 'exhibit-science',
+  id: 'exhibit-physics',
   room: 'belvedere',
-  kicker: 'Archive 07 · Discovery Wing',
-  title: 'Science Laboratories',
-  subtitle: 'Biology & Practical Experiments',
-  headline: 'First glimpses through a microscope and lifelong curiosity',
+  kicker: 'Archive 25 · Physics Wing',
+  title: 'Physics Laboratory',
+  subtitle: 'Pendulums, Rheostats & Experimental Rigor',
+  headline: 'Measuring laws of motion hands-on at senior lab benches',
   about:
-    'Afternoon lab practicals in crisp blazers—measuring slides, sketching specimens, and discovering how theory came alive at Grizzly Vidyalaya.',
+    'Simple pendulums, rheostats, and optical benches taught patience and scientific rigor—sparking generations of engineers and researchers.',
   facts: [
-    ['Wing', 'Senior Science Laboratories'],
-    ['Legacy', 'Doctors, Engineers & Researchers'],
+    ['Lab', 'Senior Secondary Physics'],
+    ['Hands-On', 'Mechanics & Electrical Trials'],
     ['Directory', 'Find Science Batchmates'],
   ],
   href: '/directory',
   cta: 'Explore Alumni Directory',
-  imageSrc: '/campus/campus-slide-4.jpg',
+  imageSrc: '/campus/campus-science-wing.png',
   x: 18.75,
   y: 1.72,
-  z: -34.98,
+  z: -35,
   normal: DIR_S,
-  w: 2.3,
-  h: 1.6,
+  w: 2.75,
+  h: 1.82,
 });
 
-// Exhibit 8 (from grizzlyvidyalaya.com): /campus/campus-building.jpg
 addExhibit({
-  id: 'exhibit-honors',
+  id: 'exhibit-chemistry',
   room: 'belvedere',
-  kicker: 'Archive 08 · School Honors',
-  title: 'Annual Stage & Pride',
-  subtitle: 'Grizzly Vidyalaya Recognition Ceremony',
-  headline: 'Standing proud beneath the Grizzly Vidyalaya crest',
+  kicker: 'Archive 26 · Chemistry Wing',
+  title: 'Chemistry Laboratory',
+  subtitle: 'Titrations, Burettes & Salt Analysis',
+  headline: 'Mohr’s salt equations, conical flasks, and end-point colors',
   about:
-    'Honors assemblies, toppers, house captains, and teachers cheering side by side on stage—moments of pride etched into every alumnus memory.',
+    'Careful salt analysis and titration trials alongside lab partners turned abstract chemical equations into unforgettable afternoon practicals.',
   facts: [
-    ['Occasion', 'Academic & House Honors'],
-    ['Motto', 'Success Through Hard Work'],
-    ['Community', 'Celebrate Alumni Milestones'],
+    ['Lab', 'Senior Chemistry Practical Lab'],
+    ['Focus', 'Analytical & Quantitative Trials'],
+    ['Connect', 'Reconnect With Lab Partners'],
+  ],
+  href: '/directory',
+  cta: 'Find Your Batchmates',
+  imageSrc: '/campus/campus-physics-lab.jpg',
+  x: 29.0,
+  y: 1.72,
+  z: -35,
+  normal: DIR_S,
+  w: 3.05,
+  h: 1.9,
+});
+
+// Belvedere South Flanking Walls (Mathematics & 3D Geometry, NCC Firing & Parade Range)
+addExhibit({
+  id: 'exhibit-mathematics',
+  room: 'belvedere',
+  kicker: 'Archive 27 · Applied Math',
+  title: 'Mathematics & Geometry Lab',
+  subtitle: '3D Solid Models & Spatial Reasoning',
+  headline: 'Hands-on cones, spheres, prisms, and theorem proofs brought to life',
+  about:
+    'Visualizing solids, mensuration, and calculus models in the Mathematics Lab gave Grizzlians a lasting intuition for engineering and architecture.',
+  facts: [
+    ['Lab', 'Mathematics Discovery Wing'],
+    ['Alumni', 'Engineers, Analysts & Educators'],
+    ['Network', 'Connect With Alumni'],
+  ],
+  href: '/directory',
+  cta: 'Meet Science & Math Alumni',
+  imageSrc: '/campus/campus-chemistry-lab.jpg',
+  x: 19.25,
+  y: 1.72,
+  z: -26,
+  normal: DIR_N,
+  w: 3.05,
+  h: 1.9,
+});
+
+addExhibit({
+  id: 'exhibit-ncc',
+  room: 'belvedere',
+  kicker: 'Archive 28 · Discipline & Service',
+  title: 'NCC Cadets & Range Drills',
+  subtitle: 'Unity, Leadership & Precision',
+  headline: 'Early-morning training in formation across the school ground',
+  about:
+    'Drills, range discipline, and National Cadet Corps camps instilled resilience, civic duty, and camaraderie that alumni carry for life.',
+  facts: [
+    ['Unit', 'Grizzly Vidyalaya NCC Wing'],
+    ['Motto', 'Unity and Discipline'],
+    ['Community', 'Connect Across Batches'],
   ],
   href: '/auth?mode=signup',
   cta: 'Join the Alumni Network',
-  imageSrc: '/campus/campus-building.jpg',
-  x: 29.0,
+  imageSrc: '/campus/campus-ncc.png',
+  x: 28.5,
   y: 1.72,
-  z: -34.98,
-  normal: DIR_S,
-  w: 2.45,
-  h: 1.65,
+  z: -26,
+  normal: DIR_N,
+  w: 3.15,
+  h: 1.92,
 });
 
-WAYPOINTS.push({ p: [23.75, 1.68, -26.4], l: [23.75, 1.35, -36], hold: 2.0 });
+// Belvedere East Flanking Walls (Left & Right of Folds Entrance)
+addExhibit({
+  id: 'exhibit-taekwondo',
+  room: 'belvedere',
+  kicker: 'Archive 29 · Athletics',
+  title: 'Martial Arts & Taekwondo',
+  subtitle: 'Training Mats, Agility & Focus',
+  headline: 'Balance, discipline, and spirited sparring on the campus mat',
+  about:
+    'Dedicated morning practice and trained martial arts coaches built stamina, focus, and sporting confidence across every house.',
+  facts: [
+    ['Sport', 'Taekwondo & Martial Arts'],
+    ['Culture', 'Discipline & Sporting Spirit'],
+    ['Chat', 'Celebrate Sports Milestones'],
+  ],
+  href: '/chat',
+  cta: 'Open Sports Stories',
+  imageSrc: '/campus/campus-gallery-8.jpg',
+  x: 31,
+  y: 1.72,
+  z: -33.65,
+  normal: DIR_W,
+  w: 2.15,
+  h: 1.48,
+});
+
+addExhibit({
+  id: 'exhibit-global',
+  room: 'belvedere',
+  kicker: 'Archive 30 · Mindfulness & Balance',
+  title: 'Yoga & Wellness Hall',
+  subtitle: 'Morning Asanas, Posture & Inner Calm',
+  headline: 'Rooted balance between academic ambition and holistic well-being',
+  about:
+    'Across mat-lined indoor halls, yoga sessions cultivated calm concentration, physical resilience, and mindful routines carried well beyond graduation.',
+  facts: [
+    ['Wing', 'Indoor Yoga & Wellness Hall'],
+    ['Values', 'Mindfulness & Holistic Health'],
+    ['Explore', 'Reconnect With Classmates'],
+  ],
+  href: '/directory',
+  cta: 'Find Global Grizzlians',
+  imageSrc: '/campus/campus-yoga-studio.png',
+  x: 31,
+  y: 1.72,
+  z: -27.35,
+  normal: DIR_W,
+  w: 2.15,
+  h: 1.48,
+});
 
 addFeatureWall(
   'belvedere',
@@ -709,15 +1280,127 @@ addFeatureWall(
   5.5
 );
 
-WAYPOINTS.push({ p: [27.6, EYE_HEIGHT, -30.5], l: [34, 1.7, -30.5] });
+// Belvedere perimeter loop (visits every wall exhibit & overlook without bench collision)
+WAYPOINTS.push({ p: [23.75, 1.68, -26.8], l: [23.75, 1.45, -35.5], hold: 1.1 });
+WAYPOINTS.push({ p: [19.25, 1.65, -30.1], l: [19.25, 1.72, -26], hold: 0.9 }); // Math Lab
+WAYPOINTS.push({ p: [21.8, 1.65, -30.5], l: [17, 1.75, -30.5], hold: 1.0 }); // Feature Wall 03
+WAYPOINTS.push({ p: [18.9, 1.65, -31.0], l: [18.75, 1.72, -35], hold: 0.9 }); // Physics Lab
+WAYPOINTS.push({ p: [23.75, 1.68, -33.2], l: [23.75, 1.5, -36.5], hold: 0.9 }); // Overlook Vista
+WAYPOINTS.push({ p: [28.9, 1.65, -30.9], l: [29.0, 1.72, -35], hold: 0.9 }); // Chemistry Lab
+WAYPOINTS.push({ p: [27.0, 1.65, -33.5], l: [31, 1.72, -33.65], hold: 0.9 }); // Taekwondo
+WAYPOINTS.push({ p: [27.0, 1.65, -27.5], l: [31, 1.72, -27.35], hold: 0.9 }); // Yoga Studio
+WAYPOINTS.push({ p: [28.4, 1.65, -30.1], l: [28.5, 1.72, -26], hold: 0.9 }); // NCC Cadets
+WAYPOINTS.push({ p: [27.8, EYE_HEIGHT, -30.5], l: [35, 1.7, -30.5] }); // Align Folds Tunnel
 
 // Corridor 3: Folds Tunnel
 addCorridor('folds', 'folds', [31, -30.5], 0, 9);
 
-// Hall IV: The Alumni Network
+// Campus IV: The Alumni Network
 addRoom('reunion', 'white', 40, 53, -37, -24, [
   { side: 'W', from: -32.3, to: -28.7 },
 ]);
+
+// Campus IV West Flanking Walls
+addExhibit({
+  id: 'exhibit-seminar',
+  room: 'reunion',
+  kicker: 'Archive 31 · Mentorship',
+  title: 'Faculty & Alumni Seminars',
+  subtitle: 'Guidance Across Generations',
+  headline: 'Mentors, educators, and speakers inspiring future batches',
+  about:
+    'Workshops and faculty seminars connected classroom lessons with real-world careers—a tradition of mentorship now continued by Grizzlian alumni.',
+  facts: [
+    ['Tradition', 'Academic & Career Seminars'],
+    ['Role', 'Alumni-Student Mentorship'],
+    ['Directory', 'Connect With Mentors'],
+  ],
+  href: '/directory',
+  cta: 'Browse Alumni Network',
+  imageSrc: '/campus/campus-faculty-seminar.jpg',
+  x: 40,
+  y: 1.72,
+  z: -34.65,
+  normal: DIR_E,
+  w: 3.15,
+  h: 1.92,
+});
+
+addExhibit({
+  id: 'exhibit-infirmary',
+  room: 'reunion',
+  kicker: 'Archive 32 · Campus Care',
+  title: 'Campus Wellness & Care',
+  subtitle: '24/7 Infirmary & Pastoral Support',
+  headline: 'Gentle care whenever residential students needed reassurance',
+  about:
+    'Dedicated nursing staff and attentive teachers ensured every boarding and day scholar felt looked after far from home.',
+  facts: [
+    ['Facility', 'In-Campus Medical Wing'],
+    ['Support', 'Round-the-Clock Care'],
+    ['Community', 'Reconnect With Your Batch'],
+  ],
+  href: '/chat',
+  cta: 'Say Hello in Chat',
+  imageSrc: '/campus/campus-gallery-6.jpg',
+  x: 40,
+  y: 1.72,
+  z: -26.35,
+  normal: DIR_E,
+  w: 3.15,
+  h: 1.92,
+});
+
+// Campus IV East Flanking Walls (framing backlit sanctuary center behind Welcome Home plaque)
+addExhibit({
+  id: 'exhibit-biology',
+  room: 'reunion',
+  kicker: 'Archive 33 · Life Sciences',
+  title: 'Biology & Anatomy Lab',
+  subtitle: 'Specimen Studies & Microscopy',
+  headline: 'Charts, microscopes, and afternoon discoveries in botany & anatomy',
+  about:
+    'Hands-on biology practicals inspired countless Grizzlians who went on to serve in medicine, biotechnology, and public healthcare worldwide.',
+  facts: [
+    ['Lab', 'Senior Biology Wing'],
+    ['Alumni', 'Doctors & Healthcare Leaders'],
+    ['Network', 'Find Medical Alumni'],
+  ],
+  href: '/directory',
+  cta: 'Meet Science Alumni',
+  imageSrc: '/campus/campus-biology-lab.jpg',
+  x: 53,
+  y: 1.72,
+  z: -34.75,
+  normal: DIR_W,
+  w: 3.15,
+  h: 1.92,
+});
+
+addExhibit({
+  id: 'exhibit-lifesciences',
+  room: 'reunion',
+  kicker: 'Archive 34 · Research Studio',
+  title: 'Genetics & Microscopy Lab',
+  subtitle: 'DNA Models & Experimental Observation',
+  headline: 'From double-helix models on lab tables to global research institutes',
+  about:
+    'Exploring cellular structures side by side with classmates sparked a lifelong love for discovery across scientific and medical careers.',
+  facts: [
+    ['Focus', 'Microscopy & Genetics'],
+    ['Future', 'Alumni in Global Research'],
+    ['Join', 'Register Your Batch Profile'],
+  ],
+  href: '/auth?mode=signup',
+  cta: 'Join Alumni Network',
+  imageSrc: '/campus/campus-slide-4.jpg',
+  x: 53,
+  y: 1.72,
+  z: -26.25,
+  normal: DIR_W,
+  w: 3.15,
+  h: 1.92,
+});
 
 addFeatureWall(
   'reunion',
@@ -730,8 +1413,6 @@ addFeatureWall(
   '#63d8ff'
 );
 
-WAYPOINTS.push({ p: [43.4, EYE_HEIGHT, -30.5], l: [46.5, 1.75, -36.9], hold: 1.8 });
-
 addFeatureWall(
   'reunion',
   'S',
@@ -742,8 +1423,6 @@ addFeatureWall(
   4.6,
   '#ffd082'
 );
-
-WAYPOINTS.push({ p: [43.4, EYE_HEIGHT, -30.5], l: [46.5, 1.75, -24.1], hold: 1.8 });
 
 addPlaque(
   'chapter-join',
@@ -762,7 +1441,15 @@ addPlaque(
 
 export const HOLO_POS = { x: 47.9, zs: [-33.4, -27.6] };
 
-WAYPOINTS.push({ p: [43.0, 1.7, -30.5], l: [48.6, 1.75, -30.5], hold: 3.5 });
+// Campus IV tour visiting every flanking exhibit & feature wall before ending on Reunion Triptych
+WAYPOINTS.push({ p: [42.0, EYE_HEIGHT, -30.5], l: [46.5, 1.75, -30.5] });
+WAYPOINTS.push({ p: [44.2, 1.65, -34.5], l: [40, 1.72, -34.65], hold: 0.9 }); // Faculty Seminars
+WAYPOINTS.push({ p: [46.5, 1.65, -32.2], l: [46.5, 1.75, -36.9], hold: 1.0 }); // Feature Wall 04
+WAYPOINTS.push({ p: [48.7, 1.65, -34.75], l: [53, 1.72, -34.75], hold: 0.9 }); // Biology Lab
+WAYPOINTS.push({ p: [44.2, 1.65, -26.5], l: [40, 1.72, -26.35], hold: 0.9 }); // Wellness & Care
+WAYPOINTS.push({ p: [46.5, 1.65, -28.8], l: [46.5, 1.75, -24.1], hold: 1.0 }); // Feature Wall 05
+WAYPOINTS.push({ p: [48.7, 1.65, -26.25], l: [53, 1.72, -26.25], hold: 0.9 }); // Genetics Lab
+WAYPOINTS.push({ p: [43.2, 1.7, -30.5], l: [48.6, 1.75, -30.5], hold: 2.2 }); // Final Reunion Triptych
 
 // World bounds for exterior floor
 export const WORLD_BOUNDS = {
@@ -826,17 +1513,35 @@ export function nearestWaypointForPoint(x: number, z: number): number {
   return best;
 }
 
-export const REUNION_PROGRESS_THRESHOLD = progressForWaypoint(
+export function progressForExhibit(exhibitId: string): number {
+  const ex = EXHIBITS.find((e) => e.id === exhibitId);
+  if (!ex) return 0;
+  return progressForWaypoint(nearestWaypointForPoint(ex.x, ex.z));
+}
+
+const firstWaypointForRoom = (roomId: RoomId) =>
   Math.max(
     0,
-    WAYPOINTS.findIndex((w) => findRoomAt(w.p[0], w.p[2]).id === 'reunion')
-  )
+    WAYPOINTS.findIndex((w) => findRoomAt(w.p[0], w.p[2]).id === roomId)
+  );
+
+export const ORIGIN_PROGRESS_THRESHOLD = progressForWaypoint(
+  Math.min(WAYPOINTS.length - 1, firstWaypointForRoom('origin') + 2)
+);
+export const CAMPUS_PROGRESS_THRESHOLD = progressForWaypoint(
+  firstWaypointForRoom('campus')
+);
+export const BELVEDERE_PROGRESS_THRESHOLD = progressForWaypoint(
+  firstWaypointForRoom('belvedere')
+);
+export const REUNION_PROGRESS_THRESHOLD = progressForWaypoint(
+  firstWaypointForRoom('reunion')
 );
 
 export const CHAPTER_JUMPS: { label: string; progress: number; room: RoomId }[] = [
-  { label: '01 Gateway', progress: progressForWaypoint(2), room: 'origin' },
-  { label: '02 Campus', progress: progressForWaypoint(6), room: 'campus' },
-  { label: '03 Belvedere', progress: progressForWaypoint(11), room: 'belvedere' },
+  { label: '01 Gateway', progress: ORIGIN_PROGRESS_THRESHOLD, room: 'origin' },
+  { label: '02 Campus', progress: CAMPUS_PROGRESS_THRESHOLD, room: 'campus' },
+  { label: '03 Belvedere', progress: BELVEDERE_PROGRESS_THRESHOLD, room: 'belvedere' },
   { label: '04 Network', progress: REUNION_PROGRESS_THRESHOLD, room: 'reunion' },
 ];
 

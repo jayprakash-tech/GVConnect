@@ -25,7 +25,6 @@ body {
   background-color: #120409;
   color: #ffffff;
   font-family: var(--font-sans);
-  scroll-behavior: smooth;
 }
 
 html.light,

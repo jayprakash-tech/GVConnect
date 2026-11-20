@@ -20,11 +20,14 @@ import {
   RoomHudAndChapters,
   WebGLFallbackShowcase,
 } from '../components/exhibition/ExhibitionOverlays';
+import { CampusMasonryGallery } from '../components/exhibition/CampusMasonryGallery';
 import { MagneticButton } from '../components/exhibition/MagneticButton';
 import {
   EXHIBITS,
+  TOTAL_PATH_WEIGHT,
   getMaxScrollDistance,
   motionRefs,
+  progressForExhibit,
   resetExhibitionStore,
   scrollToProgress,
   scrollTrackRef,
@@ -78,7 +81,7 @@ const FAQ_ITEMS = [
   {
     num: '02',
     q: 'Can I interact with the 3D Campus Exhibition?',
-    a: 'Yes. Scroll smoothly to walk through all four halls from the Main Gate to the Belvedere overlook, or click any framed campus photograph to inspect its story and jump straight into the community.',
+    a: 'Yes. Scroll smoothly to walk through all four campus wings from the Main Gate to the Belvedere overlook, or click any framed campus photograph to inspect its story and jump straight into the community.',
   },
   {
     num: '03',
@@ -111,6 +114,14 @@ export function LandingPage() {
 
   // Reset gallery state on entry & cleanup on leave
   useEffect(() => {
+    const prevRestoration =
+      typeof window !== 'undefined' && 'scrollRestoration' in window.history
+        ? window.history.scrollRestoration
+        : null;
+    if (prevRestoration !== null) {
+      window.history.scrollRestoration = 'manual';
+    }
+
     const targetSection = (location.state as { scrollToSection?: string } | null)?.scrollToSection;
     resetExhibitionStore();
     if (targetSection) {
@@ -123,6 +134,9 @@ export function LandingPage() {
       return () => {
         window.clearTimeout(timer);
         document.documentElement.style.overflow = '';
+        if (prevRestoration !== null) {
+          window.history.scrollRestoration = prevRestoration;
+        }
         resetExhibitionStore();
       };
     }
@@ -130,6 +144,9 @@ export function LandingPage() {
     window.scrollTo({ top: 0, behavior: 'auto' });
     return () => {
       document.documentElement.style.overflow = '';
+      if (prevRestoration !== null) {
+        window.history.scrollRestoration = prevRestoration;
+      }
       resetExhibitionStore();
     };
   }, [location.state, navigate]);
@@ -143,14 +160,18 @@ export function LandingPage() {
     };
   }, [phase, focus, bench, webglSupported]);
 
-  // Sync window.scrollY -> Three.js camera spline target
+  // Sync window.scrollY -> Three.js camera spline target (rAF-throttled like techkriti.org)
   useEffect(() => {
     if (!webglSupported) {
       setInGallery(false);
       return;
     }
 
-    const onScroll = () => {
+    let ticking = false;
+    let rafId = 0;
+
+    const updateScroll = () => {
+      ticking = false;
       const maxScroll = getMaxScrollDistance();
       const raw = window.scrollY / maxScroll;
       motionRefs.target = Math.min(1, Math.max(0, raw));
@@ -166,12 +187,20 @@ export function LandingPage() {
       }
     };
 
-    onScroll();
+    const onScroll = () => {
+      if (!ticking) {
+        ticking = true;
+        rafId = requestAnimationFrame(updateScroll);
+      }
+    };
+
+    updateScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll, { passive: true });
+    window.addEventListener('resize', updateScroll, { passive: true });
     return () => {
+      cancelAnimationFrame(rafId);
       window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
+      window.removeEventListener('resize', updateScroll);
     };
   }, [webglSupported]);
 
@@ -203,17 +232,17 @@ export function LandingPage() {
               scrollTrackRef.el = el;
             }}
             className="relative z-10 pointer-events-none"
-            style={{ height: '650svh' }}
+            style={{ height: `calc(${Math.round(56 * TOTAL_PATH_WEIGHT)}px + 100svh)` }}
           >
             {/* Screen-reader & keyboard accessible index of exhibits */}
             <div className="sr-only">
-              <h2>Grizzly Vidyalya Virtual Alumni Exhibition</h2>
+              <h2>Grizzly Vidyalaya Virtual Alumni Exhibition</h2>
               <ul>
-                {EXHIBITS.map((ex, idx) => (
+                {EXHIBITS.map((ex) => (
                   <li key={ex.id}>
                     <button
                       type="button"
-                      onClick={() => scrollToProgress((idx + 1) / (EXHIBITS.length + 2))}
+                      onClick={() => scrollToProgress(progressForExhibit(ex.id))}
                     >
                       {ex.title} — {ex.subtitle}
                     </button>
@@ -293,13 +322,13 @@ export function LandingPage() {
             })}
           </div>
 
-          {/* Heritage Spotlight Split (Real Campus Archives: /prayer.png & /bus.png) */}
+          {/* Heritage Spotlight Split (Distinct Campus Archives) */}
           <div className="mt-24 grid items-center gap-12 lg:grid-cols-12">
             <div className="lg:col-span-6 relative">
               <div className="overflow-hidden rounded-2xl border border-[#d4af37]/30 bg-[#1a060e] p-2 shadow-2xl">
                 <img
-                  src="/prayer.png"
-                  alt="Morning Prayers at Grizzly Vidyalya"
+                  src="/campus/campus-robotics-workshop.png"
+                  alt="Grizzly Vidyalaya Robotics & Mentorship Session"
                   className="aspect-[16/10] w-full rounded-xl object-cover"
                   loading="lazy"
                   decoding="async"
@@ -308,8 +337,8 @@ export function LandingPage() {
               </div>
               <div className="mt-4 sm:mt-0 sm:absolute sm:-bottom-8 sm:-right-6 sm:w-56 overflow-hidden rounded-xl border border-[#d4af37]/40 bg-[#120409] p-1.5 shadow-2xl">
                 <img
-                  src="/bus.png"
-                  alt="Grizzly Vidyalya School Buses"
+                  src="/campus/campus-gallery-3.jpg"
+                  alt="Students in Winter Blazers Exploring the Globe"
                   className="aspect-[16/10] w-full rounded-lg object-cover"
                   loading="lazy"
                   decoding="async"
@@ -345,82 +374,15 @@ export function LandingPage() {
                     onClick={() => scrollToProgress(0)}
                     className="text-xs font-semibold uppercase tracking-[0.2em] text-white/65 hover:text-[#ffcf8a] transition-colors cursor-pointer"
                   >
-                    ↑ Revisit Hall I
+                    ↑ Revisit Campus I
                   </button>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Official Campus Chronicles Gallery (sourced from grizzlyvidyalaya.com) */}
-          <div className="mt-24 pt-16 border-t border-white/10">
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-              <div>
-                <p className="text-xs font-mono-tabular uppercase tracking-[0.3em] text-[#ffcf8a]">
-                  Grizzly Vidyalaya · Telaiya Dam
-                </p>
-                <h3 className="font-display mt-2 text-2xl sm:text-4xl font-bold text-white">
-                  Moments Across the Campus
-                </h3>
-              </div>
-              <Link
-                to="/directory"
-                className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#ffcf8a] hover:text-white transition-colors"
-              >
-                Find Your Batchmates
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-
-            <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                {
-                  src: '/campus/campus-slide-2.jpg',
-                  tag: 'Leadership',
-                  title: 'Prefectorial Council',
-                },
-                {
-                  src: '/campus/campus-atl.png',
-                  tag: 'Innovation',
-                  title: 'ATL & Robotics Studio',
-                },
-                {
-                  src: '/campus/campus-slide-4.jpg',
-                  tag: 'Academics',
-                  title: 'Science Discovery Labs',
-                },
-                {
-                  src: '/campus/campus-slide-3.jpg',
-                  tag: 'Culture',
-                  title: 'Art & Creativity Wing',
-                },
-              ].map((card) => (
-                <div
-                  key={card.title}
-                  className="group overflow-hidden rounded-xl border border-white/10 bg-[#1a060e]/85 transition-colors hover:border-[#d4af37]/45"
-                >
-                  <div className="aspect-[4/3] overflow-hidden">
-                    <img
-                      src={card.src}
-                      alt={card.title}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      loading="lazy"
-                      decoding="async"
-                      referrerPolicy="no-referrer"
-                    />
-                  </div>
-                  <div className="p-4">
-                    <p className="text-[10px] font-mono-tabular uppercase tracking-[0.24em] text-[#ffcf8a]">
-                      {card.tag}
-                    </p>
-                    <h4 className="font-display mt-1 text-lg font-bold text-white">
-                      {card.title}
-                    </h4>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* Campus Infrastructure & Grounds Masonry Archive (sourced from grizzlyvidyalaya.com) */}
+          <CampusMasonryGallery />
 
           {/* Techkriti-Style Frosted FAQ Accordion */}
           <div id="faq" className="mt-28 pt-16 border-t border-white/10">
