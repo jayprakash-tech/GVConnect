@@ -301,6 +301,14 @@ export function HeroCurtain({ scrollTrackHeight }: { scrollTrackHeight?: number 
     const applyTransform = (t: number) => {
       const el = curtainRef.current;
       if (!el) return;
+      if (t >= 0.996) {
+        el.style.display = 'none';
+        el.style.pointerEvents = 'none';
+        return;
+      }
+      if (el.style.display === 'none') {
+        el.style.display = 'block';
+      }
       const eased = smoothstep01(t);
       el.style.transform = `translate3d(${-105 * eased}%, 0, 0)`;
       el.style.opacity = t >= 0.99 ? '0' : '1';

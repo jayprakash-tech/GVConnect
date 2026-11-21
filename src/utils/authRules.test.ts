@@ -5,8 +5,10 @@ import {
   isMissingColumnSchemaError,
   isProfileComplete,
   parseSupabaseCallbackUrl,
+  resolvePostPuzzleLoginAction,
   resolveSessionRouteAction,
   resolveSignupVerificationOutcome,
+  validateLoginCredentialsInput,
   validatePasswordPolicy,
   validateUsernameFormat,
 } from './authRules';
@@ -20,18 +22,20 @@ test('resolveSignupVerificationOutcome requires verification link when Confirm E
   assert.deepEqual(res, {
     emailVerified: false,
     needsEmailVerification: true,
+    autoConfirmedByServer: false,
     dispatchOtpFallback: false,
   });
 });
 
-test('resolveSignupVerificationOutcome never triggers OTP fallback even when server auto-confirms signup', () => {
+test('resolveSignupVerificationOutcome never unlocks onboarding or triggers OTP fallback even when server auto-confirms signup', () => {
   const res = resolveSignupVerificationOutcome({
     hasSession: true,
     emailConfirmedAt: '2026-11-21T12:00:00Z',
   });
   assert.deepEqual(res, {
-    emailVerified: true,
-    needsEmailVerification: false,
+    emailVerified: false,
+    needsEmailVerification: true,
+    autoConfirmedByServer: true,
     dispatchOtpFallback: false,
   });
 });
@@ -212,5 +216,38 @@ test('resolveSessionRouteAction allows existing OAuth user returning via Google 
       allowExistingAccountLogin: true,
     }),
     { action: 'redirect_dashboard' }
+  );
+});
+
+test('validateLoginCredentialsInput requires both identifier and password', () => {
+  assert.equal(validateLoginCredentialsInput('', 'secret123').valid, false);
+  assert.equal(validateLoginCredentialsInput('user@example.com', '').valid, false);
+  assert.equal(validateLoginCredentialsInput('user@example.com', 'secret123').valid, true);
+});
+
+test('resolvePostPuzzleLoginAction blocks OTP and dashboard until Login puzzle is solved', () => {
+  assert.equal(
+    resolvePostPuzzleLoginAction({ puzzleSolved: false, status: 'otp_required' }),
+    'require_puzzle'
+  );
+  assert.equal(
+    resolvePostPuzzleLoginAction({ puzzleSolved: false, status: 'authenticated' }),
+    'require_puzzle'
+  );
+  assert.equal(
+    resolvePostPuzzleLoginAction({ puzzleSolved: true, status: 'otp_required' }),
+    'login_device_otp'
+  );
+  assert.equal(
+    resolvePostPuzzleLoginAction({ puzzleSolved: true, status: 'authenticated' }),
+    'redirect_dashboard'
+  );
+  assert.equal(
+    resolvePostPuzzleLoginAction({ puzzleSolved: true, status: 'email_verification_required' }),
+    'signup_verify_email'
+  );
+  assert.equal(
+    resolvePostPuzzleLoginAction({ puzzleSolved: true, status: 'needs_onboarding' }),
+    'signup_onboarding'
   );
 });

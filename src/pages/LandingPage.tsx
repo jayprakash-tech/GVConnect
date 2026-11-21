@@ -162,46 +162,69 @@ export function LandingPage() {
     };
   }, [focus, bench]);
 
-  // Sync window.scrollY -> Three.js camera spline target (rAF-throttled like techkriti.org)
+  // Sync window.scrollY -> Three.js camera spline target with zero layout thrash during scroll
   useEffect(() => {
     if (!webglSupported) {
       setInGallery(false);
       return;
     }
 
-    let ticking = false;
+    let maxScroll = getMaxScrollDistance();
+    let communityDocTop: number | null = null;
+    let vh = window.innerHeight || 900;
     let rafId = 0;
 
-    const updateScroll = () => {
-      ticking = false;
-      const maxScroll = getMaxScrollDistance();
-      const raw = window.scrollY / maxScroll;
-      motionRefs.target = Math.min(1, Math.max(0, raw));
-
+    const measureLayout = () => {
+      maxScroll = getMaxScrollDistance();
+      vh = window.innerHeight || 900;
       const commEl = communityRef.current;
+      communityDocTop = commEl
+        ? commEl.getBoundingClientRect().top + window.scrollY
+        : null;
+    };
+
+    const syncUiState = () => {
+      rafId = 0;
+      const communityTopPx =
+        communityDocTop !== null ? communityDocTop - window.scrollY : null;
       const ui = resolvePostExhibitionUiState({
         webglSupported,
-        communityTopPx: commEl ? commEl.getBoundingClientRect().top : null,
-        viewportHeight: window.innerHeight,
+        communityTopPx,
+        viewportHeight: vh,
       });
       motionRefs.scrolledPastGallery = ui.scrolledPastGallery;
       setInGallery((prev) => (prev === ui.inGallery ? prev : ui.inGallery));
     };
 
     const onScroll = () => {
-      if (!ticking) {
-        ticking = true;
-        rafId = requestAnimationFrame(updateScroll);
+      const raw = window.scrollY / Math.max(1, maxScroll);
+      motionRefs.target = Math.min(1, Math.max(0, raw));
+      if (!rafId) {
+        rafId = requestAnimationFrame(syncUiState);
       }
     };
 
-    updateScroll();
+    const onResize = () => {
+      measureLayout();
+      onScroll();
+    };
+
+    measureLayout();
+    onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', updateScroll, { passive: true });
+    window.addEventListener('resize', onResize, { passive: true });
+
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver === 'function' && communityRef.current) {
+      ro = new ResizeObserver(onResize);
+      ro.observe(communityRef.current);
+    }
+
     return () => {
       cancelAnimationFrame(rafId);
+      ro?.disconnect();
       window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', updateScroll);
+      window.removeEventListener('resize', onResize);
     };
   }, [webglSupported]);
 

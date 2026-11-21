@@ -17,6 +17,7 @@ export interface SignUpResult {
   username: string;
   emailVerified: boolean;
   needsEmailVerification: boolean;
+  autoConfirmedByServer?: boolean;
   demoVerifyUrl?: string;
 }
 

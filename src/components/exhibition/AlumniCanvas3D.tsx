@@ -40,7 +40,10 @@ import {
   acquireWebGL2Context,
   inspectWebGLCapabilities,
 } from '../../utils/webglSupport';
-import { resolveExhibitionPerfProfile } from '../../utils/exhibitionScroll';
+import {
+  EXHIBITION_MOTION_TUNING,
+  resolveExhibitionPerfProfile,
+} from '../../utils/exhibitionScroll';
 
 const ROOM_LIGHT_PALETTES = [
   { sky: '#ffe0ba', ground: '#4a1822', hemi: 1.4, key: '#ffc07a', keyI: 0.85, bg: '#220910', fog: [10, 32] },
@@ -867,6 +870,11 @@ export function AlumniCanvas3D() {
         const canvas = await createHoloPlateCanvas(h.label, h.sub, h.accent, h.ctaHint);
         if (disposed) return;
         const tex = track(toCanvasTexture(canvas, maxAniso));
+        try {
+          renderer.initTexture(tex);
+        } catch {
+          // ignore
+        }
         const plate = new THREE.Mesh(
           track(new THREE.PlaneGeometry(2.15, 1.2)),
           track(
@@ -896,6 +904,11 @@ export function AlumniCanvas3D() {
         const canvas = await createFeatureWallCanvas(fw);
         if (disposed) return;
         const tex = track(toCanvasTexture(canvas, maxAniso));
+        try {
+          renderer.initTexture(tex);
+        } catch {
+          // ignore
+        }
         mat.map = tex;
         mat.color.set('#ffffff');
         mat.needsUpdate = true;
@@ -1016,6 +1029,11 @@ export function AlumniCanvas3D() {
         const canvas = await createFramedPhotoCanvas(ex.imageSrc, ex.title, isWide, targetSize);
         if (disposed) return;
         const tex = track(toCanvasTexture(canvas, maxAniso));
+        try {
+          renderer.initTexture(tex);
+        } catch {
+          // ignore
+        }
         photoMat.map = tex;
         photoMat.color.set('#ffffff');
         photoMat.needsUpdate = true;
@@ -1059,7 +1077,25 @@ export function AlumniCanvas3D() {
       scene.add(grp);
     });
 
-    // Run Campus I + Hero textures first, then gently stream the rest in small batches so main thread stays 60fps
+    let lastScrollActivityMs = 0;
+    const onScrollActivity = () => {
+      lastScrollActivityMs = performance.now();
+    };
+    window.addEventListener('scroll', onScrollActivity, { passive: true });
+
+    const waitForScrollIdleGap = async () => {
+      let waited = 0;
+      while (
+        !disposed &&
+        waited < 420 &&
+        performance.now() - lastScrollActivityMs < EXHIBITION_MOTION_TUNING.scrollUploadCooldownMs
+      ) {
+        await new Promise((resolve) => window.setTimeout(resolve, 48));
+        waited += 48;
+      }
+    };
+
+    // Run Campus I + Hero textures first, then gently stream remaining textures one by one during scroll idle gaps
     const runQueue = async () => {
       const featureOrigin = deferredDecorTasks.findIndex((_, i) => i === 4); // featureWallTargets[0] is origin
       if (featureOrigin >= 0) {
@@ -1071,10 +1107,11 @@ export function AlumniCanvas3D() {
       setExhibitionState({ loaded: 1 });
 
       const remaining = [...deferredDecorTasks, ...deferredPhotoTasks];
-      for (let i = 0; i < remaining.length && !disposed; i += 2) {
-        await new Promise((resolve) => window.setTimeout(resolve, perf.isLowSpec ? 36 : 16));
+      for (let i = 0; i < remaining.length && !disposed; i += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, perf.isLowSpec ? 32 : 18));
+        await waitForScrollIdleGap();
         if (disposed) break;
-        await Promise.allSettled(remaining.slice(i, i + 2).map((fn) => fn()));
+        await remaining[i]().catch(() => null);
       }
     };
     void runQueue();
@@ -1250,21 +1287,27 @@ export function AlumniCanvas3D() {
     );
     scene.add(new THREE.Points(moteGeo, moteMat));
 
-    // Pointer Raycasting (Hover & Click)
+    // Pointer Raycasting (Hover & Click) using cached bounds to avoid reflows
     const raycaster = new THREE.Raycaster();
     const ndcPointer = new THREE.Vector2();
     let lastHoverTime = 0;
+    let canvasBounds = {
+      left: 0,
+      top: 0,
+      width: container.clientWidth || window.innerWidth || 1,
+      height: container.clientHeight || window.innerHeight || 1,
+    };
 
     const updateNdc = (e: PointerEvent | MouseEvent) => {
-      const rect = renderer.domElement.getBoundingClientRect();
-      ndcPointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      ndcPointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      ndcPointer.x = ((e.clientX - canvasBounds.left) / canvasBounds.width) * 2 - 1;
+      ndcPointer.y = -((e.clientY - canvasBounds.top) / canvasBounds.height) * 2 + 1;
     };
 
     const onPointerMove = (e: PointerEvent) => {
       const now = performance.now();
-      if (now - lastHoverTime < 40) return;
+      if (now - lastHoverTime < 45) return;
       lastHoverTime = now;
+      if (motionRefs.scrolledPastGallery) return;
       if (getExhibitionState().focus || getExhibitionState().bench) return;
       updateNdc(e);
       raycaster.setFromCamera(ndcPointer, camera);
@@ -1306,6 +1349,13 @@ export function AlumniCanvas3D() {
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
+      const rect = renderer.domElement.getBoundingClientRect();
+      canvasBounds = {
+        left: rect.left,
+        top: rect.top,
+        width: rect.width || w || 1,
+        height: rect.height || h || 1,
+      };
     };
     window.addEventListener('resize', onResize);
 
@@ -1321,6 +1371,13 @@ export function AlumniCanvas3D() {
     renderer.domElement.addEventListener('webglcontextlost', onContextLost);
     renderer.domElement.addEventListener('webglcontextrestored', onContextRestored);
 
+    // Pre-compile scene shaders upfront so walking corners never hitches
+    try {
+      renderer.compile(scene, camera);
+    } catch {
+      // Ignore if driver defers compile
+    }
+
     // Animation loop state
     const startTimeMs = performance.now();
     let lastFrameMs = startTimeMs;
@@ -1329,6 +1386,8 @@ export function AlumniCanvas3D() {
     const gazeVec = new THREE.Vector3();
     const smoothPtr = { x: 0, y: 0 };
     const lightAge = { value: 0 };
+    let lightInitialized = false;
+    let prevBenchHover = false;
     const skyCol = new THREE.Color();
     const groundCol = new THREE.Color();
     const keyCol = new THREE.Color();
@@ -1372,14 +1431,23 @@ export function AlumniCanvas3D() {
         camera.updateProjectionMatrix();
       }
 
-      // Smooth Techkriti-matched scroll progress & camera damping (motionDt stays responsive on slower devices)
-      motionRefs.progress = damp(motionRefs.progress, motionRefs.target, 2.35, motionDt);
+      // Crisp responsive scroll tracking without heavy double-damped lag
+      const progressDiff = Math.abs(motionRefs.target - motionRefs.progress);
+      motionRefs.progress =
+        progressDiff < 0.0001
+          ? motionRefs.target
+          : damp(
+              motionRefs.progress,
+              motionRefs.target,
+              EXHIBITION_MOTION_TUNING.progressDampSpeed,
+              motionDt
+            );
       const u = mapScrollToSplineT(motionRefs.progress);
       splineCurve.getPoint(u, camPos);
       sampleGaze(u, gazeVec).multiplyScalar(5).add(camPos);
 
-      smoothPtr.x = damp(smoothPtr.x, motionRefs.pointer.x, 1.5, animDt);
-      smoothPtr.y = damp(smoothPtr.y, motionRefs.pointer.y, 1.5, animDt);
+      smoothPtr.x = damp(smoothPtr.x, motionRefs.pointer.x, 3.0, animDt);
+      smoothPtr.y = damp(smoothPtr.y, motionRefs.pointer.y, 3.0, animDt);
 
       let gx = camPos.x + smoothPtr.x * 0.05;
       let gy = camPos.y - smoothPtr.y * 0.02;
@@ -1387,7 +1455,7 @@ export function AlumniCanvas3D() {
       let lx = gazeVec.x + smoothPtr.x * 0.02;
       let ly = gazeVec.y;
       let lz = gazeVec.z;
-      let camSpeed = 3.6;
+      let camSpeed: number = EXHIBITION_MOTION_TUNING.walkCameraDampSpeed;
 
       // Focus glide directly in front of clicked campus exhibit
       const focusedExhibit = ui.focus ? EXHIBITS.find((e) => e.id === ui.focus) : null;
@@ -1411,7 +1479,7 @@ export function AlumniCanvas3D() {
         lx = focusedExhibit.x + cosR * sideOffset;
         lz = focusedExhibit.z - sinR * sideOffset;
         ly = gy;
-        camSpeed = 3.4;
+        camSpeed = EXHIBITION_MOTION_TUNING.focusCameraDampSpeed;
 
         if (
           arrivedFocusId !== focusedExhibit.id &&
@@ -1436,54 +1504,69 @@ export function AlumniCanvas3D() {
       );
       camera.lookAt(curLook);
 
-      // Room & lighting interpolation
+      // Room & lighting interpolation (skipped when already settled)
       const currentRoom = findRoomAt(camera.position.x, camera.position.z);
       if (currentRoom.id !== lastRoomId) {
         lastRoomId = currentRoom.id;
         setExhibitionState({ room: currentRoom.id });
       }
       const targetAge = ROOM_META[currentRoom.id]?.age ?? 0;
-      lightAge.value = damp(lightAge.value, targetAge, 3.0, animDt);
+      if (!lightInitialized || Math.abs(lightAge.value - targetAge) > 0.0005) {
+        lightInitialized = true;
+        lightAge.value = damp(lightAge.value, targetAge, 3.2, animDt);
 
-      const s = THREE.MathUtils.clamp(lightAge.value, 0, ROOM_LIGHT_PALETTES.length - 1.001);
-      const i0 = Math.floor(s);
-      const frac = s - i0;
-      const p0 = ROOM_LIGHT_PALETTES[i0];
-      const p1 = ROOM_LIGHT_PALETTES[i0 + 1];
+        const s = THREE.MathUtils.clamp(lightAge.value, 0, ROOM_LIGHT_PALETTES.length - 1.001);
+        const i0 = Math.floor(s);
+        const frac = s - i0;
+        const p0 = ROOM_LIGHT_PALETTES[i0];
+        const p1 = ROOM_LIGHT_PALETTES[i0 + 1];
 
-      skyCol.lerpColors(p0.sky, p1.sky, frac);
-      groundCol.lerpColors(p0.ground, p1.ground, frac);
-      keyCol.lerpColors(p0.key, p1.key, frac);
-      bgCol.lerpColors(p0.bg, p1.bg, frac);
+        skyCol.lerpColors(p0.sky, p1.sky, frac);
+        groundCol.lerpColors(p0.ground, p1.ground, frac);
+        keyCol.lerpColors(p0.key, p1.key, frac);
+        bgCol.lerpColors(p0.bg, p1.bg, frac);
 
-      hemiLight.color.copy(skyCol);
-      hemiLight.groundColor.copy(groundCol);
-      hemiLight.intensity = p0.hemi + (p1.hemi - p0.hemi) * frac;
-      keyLight.color.copy(keyCol);
-      keyLight.intensity = p0.keyI + (p1.keyI - p0.keyI) * frac;
-      if (scene.background instanceof THREE.Color) scene.background.copy(bgCol);
-      if (scene.fog instanceof THREE.Fog) {
-        scene.fog.color.copy(bgCol);
-        scene.fog.near = p0.fog[0] + (p1.fog[0] - p0.fog[0]) * frac;
-        scene.fog.far = p0.fog[1] + (p1.fog[1] - p0.fog[1]) * frac;
+        hemiLight.color.copy(skyCol);
+        hemiLight.groundColor.copy(groundCol);
+        hemiLight.intensity = p0.hemi + (p1.hemi - p0.hemi) * frac;
+        keyLight.color.copy(keyCol);
+        keyLight.intensity = p0.keyI + (p1.keyI - p0.keyI) * frac;
+        if (scene.background instanceof THREE.Color) scene.background.copy(bgCol);
+        if (scene.fog instanceof THREE.Fog) {
+          scene.fog.color.copy(bgCol);
+          scene.fog.near = p0.fog[0] + (p1.fog[0] - p0.fog[0]) * frac;
+          scene.fog.far = p0.fog[1] + (p1.fog[1] - p0.fog[1]) * frac;
+        }
       }
 
-      // Hover lift on exhibits
+      // Hover lift on exhibits (only update unsettled meshes)
       exhibitHoverGroups.forEach((grp, id) => {
         const targetZ = ui.hover === id ? 0.055 : 0;
-        grp.position.z = damp(grp.position.z, targetZ, 10, animDt);
+        if (Math.abs(grp.position.z - targetZ) > 0.0005) {
+          grp.position.z = damp(grp.position.z, targetZ, 12, animDt);
+        } else if (grp.position.z !== targetZ) {
+          grp.position.z = targetZ;
+        }
       });
 
-      // Hover scale on Campus IV portals
+      // Hover scale on Campus IV portals (only update unsettled meshes)
       holoHoverMeshes.forEach((mesh, id) => {
         const targetScale = ui.hover === id ? 1.06 : 1;
-        const nextScale = damp(mesh.scale.x, targetScale, 10, animDt);
-        mesh.scale.setScalar(nextScale);
+        if (Math.abs(mesh.scale.x - targetScale) > 0.0005) {
+          const nextScale = damp(mesh.scale.x, targetScale, 12, animDt);
+          mesh.scale.setScalar(nextScale);
+        } else if (mesh.scale.x !== targetScale) {
+          mesh.scale.setScalar(targetScale);
+        }
       });
 
-      // Bench hover tint
-      if (benchMesh && benchMesh.material instanceof THREE.MeshStandardMaterial) {
-        benchMesh.material.color.set(ui.hover === 'bench' ? '#ffffff' : '#efeae2');
+      // Bench hover tint (only update when hover state flips)
+      const isBenchHovered = ui.hover === 'bench';
+      if (isBenchHovered !== prevBenchHover) {
+        prevBenchHover = isBenchHovered;
+        if (benchMesh && benchMesh.material instanceof THREE.MeshStandardMaterial) {
+          benchMesh.material.color.set(isBenchHovered ? '#ffffff' : '#efeae2');
+        }
       }
 
       // Animate gears
@@ -1563,6 +1646,7 @@ export function AlumniCanvas3D() {
       disposed = true;
       cancelAnimationFrame(frameId);
       clearTimeout(frameId);
+      window.removeEventListener('scroll', onScrollActivity);
       window.removeEventListener('resize', onResize);
       renderer.domElement.removeEventListener('pointermove', onPointerMove);
       renderer.domElement.removeEventListener('click', onClick);

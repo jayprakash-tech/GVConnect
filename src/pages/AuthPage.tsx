@@ -38,12 +38,14 @@ import {
 import {
   isProfileComplete,
   parseSupabaseCallbackUrl,
+  resolvePostPuzzleLoginAction,
   resolveSessionRouteAction,
+  validateLoginCredentialsInput,
 } from '../utils/authRules';
 
 type AuthTab = 'signup' | 'login';
 type SignupStep = 'credentials' | 'verify' | 'onboarding';
-type LoginStep = 'form' | 'device_otp' | 'forgot_reset';
+type LoginStep = 'form' | 'puzzle' | 'device_otp' | 'forgot_reset';
 
 export function AuthPage() {
   const navigate = useNavigate();
@@ -85,8 +87,10 @@ export function AuthPage() {
   const [loginStep, setLoginStep] = useState<LoginStep>('form');
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [loginPuzzleSolved, setLoginPuzzleSolved] = useState(false);
   const [showLoginPwd, setShowLoginPwd] = useState(false);
   const loginIdentifierInputRef = useRef<HTMLInputElement>(null);
+  const completingLoginRef = useRef(false);
 
   // Local password reset state (for preview mode when Supabase isn't configured)
   const [resetNewPassword, setResetNewPassword] = useState('');
@@ -204,6 +208,9 @@ export function AuthPage() {
             setSignupStep('verify');
             setPuzzleSolved(true);
             setVerificationLinkSent(true);
+            if (res.user?.email) {
+              setVerifiedEmail(res.user.email);
+            }
             setError(
               'Email verification is not completed yet. Please click the verification link in your email inbox.'
             );
@@ -231,13 +238,13 @@ export function AuthPage() {
       setShowSignOutPrompt(false);
       return;
     }
-    if (completingOnboardingRef.current) return;
+    if (completingOnboardingRef.current || completingLoginRef.current) return;
 
     let cancelled = false;
 
     const evaluateSession = async () => {
       const profile = await getUserProfile(user.id);
-      if (cancelled || completingOnboardingRef.current) return;
+      if (cancelled || completingOnboardingRef.current || completingLoginRef.current) return;
 
       const allowExistingAccountLogin =
         sessionStorage.getItem('gv_oauth_callback_active') === '1';
@@ -287,7 +294,10 @@ export function AuthPage() {
         setLoginStep('device_otp');
         setOtpTargetEmail(user.email);
         setOtpTargetUserId(user.id);
-        if (otpDispatchedForUserRef.current !== user.id) {
+        const alreadyDispatched =
+          otpDispatchedForUserRef.current === user.id ||
+          sessionStorage.getItem('gv_pending_device_otp_user') === user.id;
+        if (!alreadyDispatched) {
           otpDispatchedForUserRef.current = user.id;
           try {
             const res = await sendNewDeviceOtp(user.email, user.id);
@@ -374,6 +384,7 @@ export function AuthPage() {
     } else {
       setShowSignOutPrompt(false);
       setLoginStep('form');
+      setLoginPuzzleSolved(false);
       setOtpCode('');
       setDemoOtpCode('');
       setResetNewPassword('');
@@ -393,6 +404,8 @@ export function AuthPage() {
       setActiveTab('signup');
       setSignupStep('credentials');
       setPuzzleSolved(false);
+      setLoginStep('form');
+      setLoginPuzzleSolved(false);
       setVerificationLinkSent(false);
       setEmailVerifiedConfirmed(false);
       setDemoVerifyUrl('');
@@ -470,18 +483,19 @@ export function AuthPage() {
       setVerifiedUserId(result.userId);
       setVerifiedEmail(result.email);
       setVerifiedUsername(result.username);
+      setEmailVerifiedConfirmed(false);
 
-      if (result.emailVerified && !result.needsEmailVerification) {
-        await refreshAuth();
-        setEmailVerifiedConfirmed(true);
-        setSignupStep('onboarding');
-        setInfoMessage('Account created! Complete your Profile & Batch compliance below.');
-      } else {
-        setEmailVerifiedConfirmed(false);
-        setVerificationLinkSent(true);
-        setResendTimer(30);
-        setDemoVerifyUrl(result.demoVerifyUrl || '');
+      if (result.autoConfirmedByServer) {
+        setVerificationLinkSent(false);
+        setError(
+          'Verification link email could not be sent because "Confirm email" is turned off in your Supabase Authentication → Providers → Email settings. Enable Confirm email in Supabase so verification links are sent before profile creation.'
+        );
+        return;
       }
+
+      setVerificationLinkSent(true);
+      setResendTimer(30);
+      setDemoVerifyUrl(result.demoVerifyUrl || '');
     } catch (err: any) {
       setError(err.message || 'Could not send verification link.');
     } finally {
@@ -557,12 +571,33 @@ export function AuthPage() {
     }
   };
 
-  // Existing User Login (Username or Email + Password)
-  const handleLogin = async (e: React.FormEvent) => {
+  // Login Step 1: Enter Username/Email + Password -> advance to Security Puzzle
+  const handleLoginCredentialsContinue = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setInfoMessage('');
+
+    const validation = validateLoginCredentialsInput(loginIdentifier, loginPassword);
+    if (!validation.valid) {
+      setError(validation.message || 'Please enter your username/email and password.');
+      return;
+    }
+
+    setLoginPuzzleSolved(false);
+    setLoginStep('puzzle');
+  };
+
+  // Login Step 2: After solving Security Puzzle, authenticate & check trusted vs new device OTP
+  const handleCompletePuzzleLogin = async () => {
+    if (!loginPuzzleSolved) {
+      setError('Please solve the security puzzle before signing in.');
+      return;
+    }
+
+    setError('');
+    setInfoMessage('');
     setLoading(true);
+    completingLoginRef.current = true;
 
     try {
       const result = await signIn({
@@ -570,7 +605,12 @@ export function AuthPage() {
         password: loginPassword,
       });
 
-      if (result.status === 'email_verification_required') {
+      const action = resolvePostPuzzleLoginAction({
+        puzzleSolved: loginPuzzleSolved,
+        status: result.status,
+      });
+
+      if (action === 'signup_verify_email') {
         setActiveTab('signup');
         setSignupStep('verify');
         setPuzzleSolved(true);
@@ -585,7 +625,7 @@ export function AuthPage() {
         return;
       }
 
-      if (result.status === 'needs_onboarding') {
+      if (action === 'signup_onboarding') {
         setActiveTab('signup');
         setEmailVerifiedConfirmed(true);
         setVerifiedUserId(result.userId);
@@ -595,7 +635,7 @@ export function AuthPage() {
         return;
       }
 
-      if (result.status === 'otp_required') {
+      if (action === 'login_device_otp') {
         otpDispatchedForUserRef.current = result.userId;
         setActiveTab('login');
         setLoginStep('device_otp');
@@ -611,8 +651,11 @@ export function AuthPage() {
 
       navigate('/dashboard', { replace: true });
     } catch (err: any) {
+      setLoginStep('form');
+      setLoginPuzzleSolved(false);
       setError(err.message || 'Login failed. Please check your credentials.');
     } finally {
+      completingLoginRef.current = false;
       setLoading(false);
     }
   };
@@ -983,6 +1026,16 @@ export function AuthPage() {
                     setInfoMessage('');
                   }}
                 />
+              ) : activeTab === 'login' && loginStep === 'puzzle' ? (
+                <BackButton
+                  label="Back to Credentials"
+                  onClick={() => {
+                    setLoginStep('form');
+                    setLoginPuzzleSolved(false);
+                    setError('');
+                    setInfoMessage('');
+                  }}
+                />
               ) : activeTab === 'login' && loginStep === 'device_otp' ? (
                 <BackButton
                   label="Back to Login"
@@ -990,6 +1043,7 @@ export function AuthPage() {
                     otpDispatchedForUserRef.current = null;
                     await signOut();
                     setLoginStep('form');
+                    setLoginPuzzleSolved(false);
                     setOtpCode('');
                     setDemoOtpCode('');
                     setError('');
@@ -1451,10 +1505,14 @@ export function AuthPage() {
                     </div>
                   )}
 
-                  {/* SIGN UP STEP 3: COMPLETE PROFILE */}
-                  {signupStep === 'onboarding' && emailVerifiedConfirmed && (
+                  {/* SIGN UP STEP 3: COMPLETE PROFILE (Strictly locked until email verified) */}
+                  {signupStep === 'onboarding' &&
+                    emailVerifiedConfirmed &&
+                    (user ? Boolean(user.email_verified) : true) && (
                     <CompleteProfile
-                      isEmailVerified={Boolean(emailVerifiedConfirmed || user?.email_verified)}
+                      isEmailVerified={Boolean(
+                        emailVerifiedConfirmed && (user ? user.email_verified : true)
+                      )}
                       userId={verifiedUserId || user?.id || ''}
                       verifiedEmail={verifiedEmail || user?.email || email}
                       verifiedUsername={verifiedUsername || user?.username || username}
@@ -1485,17 +1543,17 @@ export function AuthPage() {
                     <>
                       <div className="mb-6">
                         <p className="font-mono-tabular text-[11px] uppercase tracking-[0.26em] text-[#ffcf8a] mb-1.5">
-                          Member Access
+                          Step 1 of 2 · Member Access
                         </p>
                         <h1 className="font-display text-2xl sm:text-3xl font-bold text-white tracking-wide">
                           Welcome Back
                         </h1>
                         <p className="mt-1.5 text-white/70 text-sm">
-                          Sign in with your username or email, social account, or passkey.
+                          Enter your username or email and password, then solve the security check.
                         </p>
                       </div>
 
-                      <form onSubmit={handleLogin} className="space-y-4">
+                      <form onSubmit={handleLoginCredentialsContinue} className="space-y-4">
                         <div>
                           <label
                             htmlFor="login-identifier"
@@ -1558,7 +1616,7 @@ export function AuthPage() {
                           disabled={loading}
                           className="w-full py-3.5 px-6 rounded-xl font-semibold text-sm bg-[#d4af37] text-[#1c040b] hover:bg-[#ffcf8a] disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer"
                         >
-                          {loading ? 'Signing in...' : 'Sign In'}
+                          Continue to Security Check
                           <ArrowRight className="w-4 h-4" />
                         </button>
                       </form>
@@ -1622,6 +1680,54 @@ export function AuthPage() {
                         </button>
                       </div>
                     </>
+                  )}
+
+                  {/* LOGIN STEP 2: SECURITY VERIFICATION PUZZLE */}
+                  {loginStep === 'puzzle' && (
+                    <div className="space-y-5">
+                      <div className="mb-2">
+                        <p className="font-mono-tabular text-[11px] uppercase tracking-[0.26em] text-[#ffcf8a] mb-1.5">
+                          Step 2 of 2 · Security Verification
+                        </p>
+                        <h1 className="font-display text-2xl sm:text-3xl font-bold text-white tracking-wide">
+                          Complete Security Check
+                        </h1>
+                        <p className="mt-1.5 text-sm text-white/70">
+                          Verify the puzzle below for{' '}
+                          <strong className="text-[#ffcf8a]">{loginIdentifier}</strong>. If this is a new device, we will send a 6-digit OTP to your email.
+                        </p>
+                      </div>
+
+                      <SecurityPuzzle
+                        solved={loginPuzzleSolved}
+                        onSolved={() => {
+                          setLoginPuzzleSolved(true);
+                          setError('');
+                        }}
+                      />
+
+                      <button
+                        type="button"
+                        disabled={!loginPuzzleSolved || loading}
+                        onClick={handleCompletePuzzleLogin}
+                        className="w-full py-3.5 px-6 rounded-xl font-semibold text-sm bg-[#d4af37] text-[#1c040b] hover:bg-[#ffcf8a] disabled:opacity-45 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        {loading ? 'Signing In...' : 'Verify & Sign In'}
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLoginStep('form');
+                          setLoginPuzzleSolved(false);
+                          setError('');
+                        }}
+                        className="w-full text-xs text-white/65 hover:text-[#ffcf8a] py-1 cursor-pointer"
+                      >
+                        ← Edit username or password
+                      </button>
+                    </div>
                   )}
 
                   {/* LOGIN STEP: LOCAL PASSWORD RESET */}
@@ -1795,6 +1901,7 @@ export function AuthPage() {
                             otpDispatchedForUserRef.current = null;
                             await signOut();
                             setLoginStep('form');
+                            setLoginPuzzleSolved(false);
                             setOtpCode('');
                             setDemoOtpCode('');
                             setError('');

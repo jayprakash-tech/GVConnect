@@ -82,7 +82,16 @@ export function loadImage(src: string): Promise<HTMLImageElement> {
       new Promise((resolve, reject) => {
         const img = new Image();
         img.decoding = 'async';
-        img.onload = () => resolve(img);
+        img.onload = () => {
+          if (typeof img.decode === 'function') {
+            img.decode().then(
+              () => resolve(img),
+              () => resolve(img)
+            );
+          } else {
+            resolve(img);
+          }
+        };
         img.onerror = () => reject(new Error(`Failed to load ${src}`));
         img.src = src;
       })
