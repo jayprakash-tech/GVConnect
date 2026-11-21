@@ -33,7 +33,10 @@ import {
   setExhibitionState,
   useExhibitionStore,
 } from '../data/exhibitionData';
-import { computeTrackHeightPx } from '../utils/exhibitionScroll';
+import {
+  computeTrackHeightPx,
+  resolvePostExhibitionUiState,
+} from '../utils/exhibitionScroll';
 
 const COMMUNITY_PILLARS = [
   {
@@ -59,7 +62,7 @@ const COMMUNITY_PILLARS = [
     kicker: 'Campus Legacy',
     title: 'Reunions & Mentorship',
     description:
-      'Stay close to Telaiya Dam gatherings, homecoming meets, and career guidance circles.',
+      'Stay close to Grizzly Vidyalaya gatherings, homecoming meets, and career guidance circles.',
     cta: 'Join the Network',
     href: '/auth?mode=signup',
   },
@@ -96,7 +99,7 @@ const FAQ_ITEMS = [
   {
     num: '05',
     q: 'Is GVConnect open to alumni living outside India?',
-    a: 'Absolutely. Grizzlians across cities in India and abroad use GVConnect to keep in touch with Telaiya Dam roots and local alumni chapters.',
+    a: 'Absolutely. Grizzlians across cities in India and abroad use GVConnect to keep in touch with their Grizzly Vidyalaya roots and local alumni chapters.',
   },
 ];
 
@@ -176,14 +179,13 @@ export function LandingPage() {
       motionRefs.target = Math.min(1, Math.max(0, raw));
 
       const commEl = communityRef.current;
-      if (commEl) {
-        const rect = commEl.getBoundingClientRect();
-        motionRefs.scrolledPastGallery = rect.top <= 0;
-        setInGallery(rect.top > window.innerHeight * 0.65);
-      } else {
-        motionRefs.scrolledPastGallery = false;
-        setInGallery(true);
-      }
+      const ui = resolvePostExhibitionUiState({
+        webglSupported,
+        communityTopPx: commEl ? commEl.getBoundingClientRect().top : null,
+        viewportHeight: window.innerHeight,
+      });
+      motionRefs.scrolledPastGallery = ui.scrolledPastGallery;
+      setInGallery((prev) => (prev === ui.inGallery ? prev : ui.inGallery));
     };
 
     const onScroll = () => {
@@ -209,14 +211,14 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#120409] text-white selection:bg-[#d4af37] selection:text-[#1c040b]">
-      <Navbar variant="exhibition" />
+      <Navbar variant={inGallery && webglSupported ? 'exhibition' : 'default'} />
 
       {webglSupported ? (
         <>
           <AlumniCanvas3D />
           <ExhibitionLoader />
           <HeroCurtain />
-          <ExhibitionCursor />
+          <ExhibitionCursor inGallery={inGallery} />
           <RoomHudAndChapters
             inGallery={inGallery}
             onJumpCommunity={jumpToCommunity}
@@ -259,7 +261,7 @@ export function LandingPage() {
       <section
         id="community"
         ref={communityRef}
-        className="relative z-20 border-t border-[#d4af37]/25 bg-[#120409] px-4 py-24 sm:px-6 lg:px-8"
+        className="relative z-20 scroll-mt-20 border-t border-[#d4af37]/25 bg-[#120409] px-4 pt-28 pb-24 sm:px-6 lg:px-8"
       >
         <div
           aria-hidden="true"
@@ -280,7 +282,7 @@ export function LandingPage() {
               Connect, Share &amp; Grow Together
             </h2>
             <p className="mt-4 text-base sm:text-lg text-white/70 leading-relaxed">
-              The nostalgia of Telaiya Dam lives on through the people you walked
+              The spirit of Grizzly Vidyalaya lives on through the people you walked
               those corridors with. Step into the active GVConnect network.
             </p>
           </div>
@@ -381,7 +383,7 @@ export function LandingPage() {
           </div>
 
           {/* Techkriti-Style Frosted FAQ Accordion */}
-          <div id="faq" className="mt-28 pt-16 border-t border-white/10">
+          <div id="faq" className="mt-28 pt-16 scroll-mt-24 border-t border-white/10">
             <div className="grid gap-10 lg:grid-cols-12">
               <div className="lg:col-span-4">
                 <p className="text-xs font-mono-tabular uppercase tracking-[0.3em] text-[#ffcf8a]">

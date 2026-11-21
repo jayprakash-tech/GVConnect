@@ -143,7 +143,7 @@ export const ROOM_META: Record<RoomId, RoomMeta> = {
   belvedere: {
     age: 2.6,
     name: 'Campus III · The Belvedere',
-    era: 'Telaiya Dam Overlook',
+    era: 'Campus Overlook',
     accent: '#f4a261',
   },
   folds: {
@@ -360,7 +360,7 @@ WAYPOINTS.push({ p: [7, 1.7, 7.2], l: [7, 1.7, -4.5] });
 addPlaque(
   'chapter-1',
   '01',
-  'Telaiya Dam Roots',
+  'Grizzly Vidyalaya Roots',
   [
     'Every Grizzlian remembers the first morning walking past those school gates—crisp uniforms, heavy satchels, and lifelong friendships waiting inside.',
     'Scroll through four campus wings of archives to relive the places and moments that shaped our batches.',
@@ -507,7 +507,7 @@ addFeatureWall(
   'gravity',
   '01',
   'THE ORIGIN',
-  'From Telaiya Dam classrooms to alumni chapters across the globe',
+  'From Grizzly Vidyalaya classrooms to alumni chapters across the globe',
   6.4
 );
 
@@ -1281,7 +1281,7 @@ addFeatureWall(
   'orbit',
   '03',
   'THE YEARS BETWEEN',
-  'From Telaiya Dam classrooms to leadership roles around the world',
+  'From Grizzly Vidyalaya classrooms to leadership roles around the world',
   5.8
 );
 

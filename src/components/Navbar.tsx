@@ -24,6 +24,7 @@ export function Navbar({ variant = 'default' }: NavbarProps) {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
     };
+    handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -80,8 +81,8 @@ export function Navbar({ variant = 'default' }: NavbarProps) {
         isExhibition
           ? 'pointer-events-none'
           : scrolled
-            ? 'bg-[#120409]/95 border-b border-white/12 shadow-[0_8px_30px_rgba(0,0,0,0.45)]'
-            : 'bg-[#120409]/85 border-b border-white/10'
+            ? 'bg-[#120409] border-b border-[#d4af37]/20 shadow-[0_8px_30px_rgba(0,0,0,0.55)]'
+            : 'bg-[#120409]/96 border-b border-white/10'
       }`}
     >
       <div

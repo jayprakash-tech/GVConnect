@@ -234,7 +234,7 @@ export function DashboardPage() {
               ) : (
                 <div className="py-6 border-t border-white/10">
                   <p className="text-white/70 text-sm">
-                    Add your current role or city so fellow Grizzlians from Telaiya Dam can recognize your chapter.
+                    Add your current role or city so fellow Grizzly Vidyalaya alumni can recognize your chapter.
                   </p>
                 </div>
               )}

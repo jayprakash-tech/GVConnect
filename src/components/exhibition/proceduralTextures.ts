@@ -656,16 +656,16 @@ export async function createHoloPlateCanvas(
   ctx.fillStyle = accent;
   ctx.textAlign = 'center';
   ctx.font = '600 24px "JetBrains Mono", monospace';
-  ctx.fillText(sub.toUpperCase(), w / 2, 206);
+  ctx.fillText(sub.toUpperCase(), w / 2, 206, w - 96);
 
   ctx.fillStyle = '#ffffff';
   ctx.font = '700 46px "Cinzel", Georgia, serif';
-  ctx.fillText(label.toUpperCase(), w / 2, 278);
+  ctx.fillText(label.toUpperCase(), w / 2, 278, w - 96);
 
   if (ctaHint) {
     ctx.fillStyle = accent;
     ctx.font = '600 22px "JetBrains Mono", monospace';
-    ctx.fillText(ctaHint.toUpperCase(), w / 2, 356);
+    ctx.fillText(ctaHint.toUpperCase(), w / 2, 356, w - 96);
   }
   return canvas;
 }

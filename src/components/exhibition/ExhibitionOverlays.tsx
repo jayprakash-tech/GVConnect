@@ -399,7 +399,7 @@ export function HeroCurtain({ scrollTrackHeight }: { scrollTrackHeight?: number 
             {/* Techkriti-inspired Animated Heritage Circuit Trace */}
             <div className="mt-6 hidden sm:block max-w-lg">
               <div className="flex items-center justify-between text-[10px] font-mono-tabular uppercase tracking-[0.26em] text-[#ffcf8a]/75 mb-1.5">
-                <span>Roots · Telaiya Dam</span>
+                <span>Grizzly Vidyalaya</span>
                 <span>Est. Heritage</span>
                 <span>Global Chapters</span>
               </div>
@@ -536,7 +536,7 @@ export function HeroCurtain({ scrollTrackHeight }: { scrollTrackHeight?: number 
 // 3. CUSTOM DIFFERENCE-BLEND CURSOR + GLOWING LIGHT TRAIL CANVAS
 // =========================================================================
 
-export function ExhibitionCursor() {
+export function ExhibitionCursor({ inGallery = true }: { inGallery?: boolean }) {
   const hover = useExhibitionStore((s) => s.hover);
   const focus = useExhibitionStore((s) => s.focus);
   const bench = useExhibitionStore((s) => s.bench);
@@ -557,17 +557,31 @@ export function ExhibitionCursor() {
     }
   }, []);
 
-  // Hide native browser pointer strictly while custom desktop cursor is active in gallery
+  const cursorActive = enabled && phase === 'gallery' && inGallery && !focus && !bench;
+
+  // Hide native browser pointer strictly while actively walking inside the 3D gallery
   useEffect(() => {
-    const active = enabled && phase === 'gallery';
-    document.documentElement.classList.toggle('exhibition-cursor-hidden', active);
+    document.documentElement.classList.toggle('exhibition-cursor-hidden', cursorActive);
+    if (!inGallery) {
+      setExhibitionState({ hover: null });
+    }
     return () => {
       document.documentElement.classList.remove('exhibition-cursor-hidden');
     };
-  }, [enabled, phase]);
+  }, [cursorActive, inGallery]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!cursorActive) {
+      const canvas = trailCanvasRef.current;
+      const ctx = canvas?.getContext('2d');
+      if (ctx && canvas) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+      if (cursorRef.current) {
+        cursorRef.current.classList.remove('is-on');
+      }
+      return;
+    }
 
     const canvas = trailCanvasRef.current;
     const cursorEl = cursorRef.current;
@@ -687,9 +701,9 @@ export function ExhibitionCursor() {
       window.removeEventListener('pointermove', onMove);
       document.removeEventListener('mouseleave', onLeave);
     };
-  }, [enabled, room, phase, focus, bench, hover]);
+  }, [cursorActive, room, phase, focus, bench, hover]);
 
-  if (!enabled) return null;
+  if (!cursorActive) return null;
 
   const isHovering = Boolean(hover) && !focus && !bench;
   const cursorLabel =
@@ -975,7 +989,7 @@ export function BenchModal() {
 
       <div className="relative z-10 mx-auto max-w-2xl px-6 text-center">
         <p className="text-[11px] font-mono-tabular uppercase tracking-[0.34em] text-[#f4a261]">
-          Campus III · Telaiya Dam Overlook
+          Campus III · Campus Overlook
         </p>
         <h2 className="font-display mt-3 text-4xl sm:text-5xl font-bold text-white">
           Where It All Began

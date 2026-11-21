@@ -7,6 +7,7 @@ import {
   computeTrackHeightPx,
   computeWalkCampusProgress,
   resolveExhibitionPerfProfile,
+  resolvePostExhibitionUiState,
   smoothstep01,
 } from './exhibitionScroll';
 
@@ -61,4 +62,50 @@ test('resolveExhibitionPerfProfile enables low-RAM/low-CPU optimizations cleanly
   assert.equal(highEnd.isLowSpec, false);
   assert.equal(highEnd.pixelRatioCap, 1.5);
   assert.equal(highEnd.antialias, true);
+});
+
+test('resolvePostExhibitionUiState stabilizes navbar and restores native pointer once 3D visit finishes', () => {
+  assert.deepEqual(
+    resolvePostExhibitionUiState({
+      webglSupported: true,
+      communityTopPx: 820,
+      viewportHeight: 900,
+    }),
+    {
+      inGallery: true,
+      scrolledPastGallery: false,
+      navbarVariant: 'exhibition',
+      useGalleryCursor: true,
+    }
+  );
+
+  // As soon as Community section rises into main viewport (< 55% vh), switch navbar & restore standard mouse
+  assert.deepEqual(
+    resolvePostExhibitionUiState({
+      webglSupported: true,
+      communityTopPx: 420,
+      viewportHeight: 900,
+    }),
+    {
+      inGallery: false,
+      scrolledPastGallery: false,
+      navbarVariant: 'default',
+      useGalleryCursor: false,
+    }
+  );
+
+  // Scrolled well into Community / FAQ: WebGL pauses too
+  assert.deepEqual(
+    resolvePostExhibitionUiState({
+      webglSupported: true,
+      communityTopPx: 0,
+      viewportHeight: 900,
+    }),
+    {
+      inGallery: false,
+      scrolledPastGallery: true,
+      navbarVariant: 'default',
+      useGalleryCursor: false,
+    }
+  );
 });

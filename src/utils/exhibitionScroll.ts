@@ -116,3 +116,49 @@ export function resolveExhibitionPerfProfile(
     batchConcurrency: 3,
   };
 }
+
+export interface PostExhibitionUiState {
+  inGallery: boolean;
+  scrolledPastGallery: boolean;
+  navbarVariant: 'exhibition' | 'default';
+  useGalleryCursor: boolean;
+}
+
+/**
+ * Coordinates navbar stability and mouse pointer mode when transitioning from
+ * the 3D campus exhibition into the standard Community / FAQ / Footer document flow.
+ */
+export function resolvePostExhibitionUiState(params: {
+  webglSupported: boolean;
+  communityTopPx: number | null;
+  viewportHeight: number;
+}): PostExhibitionUiState {
+  if (!params.webglSupported) {
+    return {
+      inGallery: false,
+      scrolledPastGallery: true,
+      navbarVariant: 'default',
+      useGalleryCursor: false,
+    };
+  }
+
+  if (params.communityTopPx === null || !Number.isFinite(params.communityTopPx)) {
+    return {
+      inGallery: true,
+      scrolledPastGallery: false,
+      navbarVariant: 'exhibition',
+      useGalleryCursor: true,
+    };
+  }
+
+  const vh = Math.max(1, params.viewportHeight || 900);
+  const inGallery = params.communityTopPx > vh * 0.55;
+  const scrolledPastGallery = params.communityTopPx <= 84;
+
+  return {
+    inGallery,
+    scrolledPastGallery,
+    navbarVariant: inGallery ? 'exhibition' : 'default',
+    useGalleryCursor: inGallery,
+  };
+}

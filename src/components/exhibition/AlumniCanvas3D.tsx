@@ -821,8 +821,8 @@ export function AlumniCanvas3D() {
       async () => {
         if (disposed) return;
         const canvas = await createHoloPlateCanvas(
+          'Alumni Association',
           'Grizzly Vidyalaya',
-          'Telaiya Dam Alumni Association',
           '#8fe3ff'
         );
         if (disposed) return;
