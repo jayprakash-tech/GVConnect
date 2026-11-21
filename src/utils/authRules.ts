@@ -238,3 +238,33 @@ export function resolveSessionRouteAction(params: {
 
   return { action: 'redirect_dashboard' };
 }
+
+export interface SignupVerificationOutcome {
+  emailVerified: boolean;
+  needsEmailVerification: boolean;
+  dispatchOtpFallback: false;
+}
+
+/**
+ * Pure rule ensuring new-user Sign Up strictly relies on email verification links
+ * (Supabase Confirm Signup template) and NEVER falls back to signInWithOtp (6-digit OTP).
+ */
+export function resolveSignupVerificationOutcome(params: {
+  hasSession: boolean;
+  emailConfirmedAt?: string | null;
+  confirmedAt?: string | null;
+}): SignupVerificationOutcome {
+  const confirmed = Boolean(params.emailConfirmedAt || params.confirmedAt);
+  if (params.hasSession && confirmed) {
+    return {
+      emailVerified: true,
+      needsEmailVerification: false,
+      dispatchOtpFallback: false,
+    };
+  }
+  return {
+    emailVerified: false,
+    needsEmailVerification: true,
+    dispatchOtpFallback: false,
+  };
+}

@@ -5,6 +5,7 @@ import {
   normalizeEmail,
   normalizeUsername,
   PasswordValidationResult,
+  resolveSignupVerificationOutcome,
   validatePasswordPolicy,
   validateUsernameFormat,
 } from '../utils/authRules';
@@ -79,7 +80,6 @@ const TRUSTED_DEVICES_PREFIX = 'gv_trusted_devices_';
 const PASSKEYS_PREFIX = 'gv_passkeys_';
 const PASSKEY_DIRECTORY_KEY = 'gv_passkey_directory_v1';
 const USERNAME_EMAIL_MAP_KEY = 'gv_username_email_map_v1';
-const AWAITING_LINK_PREFIX = 'gv_awaiting_email_link_';
 const PENDING_DEVICE_OTP_KEY = 'gv_pending_device_otp';
 const PENDING_DEVICE_OTP_USER_KEY = 'gv_pending_device_otp_user';
 const AUTH_EVENT_NAME = 'gv-auth-changed';
@@ -130,34 +130,6 @@ function lookupCachedEmailForUsername(username: string): string | null {
     return map[normalizeUsername(username)] || null;
   } catch {
     return null;
-  }
-}
-
-function setAwaitingEmailLink(email: string) {
-  const clean = normalizeEmail(email);
-  if (!clean) return;
-  try {
-    localStorage.setItem(`${AWAITING_LINK_PREFIX}${clean}`, '1');
-  } catch {
-    // Ignore storage errors
-  }
-}
-
-function clearAwaitingEmailLink(email?: string | null) {
-  if (!email) return;
-  try {
-    localStorage.removeItem(`${AWAITING_LINK_PREFIX}${normalizeEmail(email)}`);
-  } catch {
-    // Ignore storage errors
-  }
-}
-
-function isAwaitingEmailLink(email?: string | null): boolean {
-  if (!email) return false;
-  try {
-    return localStorage.getItem(`${AWAITING_LINK_PREFIX}${normalizeEmail(email)}`) === '1';
-  } catch {
-    return false;
   }
 }
 
@@ -468,10 +440,8 @@ export async function getAuthSessionState(): Promise<{
         }
         const provider = sbUser.app_metadata?.provider || 'email';
         const isOAuthProvider = provider !== 'email';
-        const awaitingSignupLink = !isOAuthProvider && isAwaitingEmailLink(sbUser.email);
         const emailVerified = Boolean(
-          !awaitingSignupLink &&
-            (sbUser.email_confirmed_at || sbUser.confirmed_at || isOAuthProvider)
+          sbUser.email_confirmed_at || sbUser.confirmed_at || isOAuthProvider
         );
         const trusted = await isCurrentDeviceTrusted(sbUser.id);
         const pendingDeviceCheck =
@@ -664,29 +634,24 @@ export async function registerWithEmail(params: {
 
         rememberUsernameEmail(username, email);
 
-        // Never leave a live session active during Sign Up before the user clicks the email verification link.
-        // If Confirm Email is disabled in Supabase, signUp immediately returns a session: revoke it,
-        // flag awaiting email link, and send a verification link so the user still clicks the email link first.
-        if (data.session) {
-          setAwaitingEmailLink(email);
+        const outcome = resolveSignupVerificationOutcome({
+          hasSession: Boolean(data.session),
+          emailConfirmedAt: data.user.email_confirmed_at,
+          confirmedAt: data.user.confirmed_at,
+        });
+
+        // Never call signInWithOtp during Sign Up (signInWithOtp sends a 6-digit login OTP).
+        // signUp() automatically dispatches Supabase's "Confirm signup" verification link email.
+        if (outcome.needsEmailVerification && data.session) {
           await supabase.auth.signOut().catch(() => null);
-          await supabase.auth
-            .signInWithOtp({
-              email,
-              options: {
-                emailRedirectTo: redirectTo,
-                shouldCreateUser: false,
-              },
-            })
-            .catch(() => null);
         }
 
         return {
           userId: data.user.id,
           email,
           username,
-          emailVerified: false,
-          needsEmailVerification: true,
+          emailVerified: outcome.emailVerified,
+          needsEmailVerification: outcome.needsEmailVerification,
         };
       });
     } catch (err) {
@@ -779,16 +744,10 @@ export async function checkLiveEmailVerification(
     const sbUser = data.user;
     if (!sbUser) return { verified: false };
 
-    if (fromLinkCallback || pkceCode || accessToken) {
-      clearAwaitingEmailLink(sbUser.email);
-    }
-
     const provider = sbUser.app_metadata?.provider || 'email';
     const isOAuthProvider = provider !== 'email';
-    const awaitingSignupLink = !isOAuthProvider && isAwaitingEmailLink(sbUser.email);
     const verified = Boolean(
-      !awaitingSignupLink &&
-        (sbUser.email_confirmed_at || sbUser.confirmed_at || isOAuthProvider)
+      sbUser.email_confirmed_at || sbUser.confirmed_at || isOAuthProvider
     );
     return {
       verified,
@@ -871,23 +830,6 @@ export async function resendVerificationLink(email: string): Promise<{ demoVerif
       if (error) {
         if (isNetworkFetchFailure(error)) {
           supabaseUnreachable = true;
-        } else if (isAwaitingEmailLink(normalized) || error.message?.toLowerCase().includes('already')) {
-          const { error: otpLinkError } = await supabase.auth.signInWithOtp({
-            email: normalized,
-            options: {
-              emailRedirectTo: redirectTo,
-              shouldCreateUser: false,
-            },
-          });
-          if (otpLinkError) {
-            if (isNetworkFetchFailure(otpLinkError)) {
-              supabaseUnreachable = true;
-            } else {
-              throw new Error(otpLinkError.message);
-            }
-          } else {
-            return {};
-          }
         } else {
           throw new Error(error.message);
         }
@@ -953,7 +895,6 @@ export async function completeProfileSetup(
   };
 
   rememberUsernameEmail(profile.username, profile.email);
-  clearAwaitingEmailLink(profile.email);
 
   if (useLiveSupabase()) {
     try {
@@ -1150,8 +1091,7 @@ export async function loginWithPassword(params: {
         const userId = data.user.id;
         const username = data.user.user_metadata?.username;
         const emailVerified = Boolean(
-          !isAwaitingEmailLink(email) &&
-            (data.user.email_confirmed_at || data.user.confirmed_at)
+          data.user.email_confirmed_at || data.user.confirmed_at
         );
 
         if (!emailVerified) {

@@ -113,19 +113,20 @@ export function toCanvasTexture(
 export async function createFramedPhotoCanvas(
   src: string,
   title: string,
-  isHeroWide = false
+  isHeroWide = false,
+  targetSize?: [number, number]
 ): Promise<HTMLCanvasElement> {
-  const w = isHeroWide ? 1024 : 720;
-  const h = isHeroWide ? 400 : 496;
+  const w = targetSize?.[0] ?? (isHeroWide ? 960 : 640);
+  const h = targetSize?.[1] ?? (isHeroWide ? 375 : 440);
   const [canvas, ctx] = createCanvas(w, h);
 
-  // Warm museum archival mat backdrop
-  ctx.fillStyle = '#f5efe6';
+  // Rich charcoal-brass museum mat backdrop
+  ctx.fillStyle = '#1c090e';
   ctx.fillRect(0, 0, w, h);
 
   try {
     const img = await loadImage(src);
-    const pad = isHeroWide ? 24 : 36;
+    const pad = Math.round(w * (isHeroWide ? 0.018 : 0.022));
     const innerW = w - pad * 2;
     const innerH = h - pad * 2;
     const scale = Math.max(innerW / img.width, innerH / img.height);
@@ -138,9 +139,7 @@ export async function createFramedPhotoCanvas(
     ctx.beginPath();
     ctx.rect(pad, pad, innerW, innerH);
     ctx.clip();
-    ctx.filter = 'contrast(1.06) saturate(1.12) brightness(1.02)';
     ctx.drawImage(img, dx, dy, dw, dh);
-    ctx.filter = 'none';
 
     // Subtle nostalgic warm vignette at bottom for hero painting
     if (isHeroWide) {
@@ -150,26 +149,37 @@ export async function createFramedPhotoCanvas(
       ctx.fillStyle = grad;
       ctx.fillRect(pad, pad, innerW, innerH);
 
+      const scaleFactor = w / 1024;
       ctx.fillStyle = '#ffcf8a';
-      ctx.font = '600 14px "JetBrains Mono", monospace';
-      drawSpacedText(ctx, 'GRIZZLY VIDYALYA · TELAIYA DAM', pad + 26, h - 78, 3);
+      ctx.font = `600 ${Math.round(14 * scaleFactor)}px "JetBrains Mono", monospace`;
+      drawSpacedText(
+        ctx,
+        'GRIZZLY VIDYALAYA · TELAIYA DAM',
+        pad + Math.round(24 * scaleFactor),
+        h - Math.round(74 * scaleFactor),
+        2.5 * scaleFactor
+      );
 
       ctx.fillStyle = '#ffffff';
-      ctx.font = '700 32px "Cinzel", Georgia, serif';
-      ctx.fillText('THE GATEWAY TO MEMORIES', pad + 24, h - 40);
+      ctx.font = `700 ${Math.round(32 * scaleFactor)}px "Cinzel", Georgia, serif`;
+      ctx.fillText(
+        'THE GATEWAY TO MEMORIES',
+        pad + Math.round(22 * scaleFactor),
+        h - Math.round(38 * scaleFactor)
+      );
     }
     ctx.restore();
 
-    // Inner brass hairline inset
-    ctx.strokeStyle = 'rgba(184, 134, 47, 0.45)';
+    // Crisp museum brass hairline inset
+    ctx.strokeStyle = 'rgba(212, 175, 55, 0.72)';
     ctx.lineWidth = 2;
     ctx.strokeRect(pad, pad, innerW, innerH);
   } catch {
     ctx.fillStyle = '#5a0e22';
-    ctx.fillRect(24, 24, w - 48, h - 48);
+    ctx.fillRect(20, 20, w - 40, h - 40);
     ctx.fillStyle = '#ffcf8a';
     ctx.textAlign = 'center';
-    ctx.font = '700 32px "Cinzel", Georgia, serif';
+    ctx.font = '700 28px "Cinzel", Georgia, serif';
     ctx.fillText(title, w / 2, h / 2);
   }
 
@@ -181,23 +191,37 @@ export function createLabelPlaqueCanvas(
   title: string,
   accent: string
 ): HTMLCanvasElement {
-  const w = 900;
+  const w = 960;
   const h = 240;
   const [canvas, ctx] = createCanvas(w, h);
 
+  // Dark matte museum placard card guarantees high legibility on all wall tones
+  ctx.fillStyle = 'rgba(16, 5, 9, 0.90)';
+  ctx.beginPath();
+  ctx.roundRect(4, 12, w - 8, h - 24, 14);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Accent bar on left edge of museum placard
   ctx.fillStyle = accent;
-  ctx.font = '500 36px "JetBrains Mono", monospace';
-  ctx.fillText(kicker.toUpperCase(), 0, 56);
+  ctx.fillRect(22, 42, 6, h - 84);
+
+  ctx.fillStyle = accent;
+  ctx.font = '600 34px "JetBrains Mono", monospace';
+  ctx.fillText(kicker.toUpperCase(), 48, 86);
 
   ctx.fillStyle = '#ffffff';
   const upper = title.toUpperCase();
-  let size = 58;
-  while (size > 34) {
+  let size = 54;
+  while (size > 30) {
     ctx.font = `700 ${size}px "Cinzel", Georgia, serif`;
-    if (ctx.measureText(upper).width + upper.length * 3 <= w - 16) break;
+    if (ctx.measureText(upper).width + upper.length * 2.5 <= w - 84) break;
     size -= 2;
   }
-  drawSpacedText(ctx, upper, 0, 146, 3);
+  drawSpacedText(ctx, upper, 48, 168, 2.5);
   return canvas;
 }
 
@@ -207,21 +231,35 @@ export function createChapterTextCanvas(
   lines: string[],
   accent: string,
   era: string,
-  isBig = false
+  isBig = false,
+  targetSize: [number, number] = [1280, 896]
 ): HTMLCanvasElement {
-  const w = 1600;
-  const h = 1120;
+  const [w, h] = targetSize;
   const [canvas, ctx] = createCanvas(w, h);
+  ctx.save();
+  ctx.scale(w / 1600, h / 1120);
+  const sw = 1600;
+  const sh = 1120;
+
+  // Dark translucent panel backing ensures sharp contrast over any texture
+  ctx.fillStyle = isBig ? 'rgba(8, 22, 34, 0.84)' : 'rgba(16, 5, 10, 0.78)';
+  ctx.beginPath();
+  ctx.roundRect(48, 48, sw - 96, sh - 96, 20);
+  ctx.fill();
+  ctx.strokeStyle = accent;
+  ctx.globalAlpha = 0.45;
+  ctx.lineWidth = 4;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
 
   ctx.shadowColor = accent;
-  ctx.shadowBlur = 14;
-  ctx.fillStyle = '#f8f4ee';
-  const left = w * 0.14;
+  ctx.shadowBlur = 12;
+  const left = sw * 0.12;
 
-  ctx.font = '500 28px "JetBrains Mono", monospace';
+  ctx.font = '600 28px "JetBrains Mono", monospace';
   ctx.fillStyle = accent;
   const header = n ? `CHAPTER ${n} · ${era.toUpperCase()}` : era.toUpperCase();
-  drawSpacedText(ctx, header, left, h * 0.27, 3);
+  drawSpacedText(ctx, header, left, sh * 0.25, 3);
 
   ctx.fillStyle = '#ffffff';
   const titleSize = isBig ? 84 : 70;
@@ -234,21 +272,22 @@ export function createChapterTextCanvas(
       : [words.join(' ')];
 
   titleLines.forEach((tl, idx) => {
-    drawSpacedText(ctx, tl, left, h * 0.27 + 108 + idx * (titleSize * 1.2), 4);
+    drawSpacedText(ctx, tl, left, sh * 0.25 + 108 + idx * (titleSize * 1.2), 4);
   });
 
   ctx.shadowBlur = 0;
-  ctx.fillStyle = 'rgba(255, 245, 232, 0.9)';
+  ctx.fillStyle = 'rgba(255, 248, 238, 0.94)';
   ctx.font = `400 ${isBig ? 34 : 30}px "Plus Jakarta Sans", sans-serif`;
-  const startY = h * 0.27 + 120 + titleLines.length * (titleSize * 1.2) + 20;
-  const colW = w * 0.34;
+  const startY = sh * 0.25 + 120 + titleLines.length * (titleSize * 1.2) + 20;
+  const colW = sw * 0.36;
   lines.forEach((para, idx) => {
     const wrapped = wrapLines(ctx, para, colW);
     wrapped.forEach((wl, lineIdx) => {
-      ctx.fillText(wl, left + idx * (colW + w * 0.045), startY + lineIdx * 46);
+      ctx.fillText(wl, left + idx * (colW + sw * 0.045), startY + lineIdx * 46);
     });
   });
 
+  ctx.restore();
   return canvas;
 }
 
@@ -586,21 +625,29 @@ export async function createBelvedereVistaCanvas(): Promise<HTMLCanvasElement> {
 export async function createHoloPlateCanvas(
   label: string,
   sub: string,
-  accent: string
+  accent: string,
+  ctaHint?: string
 ): Promise<HTMLCanvasElement> {
   const w = 800;
   const h = 440;
   const [canvas, ctx] = createCanvas(w, h);
+
+  // Dark translucent glass portal card for sharp legibility
+  ctx.fillStyle = 'rgba(10, 22, 34, 0.86)';
+  ctx.beginPath();
+  ctx.roundRect(14, 14, w - 28, h - 28, 22);
+  ctx.fill();
+
   ctx.strokeStyle = accent;
-  ctx.lineWidth = 3;
-  ctx.strokeRect(18, 18, w - 36, h - 36);
+  ctx.lineWidth = 4;
+  ctx.stroke();
 
   try {
     const logo = await loadImage('/gvlogo.png');
     ctx.save();
-    ctx.globalAlpha = 0.85;
-    const s = 110;
-    ctx.drawImage(logo, w / 2 - s / 2, 54, s, s);
+    ctx.globalAlpha = 0.9;
+    const s = 96;
+    ctx.drawImage(logo, w / 2 - s / 2, 42, s, s);
     ctx.restore();
   } catch {
     // ignore
@@ -608,42 +655,41 @@ export async function createHoloPlateCanvas(
 
   ctx.fillStyle = accent;
   ctx.textAlign = 'center';
-  ctx.font = '600 26px "JetBrains Mono", monospace';
-  ctx.fillText(sub.toUpperCase(), w / 2, 240);
+  ctx.font = '600 24px "JetBrains Mono", monospace';
+  ctx.fillText(sub.toUpperCase(), w / 2, 206);
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = '700 48px "Cinzel", Georgia, serif';
-  ctx.fillText(label.toUpperCase(), w / 2, 315);
+  ctx.font = '700 46px "Cinzel", Georgia, serif';
+  ctx.fillText(label.toUpperCase(), w / 2, 278);
+
+  if (ctaHint) {
+    ctx.fillStyle = accent;
+    ctx.font = '600 22px "JetBrains Mono", monospace';
+    ctx.fillText(ctaHint.toUpperCase(), w / 2, 356);
+  }
   return canvas;
 }
 
 export function createDropShadowCanvas(): HTMLCanvasElement {
-  const [canvas, ctx] = createCanvas(256, 256);
-  ctx.filter = 'blur(18px)';
-  ctx.fillStyle = 'rgba(0,0,0,1)';
-  ctx.fillRect(52, 52, 152, 152);
+  const [canvas, ctx] = createCanvas(128, 128);
+  const grad = ctx.createRadialGradient(64, 64, 14, 64, 64, 60);
+  grad.addColorStop(0, 'rgba(0,0,0,0.92)');
+  grad.addColorStop(0.55, 'rgba(0,0,0,0.45)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 128, 128);
   return canvas;
 }
 
 export function createSpotlightBeamCanvas(): HTMLCanvasElement {
-  const w = 256;
-  const h = 512;
+  const w = 128;
+  const h = 256;
   const [canvas, ctx] = createCanvas(w, h);
-  const grad = ctx.createLinearGradient(0, 0, 0, h);
-  grad.addColorStop(0, 'rgba(255, 240, 210, 0.9)');
-  grad.addColorStop(0.55, 'rgba(255, 240, 210, 0.35)');
+  const grad = ctx.createRadialGradient(w / 2, 16, 4, w / 2, h * 0.62, w * 0.72);
+  grad.addColorStop(0, 'rgba(255, 240, 210, 0.85)');
+  grad.addColorStop(0.45, 'rgba(255, 240, 210, 0.32)');
   grad.addColorStop(1, 'rgba(255, 240, 210, 0)');
   ctx.fillStyle = grad;
-  ctx.beginPath();
-  ctx.moveTo(w * 0.38, 0);
-  ctx.lineTo(w * 0.62, 0);
-  ctx.lineTo(w, h);
-  ctx.lineTo(0, h);
-  ctx.closePath();
-  ctx.fill();
-
-  const [blurred, bCtx] = createCanvas(w, h);
-  bCtx.filter = 'blur(18px)';
-  bCtx.drawImage(canvas, 0, 0);
-  return blurred;
+  ctx.fillRect(0, 0, w, h);
+  return canvas;
 }

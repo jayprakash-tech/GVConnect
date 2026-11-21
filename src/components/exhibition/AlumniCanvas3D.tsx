@@ -36,6 +36,12 @@ import {
   toCanvasTexture,
 } from './proceduralTextures';
 
+import {
+  acquireWebGL2Context,
+  inspectWebGLCapabilities,
+} from '../../utils/webglSupport';
+import { resolveExhibitionPerfProfile } from '../../utils/exhibitionScroll';
+
 const ROOM_LIGHT_PALETTES = [
   { sky: '#ffe0ba', ground: '#4a1822', hemi: 1.4, key: '#ffc07a', keyI: 0.85, bg: '#220910', fog: [10, 32] },
   { sky: '#ffd2a4', ground: '#38151d', hemi: 1.25, key: '#ffb07a', keyI: 0.75, bg: '#1b080e', fog: [10, 32] },
@@ -51,21 +57,6 @@ const ROOM_LIGHT_PALETTES = [
   bg: new THREE.Color(p.bg),
 }));
 
-function detectSoftwareWebGL(): boolean {
-  try {
-    const probe = document.createElement('canvas');
-    const gl = probe.getContext('webgl2') || probe.getContext('webgl');
-    if (!gl) return true;
-    const ext = gl.getExtension('WEBGL_debug_renderer_info');
-    const param = ext ? ext.UNMASKED_RENDERER_WEBGL : gl.RENDERER;
-    const gpu = String(gl.getParameter(param) || '');
-    gl.getExtension('WEBGL_lose_context')?.loseContext();
-    return /SwiftShader|llvmpipe|softpipe|Software|Basic Render/i.test(gpu);
-  } catch {
-    return true;
-  }
-}
-
 function damp(current: number, target: number, speed: number, dt: number): number {
   return current + (target - current) * (1 - Math.exp(-speed * dt));
 }
@@ -77,16 +68,37 @@ export function AlumniCanvas3D() {
     const container = containerRef.current;
     if (!container) return;
 
-    const isSoftwareGl = detectSoftwareWebGL();
+    const webglCaps = inspectWebGLCapabilities();
+    if (!webglCaps.supported) {
+      setExhibitionState({ webglSupported: false, loaded: 1, phase: 'gallery' });
+      return;
+    }
+
+    const isSoftwareGl = webglCaps.isSoftware;
     const isCoarsePointer =
       typeof window.matchMedia === 'function' &&
       window.matchMedia('(pointer: coarse)').matches;
+    const perf = resolveExhibitionPerfProfile({
+      isSoftwareWebGL: isSoftwareGl,
+      isCoarsePointer,
+      deviceMemory: (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
+      hardwareConcurrency: navigator.hardwareConcurrency,
+    });
+
+    const canvas = document.createElement('canvas');
+    const context = acquireWebGL2Context(canvas, perf.antialias);
+    if (!context) {
+      setExhibitionState({ webglSupported: false, loaded: 1, phase: 'gallery' });
+      return;
+    }
 
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({
-        antialias: !isSoftwareGl,
-        powerPreference: 'high-performance',
+        canvas,
+        context,
+        antialias: perf.antialias,
+        powerPreference: 'default',
         stencil: false,
       });
     } catch {
@@ -97,12 +109,14 @@ export function AlumniCanvas3D() {
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.08;
-    renderer.setPixelRatio(isSoftwareGl ? 1 : Math.min(window.devicePixelRatio || 1, 1.5));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, perf.pixelRatioCap));
     renderer.setSize(container.clientWidth || window.innerWidth, container.clientHeight || window.innerHeight);
     renderer.domElement.style.display = 'block';
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
     container.appendChild(renderer.domElement);
+
+    let disposed = false;
 
     const disposables: { dispose: () => void }[] = [];
     const track = <T extends { dispose: () => void }>(item: T): T => {
@@ -115,11 +129,15 @@ export function AlumniCanvas3D() {
     scene.fog = new THREE.Fog('#220910', 12, 34);
 
     // Studio reflection environment for burnished brass & metallic folds
-    const pmremGenerator = new THREE.PMREMGenerator(renderer);
-    const envRT = pmremGenerator.fromScene(new RoomEnvironment(), 0.04);
-    scene.environment = envRT.texture;
-    track(envRT);
-    pmremGenerator.dispose();
+    try {
+      const pmremGenerator = new THREE.PMREMGenerator(renderer);
+      const envRT = pmremGenerator.fromScene(new RoomEnvironment(), 0.04);
+      scene.environment = envRT.texture;
+      track(envRT);
+      pmremGenerator.dispose();
+    } catch {
+      // Proceed cleanly with directional & hemisphere lighting if PMREM fails on constrained drivers
+    }
 
     const camera = new THREE.PerspectiveCamera(
       50,
@@ -292,9 +310,9 @@ export function AlumniCanvas3D() {
             ? new THREE.MeshStandardMaterial({ color: '#e6f1f8', roughness: 0.32 })
             : new THREE.MeshStandardMaterial({
                 map: wallTex,
-                color: age < 0.8 ? '#d6a47a' : age < 2.2 ? '#985c68' : '#efe3d5',
-                roughness: age < 0.8 ? 0.55 : 0.82,
-                metalness: age >= 0.8 && age < 2.0 ? 0.18 : 0.04,
+                color: age < 0.8 ? '#c9966b' : age < 2.2 ? '#733848' : '#e8dfd4',
+                roughness: age < 0.8 ? 0.58 : 0.84,
+                metalness: age >= 0.8 && age < 2.0 ? 0.16 : 0.04,
               })
         );
         const mesh = new THREE.Mesh(boxGeo, boxMat);
@@ -311,8 +329,8 @@ export function AlumniCanvas3D() {
       // Architectural dado rail, cornice & bay pilasters on non-feature walls
       if (!hasFeature) {
         const mouldingMat = age < 2.2 ? warmMouldingMat : coolMouldingMat;
-        const dadoMesh = new THREE.Mesh(track(new THREE.PlaneGeometry(len, 0.036)), mouldingMat);
-        dadoMesh.position.set(0, 0.58, 0.005);
+        const dadoMesh = new THREE.Mesh(track(new THREE.PlaneGeometry(len, 0.032)), mouldingMat);
+        dadoMesh.position.set(0, 0.36, 0.005);
         grp.add(dadoMesh);
 
         const corniceMesh = new THREE.Mesh(track(new THREE.PlaneGeometry(len, 0.055)), mouldingMat);
@@ -321,14 +339,14 @@ export function AlumniCanvas3D() {
 
         if (len >= 2.6) {
           const bayCount = Math.max(2, Math.round(len / 3.4));
-          const pilasterGeo = track(new THREE.PlaneGeometry(0.045, WALL_HEIGHT - 0.78));
+          const pilasterGeo = track(new THREE.PlaneGeometry(0.045, WALL_HEIGHT - 0.56));
           for (let i = 1; i < bayCount; i++) {
             const px = -len / 2 + (len * i) / bayCount;
             const pilaster = new THREE.Mesh(
               pilasterGeo,
               age < 2.2 ? panelLineLightMat : panelLineDarkMat
             );
-            pilaster.position.set(px, 0.58 + (WALL_HEIGHT - 0.78) / 2, 0.004);
+            pilaster.position.set(px, 0.36 + (WALL_HEIGHT - 0.56) / 2, 0.004);
             grp.add(pilaster);
           }
         }
@@ -495,7 +513,7 @@ export function AlumniCanvas3D() {
       const foldGeo = track(new THREE.ExtrudeGeometry(shape, { depth: 0.035, bevelEnabled: false }));
       foldGeo.rotateY(Math.PI / 2);
 
-      const step = isCoarsePointer ? 1.15 : 0.65;
+      const step = perf.foldStep;
       const count = Math.max(2, Math.round((r.len ?? 6) / step));
       const fromCol = new THREE.Color(ROOM_META[r.id]?.from ?? '#d9cbb5');
       const toCol = new THREE.Color(ROOM_META[r.id]?.accent ?? '#d9cbb5');
@@ -529,10 +547,13 @@ export function AlumniCanvas3D() {
     // Build Belvedere Panoramic Window & Clickable Stone Bench
     const clickableMeshes: THREE.Object3D[] = [];
     let benchMesh: THREE.Mesh | null = null;
+    const vistaSpec = {
+      span: BELVEDERE_WINDOW.x1 - BELVEDERE_WINDOW.x0,
+      bw: BELVEDERE_WINDOW,
+      cx: (BELVEDERE_WINDOW.x0 + BELVEDERE_WINDOW.x1) / 2,
+    };
     {
-      const bw = BELVEDERE_WINDOW;
-      const cx = (bw.x0 + bw.x1) / 2;
-      const span = bw.x1 - bw.x0;
+      const { bw, cx, span } = vistaSpec;
       const frameMat = track(new THREE.MeshStandardMaterial({ color: '#e5d4c0', roughness: 0.5 }));
 
       const topFrame = new THREE.Mesh(
@@ -556,17 +577,6 @@ export function AlumniCanvas3D() {
         );
         jamb.position.set(xEdge, WALL_HEIGHT / 2, bw.z - 0.6);
         scene.add(jamb);
-      });
-
-      // Async vista canvas
-      createBelvedereVistaCanvas().then((canvas) => {
-        const tex = track(toCanvasTexture(canvas, maxAniso));
-        const vistaMesh = new THREE.Mesh(
-          track(new THREE.PlaneGeometry(span, bw.y1 - bw.y0 + 0.4)),
-          track(new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, fog: false }))
-        );
-        vistaMesh.position.set(cx, (bw.y0 + bw.y1) / 2, bw.z - 1.1);
-        scene.add(vistaMesh);
       });
 
       // Clickable Stone Bench
@@ -669,19 +679,16 @@ export function AlumniCanvas3D() {
       });
     });
 
-    // Build Feature Wall Murals
+    // Pre-create Feature Wall meshes (textures streamed asynchronously after Campus I ready)
+    const featureWallTargets: { fw: (typeof FEATURE_WALLS)[number]; mat: THREE.MeshBasicMaterial }[] = [];
     FEATURE_WALLS.forEach((fw) => {
       const wallH = WALL_HEIGHT - 0.28;
-      createFeatureWallCanvas(fw).then((canvas) => {
-        const tex = track(toCanvasTexture(canvas, maxAniso));
-        const mural = new THREE.Mesh(
-          track(new THREE.PlaneGeometry(fw.len, wallH)),
-          track(new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }))
-        );
-        mural.position.set(fw.x, 0.14 + wallH / 2, fw.z);
-        mural.rotation.y = fw.rot;
-        scene.add(mural);
-      });
+      const mat = track(new THREE.MeshBasicMaterial({ color: '#1b070f', toneMapped: false }));
+      const mural = new THREE.Mesh(track(new THREE.PlaneGeometry(fw.len, wallH)), mat);
+      mural.position.set(fw.x, 0.14 + wallH / 2, fw.z);
+      mural.rotation.y = fw.rot;
+      scene.add(mural);
+      featureWallTargets.push({ fw, mat });
     });
 
     // Build Chapter Plaques
@@ -728,10 +735,20 @@ export function AlumniCanvas3D() {
 
       if (isFinal) {
         const backGlow = new THREE.Mesh(
-          track(new THREE.PlaneGeometry(7.2, 5.2)),
-          track(new THREE.MeshBasicMaterial({ color: '#6fdcff', toneMapped: false }))
+          track(new THREE.PlaneGeometry(7.4, 5.2)),
+          track(
+            new THREE.MeshBasicMaterial({
+              map: spotlightTex,
+              color: '#6fdcff',
+              transparent: true,
+              opacity: 0.32,
+              blending: THREE.AdditiveBlending,
+              depthWrite: false,
+              toneMapped: false,
+            })
+          )
         );
-        backGlow.position.z = -0.3;
+        backGlow.position.z = -0.25;
         grp.add(backGlow);
       }
 
@@ -753,7 +770,15 @@ export function AlumniCanvas3D() {
 
       const textTex = track(
         toCanvasTexture(
-          createChapterTextCanvas(c.n, c.title, c.lines, meta.accent, meta.era, isFinal),
+          createChapterTextCanvas(
+            c.n,
+            c.title,
+            c.lines,
+            meta.accent,
+            meta.era,
+            isFinal,
+            perf.chapterCanvasSize
+          ),
           maxAniso
         )
       );
@@ -774,9 +799,33 @@ export function AlumniCanvas3D() {
       scene.add(grp);
     });
 
-    // Backlit Reunion Sanctuary Crest Panel behind Welcome Home plaque (on reunion-E0)
-    createHoloPlateCanvas('Grizzly Vidyalaya', 'Telaiya Dam Alumni Association', '#8fe3ff').then(
-      (canvas) => {
+    // Deferred Holo Sanctuary Crest & Twin Portal Plates
+    const holoHoverMeshes = new Map<string, THREE.Mesh>();
+    const deferredDecorTasks: (() => Promise<void>)[] = [
+      async () => {
+        if (disposed) return;
+        const canvas = await createBelvedereVistaCanvas();
+        if (disposed) return;
+        const tex = track(toCanvasTexture(canvas, maxAniso));
+        const vistaMesh = new THREE.Mesh(
+          track(new THREE.PlaneGeometry(vistaSpec.span, vistaSpec.bw.y1 - vistaSpec.bw.y0 + 0.4)),
+          track(new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, fog: false }))
+        );
+        vistaMesh.position.set(
+          vistaSpec.cx,
+          (vistaSpec.bw.y0 + vistaSpec.bw.y1) / 2,
+          vistaSpec.bw.z - 1.1
+        );
+        scene.add(vistaMesh);
+      },
+      async () => {
+        if (disposed) return;
+        const canvas = await createHoloPlateCanvas(
+          'Grizzly Vidyalaya',
+          'Telaiya Dam Alumni Association',
+          '#8fe3ff'
+        );
+        if (disposed) return;
         const tex = track(toCanvasTexture(canvas, maxAniso));
         const backdropPlate = new THREE.Mesh(
           track(new THREE.PlaneGeometry(3.8, 2.1)),
@@ -784,55 +833,80 @@ export function AlumniCanvas3D() {
             new THREE.MeshBasicMaterial({
               map: tex,
               transparent: true,
-              opacity: 0.72,
-              blending: THREE.AdditiveBlending,
+              opacity: 0.86,
               depthWrite: false,
               toneMapped: false,
             })
           )
         );
-        backdropPlate.position.set(52.95, 2.25, -30.5);
+        backdropPlate.position.set(HOLO_POS.backX, 2.25, HOLO_POS.centerZ);
         backdropPlate.rotation.y = -Math.PI / 2;
         scene.add(backdropPlate);
-      }
-    );
-
-    // Twin Holographic Alumni Crest Plates in Final Campus
-    [
-      { label: 'Alumni Directory', sub: 'Find Your Batch', accent: '#63d8ff', z: HOLO_POS.zs[0] },
-      { label: 'Reunion Stories', sub: 'Grizzly Vidyalaya', accent: '#ffd082', z: HOLO_POS.zs[1] },
-    ].forEach((h, idx) => {
-      createHoloPlateCanvas(h.label, h.sub, h.accent).then((canvas) => {
+      },
+      ...[
+        {
+          id: 'holo-directory',
+          label: 'Alumni Directory',
+          sub: 'Find Your Batch',
+          ctaHint: 'Click to Open →',
+          href: '#/directory',
+          accent: '#63d8ff',
+          z: HOLO_POS.zs[0],
+        },
+        {
+          id: 'holo-stories',
+          label: 'Reunion Stories',
+          sub: 'Grizzly Vidyalaya',
+          ctaHint: 'Click to Open →',
+          href: '#/chat',
+          accent: '#ffd082',
+          z: HOLO_POS.zs[1],
+        },
+      ].map((h, idx) => async () => {
+        if (disposed) return;
+        const canvas = await createHoloPlateCanvas(h.label, h.sub, h.accent, h.ctaHint);
+        if (disposed) return;
         const tex = track(toCanvasTexture(canvas, maxAniso));
         const plate = new THREE.Mesh(
-          track(new THREE.PlaneGeometry(2.5, 1.38)),
+          track(new THREE.PlaneGeometry(2.15, 1.2)),
           track(
             new THREE.MeshBasicMaterial({
               map: tex,
               transparent: true,
-              opacity: 0.48,
-              blending: THREE.AdditiveBlending,
+              opacity: 0.94,
               depthWrite: false,
               side: THREE.DoubleSide,
               toneMapped: false,
             })
           )
         );
-        plate.position.set(HOLO_POS.x - 0.6, 2.0, h.z);
-        plate.rotation.y = -Math.PI / 2 + (idx === 0 ? 0.18 : -0.18);
+        plate.position.set(HOLO_POS.x, 2.02, h.z);
+        plate.rotation.y = -Math.PI / 2 + (idx === 0 ? 0.2 : -0.2);
+        plate.userData = {
+          interactType: 'link',
+          href: h.href,
+          interactId: h.id,
+        };
         scene.add(plate);
-      });
-    });
+        clickableMeshes.push(plate);
+        holoHoverMeshes.set(h.id, plate);
+      }),
+      ...featureWallTargets.map(({ fw, mat }) => async () => {
+        if (disposed) return;
+        const canvas = await createFeatureWallCanvas(fw);
+        if (disposed) return;
+        const tex = track(toCanvasTexture(canvas, maxAniso));
+        mat.map = tex;
+        mat.color.set('#ffffff');
+        mat.needsUpdate = true;
+      }),
+    ];
 
-    // Build Framed Campus Exhibits (The User's Existing Photos!)
+    // Build Framed Campus Exhibits with staged texture loading queue
     const exhibitHoverGroups = new Map<string, THREE.Group>();
-    let loadedImages = 0;
-    const totalImages = EXHIBITS.length;
-
-    const markLoaded = () => {
-      loadedImages += 1;
-      setExhibitionState({ loaded: Math.min(1, loadedImages / Math.max(1, totalImages)) });
-    };
+    const priorityTasks: (() => Promise<void>)[] = [];
+    const deferredPhotoTasks: (() => Promise<void>)[] = [];
+    let loadedPriority = 0;
 
     EXHIBITS.forEach((ex) => {
       const meta = ROOM_META[ex.room];
@@ -936,23 +1010,40 @@ export function AlumniCanvas3D() {
       clickableMeshes.push(photoMesh);
       frameSub.add(photoMesh);
 
-      createFramedPhotoCanvas(ex.imageSrc, ex.title, isWide)
-        .then((canvas) => {
-          const tex = track(toCanvasTexture(canvas, maxAniso));
-          photoMat.map = tex;
-          photoMat.color.set('#ffffff');
-          photoMat.needsUpdate = true;
-        })
-        .finally(markLoaded);
+      const targetSize = isWide ? perf.heroPhotoSize : perf.standardPhotoSize;
+      const task = async () => {
+        if (disposed) return;
+        const canvas = await createFramedPhotoCanvas(ex.imageSrc, ex.title, isWide, targetSize);
+        if (disposed) return;
+        const tex = track(toCanvasTexture(canvas, maxAniso));
+        photoMat.map = tex;
+        photoMat.color.set('#ffffff');
+        photoMat.needsUpdate = true;
+      };
 
-      // Wall Label Plaque below painting
-      const labelY = ex.y - ex.h / 2 - 0.16;
-      const labelScale = Math.min(1, Math.max(0.32, (labelY - 0.04) / 0.4));
+      if (ex.room === 'origin') {
+        priorityTasks.push(async () => {
+          try {
+            await task();
+          } finally {
+            loadedPriority += 1;
+            setExhibitionState({
+              loaded: Math.min(1, loadedPriority / Math.max(1, priorityTasks.length)),
+            });
+          }
+        });
+      } else {
+        deferredPhotoTasks.push(task);
+      }
+
+      // Wall Label Plaque below painting (strictly clear of 0.36m dado rail)
+      const labelY = Math.max(0.74, ex.y - ex.h / 2 - 0.14);
+      const labelScale = Math.min(0.95, Math.max(0.45, (labelY - 0.42) / 0.38));
       const labelTex = track(
         toCanvasTexture(createLabelPlaqueCanvas(ex.kicker, ex.title, meta.accent), maxAniso)
       );
       const labelPlane = new THREE.Mesh(
-        track(new THREE.PlaneGeometry(1.5 * labelScale, 0.4 * labelScale)),
+        track(new THREE.PlaneGeometry(1.52 * labelScale, 0.38 * labelScale)),
         track(
           new THREE.MeshBasicMaterial({
             map: labelTex,
@@ -962,11 +1053,31 @@ export function AlumniCanvas3D() {
           })
         )
       );
-      labelPlane.position.set(-ex.w / 2 + 0.75 * labelScale, labelY - 0.2 * labelScale, 0.008);
+      labelPlane.position.set(-ex.w / 2 + 0.76 * labelScale, labelY - 0.19 * labelScale, 0.008);
       grp.add(labelPlane);
 
       scene.add(grp);
     });
+
+    // Run Campus I + Hero textures first, then gently stream the rest in small batches so main thread stays 60fps
+    const runQueue = async () => {
+      const featureOrigin = deferredDecorTasks.findIndex((_, i) => i === 4); // featureWallTargets[0] is origin
+      if (featureOrigin >= 0) {
+        await deferredDecorTasks.splice(featureOrigin, 1)[0]().catch(() => null);
+      }
+      for (let i = 0; i < priorityTasks.length && !disposed; i += perf.batchConcurrency) {
+        await Promise.allSettled(priorityTasks.slice(i, i + perf.batchConcurrency).map((fn) => fn()));
+      }
+      setExhibitionState({ loaded: 1 });
+
+      const remaining = [...deferredDecorTasks, ...deferredPhotoTasks];
+      for (let i = 0; i < remaining.length && !disposed; i += 2) {
+        await new Promise((resolve) => window.setTimeout(resolve, perf.isLowSpec ? 36 : 16));
+        if (disposed) break;
+        await Promise.allSettled(remaining.slice(i, i + 2).map((fn) => fn()));
+      }
+    };
+    void runQueue();
 
     // Build Camera Spline & Gaze Interpolation
     const splineCurve = new THREE.CatmullRomCurve3(
@@ -996,7 +1107,7 @@ export function AlumniCanvas3D() {
     };
 
     // Glowing Floor Light-Stream Ribbon (ShaderMaterial)
-    const ribbonSamples = isCoarsePointer ? 300 : 520;
+    const ribbonSamples = perf.ribbonSamples;
     const ribbonGeo = track(new THREE.BufferGeometry());
     const rPos = new Float32Array(ribbonSamples * 2 * 3);
     const rU = new Float32Array(ribbonSamples * 2);
@@ -1081,7 +1192,7 @@ export function AlumniCanvas3D() {
     scene.add(new THREE.Mesh(ribbonGeo, ribbonMat));
 
     // GPU-Animated Dust Motes (Zero CPU loop & zero buffer re-uploads per frame)
-    const moteCount = isCoarsePointer ? 360 : 850;
+    const moteCount = perf.moteCount;
     const moteGeo = track(new THREE.BufferGeometry());
     const motePos = new Float32Array(moteCount * 3);
     const moteCol = new Float32Array(moteCount * 3);
@@ -1211,7 +1322,8 @@ export function AlumniCanvas3D() {
     renderer.domElement.addEventListener('webglcontextrestored', onContextRestored);
 
     // Animation loop state
-    const clock = new THREE.Clock();
+    const startTimeMs = performance.now();
+    let lastFrameMs = startTimeMs;
     const curLook = new THREE.Vector3(...WAYPOINTS[0].l);
     const camPos = new THREE.Vector3();
     const gazeVec = new THREE.Vector3();
@@ -1227,12 +1339,17 @@ export function AlumniCanvas3D() {
 
     const animate = () => {
       if (contextLost) {
+        lastFrameMs = performance.now();
         frameId = requestAnimationFrame(animate);
         return;
       }
 
-      const dt = Math.min(clock.getDelta(), 0.05);
-      const elapsed = clock.elapsedTime;
+      const nowMs = performance.now();
+      const rawDt = Math.max(0, (nowMs - lastFrameMs) / 1000);
+      const animDt = Math.min(rawDt, perf.maxAnimDt);
+      const motionDt = Math.min(rawDt, perf.maxMotionDt);
+      lastFrameMs = nowMs;
+      const elapsed = (nowMs - startTimeMs) / 1000;
       const ui = getExhibitionState();
 
       // Dynamic responsive FOV (50° desktop base guarantees full uncropped exhibit + plaque framing)
@@ -1255,22 +1372,22 @@ export function AlumniCanvas3D() {
         camera.updateProjectionMatrix();
       }
 
-      // Smooth Techkriti-matched scroll progress & camera damping
-      motionRefs.progress = damp(motionRefs.progress, motionRefs.target, 2.8, dt);
+      // Smooth Techkriti-matched scroll progress & camera damping (motionDt stays responsive on slower devices)
+      motionRefs.progress = damp(motionRefs.progress, motionRefs.target, 2.35, motionDt);
       const u = mapScrollToSplineT(motionRefs.progress);
       splineCurve.getPoint(u, camPos);
       sampleGaze(u, gazeVec).multiplyScalar(5).add(camPos);
 
-      smoothPtr.x = damp(smoothPtr.x, motionRefs.pointer.x, 1.5, dt);
-      smoothPtr.y = damp(smoothPtr.y, motionRefs.pointer.y, 1.5, dt);
+      smoothPtr.x = damp(smoothPtr.x, motionRefs.pointer.x, 1.5, animDt);
+      smoothPtr.y = damp(smoothPtr.y, motionRefs.pointer.y, 1.5, animDt);
 
-      let gx = camPos.x + smoothPtr.x * 0.06;
-      let gy = camPos.y - smoothPtr.y * 0.025;
+      let gx = camPos.x + smoothPtr.x * 0.05;
+      let gy = camPos.y - smoothPtr.y * 0.02;
       let gz = camPos.z;
       let lx = gazeVec.x + smoothPtr.x * 0.02;
       let ly = gazeVec.y;
       let lz = gazeVec.z;
-      let camSpeed = 4.2;
+      let camSpeed = 3.6;
 
       // Focus glide directly in front of clicked campus exhibit
       const focusedExhibit = ui.focus ? EXHIBITS.find((e) => e.id === ui.focus) : null;
@@ -1308,14 +1425,14 @@ export function AlumniCanvas3D() {
       }
 
       camera.position.set(
-        damp(camera.position.x, gx, camSpeed, dt),
-        damp(camera.position.y, gy, camSpeed, dt),
-        damp(camera.position.z, gz, camSpeed, dt)
+        damp(camera.position.x, gx, camSpeed, motionDt),
+        damp(camera.position.y, gy, camSpeed, motionDt),
+        damp(camera.position.z, gz, camSpeed, motionDt)
       );
       curLook.set(
-        damp(curLook.x, lx, camSpeed, dt),
-        damp(curLook.y, ly, camSpeed, dt),
-        damp(curLook.z, lz, camSpeed, dt)
+        damp(curLook.x, lx, camSpeed, motionDt),
+        damp(curLook.y, ly, camSpeed, motionDt),
+        damp(curLook.z, lz, camSpeed, motionDt)
       );
       camera.lookAt(curLook);
 
@@ -1326,7 +1443,7 @@ export function AlumniCanvas3D() {
         setExhibitionState({ room: currentRoom.id });
       }
       const targetAge = ROOM_META[currentRoom.id]?.age ?? 0;
-      lightAge.value = damp(lightAge.value, targetAge, 3.0, dt);
+      lightAge.value = damp(lightAge.value, targetAge, 3.0, animDt);
 
       const s = THREE.MathUtils.clamp(lightAge.value, 0, ROOM_LIGHT_PALETTES.length - 1.001);
       const i0 = Math.floor(s);
@@ -1354,7 +1471,14 @@ export function AlumniCanvas3D() {
       // Hover lift on exhibits
       exhibitHoverGroups.forEach((grp, id) => {
         const targetZ = ui.hover === id ? 0.055 : 0;
-        grp.position.z = damp(grp.position.z, targetZ, 10, dt);
+        grp.position.z = damp(grp.position.z, targetZ, 10, animDt);
+      });
+
+      // Hover scale on Campus IV portals
+      holoHoverMeshes.forEach((mesh, id) => {
+        const targetScale = ui.hover === id ? 1.06 : 1;
+        const nextScale = damp(mesh.scale.x, targetScale, 10, animDt);
+        mesh.scale.setScalar(nextScale);
       });
 
       // Bench hover tint
@@ -1364,7 +1488,7 @@ export function AlumniCanvas3D() {
 
       // Animate gears
       gearMeshes.forEach((g) => {
-        g.mesh.rotation.z += g.speed * dt;
+        g.mesh.rotation.z += g.speed * animDt;
       });
 
       // Flicker shared lantern light on nearest lantern & bulb opacities
@@ -1398,27 +1522,35 @@ export function AlumniCanvas3D() {
         renderer.render(scene, camera);
       }
 
-      if (isSoftwareGl) {
+      if (motionRefs.scrolledPastGallery) {
+        frameId = window.setTimeout(() => {
+          if (!disposed) frameId = requestAnimationFrame(animate);
+        }, 120);
+      } else if (isSoftwareGl) {
         const gl = renderer.getContext() as WebGL2RenderingContext;
         if (gl && typeof gl.fenceSync === 'function') {
           const sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
           gl.flush();
           const poll = () => {
+            if (disposed) {
+              if (sync) gl.deleteSync(sync);
+              return;
+            }
             const status = sync && gl.getSyncParameter(sync, gl.SYNC_STATUS);
             if (status === gl.UNSIGNALED) {
-              frameId = window.setTimeout(poll, 5);
+              frameId = window.setTimeout(poll, 4);
             } else {
               if (sync) gl.deleteSync(sync);
               frameId = window.setTimeout(() => {
-                frameId = requestAnimationFrame(animate);
-              }, 70);
+                if (!disposed) frameId = requestAnimationFrame(animate);
+              }, 28);
             }
           };
-          frameId = window.setTimeout(poll, 5);
+          frameId = window.setTimeout(poll, 4);
         } else {
           frameId = window.setTimeout(() => {
-            frameId = requestAnimationFrame(animate);
-          }, 70);
+            if (!disposed) frameId = requestAnimationFrame(animate);
+          }, 28);
         }
       } else {
         frameId = requestAnimationFrame(animate);
@@ -1428,6 +1560,7 @@ export function AlumniCanvas3D() {
     frameId = requestAnimationFrame(animate);
 
     return () => {
+      disposed = true;
       cancelAnimationFrame(frameId);
       clearTimeout(frameId);
       window.removeEventListener('resize', onResize);

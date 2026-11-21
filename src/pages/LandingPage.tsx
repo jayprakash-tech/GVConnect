@@ -20,7 +20,6 @@ import {
   RoomHudAndChapters,
   WebGLFallbackShowcase,
 } from '../components/exhibition/ExhibitionOverlays';
-import { CampusMasonryGallery } from '../components/exhibition/CampusMasonryGallery';
 import { MagneticButton } from '../components/exhibition/MagneticButton';
 import {
   EXHIBITS,
@@ -34,6 +33,7 @@ import {
   setExhibitionState,
   useExhibitionStore,
 } from '../data/exhibitionData';
+import { computeTrackHeightPx } from '../utils/exhibitionScroll';
 
 const COMMUNITY_PILLARS = [
   {
@@ -101,7 +101,6 @@ const FAQ_ITEMS = [
 ];
 
 export function LandingPage() {
-  const phase = useExhibitionStore((s) => s.phase);
   const focus = useExhibitionStore((s) => s.focus);
   const bench = useExhibitionStore((s) => s.bench);
   const webglSupported = useExhibitionStore((s) => s.webglSupported);
@@ -151,14 +150,14 @@ export function LandingPage() {
     };
   }, [location.state, navigate]);
 
-  // Lock scroll while loading or inspecting exhibit / bench overlook
+  // Lock scroll only while actively inspecting a zoomed exhibit or bench overlook
   useEffect(() => {
-    const locked = (webglSupported && phase === 'loading') || Boolean(focus) || bench;
+    const locked = Boolean(focus) || bench;
     document.documentElement.style.overflow = locked ? 'hidden' : '';
     return () => {
       document.documentElement.style.overflow = '';
     };
-  }, [phase, focus, bench, webglSupported]);
+  }, [focus, bench]);
 
   // Sync window.scrollY -> Three.js camera spline target (rAF-throttled like techkriti.org)
   useEffect(() => {
@@ -226,13 +225,13 @@ export function LandingPage() {
           <ExhibitDetailModal />
           <BenchModal />
 
-          {/* Virtual Museum Scroll Track */}
+          {/* Virtual Museum Scroll Track (Techkriti-matched deliberate walk speed) */}
           <div
             ref={(el) => {
               scrollTrackRef.el = el;
             }}
             className="relative z-10 pointer-events-none"
-            style={{ height: `calc(${Math.round(56 * TOTAL_PATH_WEIGHT)}px + 100svh)` }}
+            style={{ height: `calc(${computeTrackHeightPx(TOTAL_PATH_WEIGHT)}px + 100svh)` }}
           >
             {/* Screen-reader & keyboard accessible index of exhibits */}
             <div className="sr-only">
@@ -381,9 +380,6 @@ export function LandingPage() {
             </div>
           </div>
 
-          {/* Campus Infrastructure & Grounds Masonry Archive (sourced from grizzlyvidyalaya.com) */}
-          <CampusMasonryGallery />
-
           {/* Techkriti-Style Frosted FAQ Accordion */}
           <div id="faq" className="mt-28 pt-16 border-t border-white/10">
             <div className="grid gap-10 lg:grid-cols-12">
@@ -406,7 +402,7 @@ export function LandingPage() {
                   return (
                     <div
                       key={item.num}
-                      className="rounded-xl border border-white/10 bg-[#19060d]/80 backdrop-blur-md transition-colors hover:border-[#d4af37]/35"
+                      className="rounded-xl border border-white/10 bg-[#19060d]/95 transition-colors hover:border-[#d4af37]/35"
                     >
                       <button
                         type="button"

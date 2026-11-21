@@ -6,9 +6,46 @@ import {
   isProfileComplete,
   parseSupabaseCallbackUrl,
   resolveSessionRouteAction,
+  resolveSignupVerificationOutcome,
   validatePasswordPolicy,
   validateUsernameFormat,
 } from './authRules';
+
+test('resolveSignupVerificationOutcome requires verification link when Confirm Email is enabled', () => {
+  const res = resolveSignupVerificationOutcome({
+    hasSession: false,
+    emailConfirmedAt: null,
+    confirmedAt: null,
+  });
+  assert.deepEqual(res, {
+    emailVerified: false,
+    needsEmailVerification: true,
+    dispatchOtpFallback: false,
+  });
+});
+
+test('resolveSignupVerificationOutcome never triggers OTP fallback even when server auto-confirms signup', () => {
+  const res = resolveSignupVerificationOutcome({
+    hasSession: true,
+    emailConfirmedAt: '2026-11-21T12:00:00Z',
+  });
+  assert.deepEqual(res, {
+    emailVerified: true,
+    needsEmailVerification: false,
+    dispatchOtpFallback: false,
+  });
+});
+
+test('parseSupabaseCallbackUrl extracts device_otp callback and magiclink type', () => {
+  const parsed = parseSupabaseCallbackUrl(
+    '?auth_callback=device_otp&code=dev-code-99',
+    '#type=magiclink'
+  );
+  assert.equal(parsed.hasCallback, true);
+  assert.equal(parsed.authCallback, 'device_otp');
+  assert.equal(parsed.pkceCode, 'dev-code-99');
+  assert.equal(parsed.callbackType, 'magiclink');
+});
 
 test('password policy accepts >= 15 chars without numbers', () => {
   const res = validatePasswordPolicy('verylongpassphrase');
@@ -176,15 +213,4 @@ test('resolveSessionRouteAction allows existing OAuth user returning via Google 
     }),
     { action: 'redirect_dashboard' }
   );
-});
-
-test('parseSupabaseCallbackUrl extracts device_otp callback and magiclink type', () => {
-  const parsed = parseSupabaseCallbackUrl(
-    '?auth_callback=device_otp&code=dev-code-99',
-    '#type=magiclink'
-  );
-  assert.equal(parsed.hasCallback, true);
-  assert.equal(parsed.authCallback, 'device_otp');
-  assert.equal(parsed.pkceCode, 'dev-code-99');
-  assert.equal(parsed.callbackType, 'magiclink');
 });

@@ -14,11 +14,16 @@ import {
   REUNION_PROGRESS_THRESHOLD,
   ROOM_META,
   motionRefs,
+  scrollPastHeroCurtain,
   scrollToProgress,
   setExhibitionState,
   useExhibitionStore,
 } from '../../data/exhibitionData';
-import { CampusMasonryGallery } from './CampusMasonryGallery';
+import {
+  CURTAIN_REVEAL_SCROLL_PX,
+  computeCurtainRevealFraction,
+  smoothstep01,
+} from '../../utils/exhibitionScroll';
 import { MagneticButton } from './MagneticButton';
 
 // =========================================================================
@@ -33,16 +38,26 @@ export function ExhibitionLoader() {
 
   useEffect(() => {
     if (phase !== 'loading') return;
+    if (
+      typeof window !== 'undefined' &&
+      (window.location.search.includes('autostart=1') ||
+        window.location.hash.includes('autostart=1'))
+    ) {
+      setPct(1);
+      setExhibitionState({ phase: 'gallery' });
+      return;
+    }
+
     let raf = 0;
     const start = performance.now();
 
     const tick = (now: number) => {
       const elapsed = now - start;
-      const minRamp = Math.min(1, elapsed / 1150);
-      const target = elapsed > 2400 ? 1 : Math.min(loaded, minRamp);
+      const minRamp = Math.min(1, elapsed / 650);
+      const target = elapsed > 1250 ? 1 : Math.min(loaded, minRamp);
       setPct((prev) => {
-        const next = prev + (target - prev) * 0.16;
-        if (next >= 0.992 && (loaded >= 1 || elapsed > 2400)) {
+        const next = prev + (target - prev) * 0.22;
+        if (next >= 0.992 && (loaded >= 1 || elapsed > 1250)) {
           return 1;
         }
         return next;
@@ -57,7 +72,7 @@ export function ExhibitionLoader() {
     if (pct >= 0.995 && phase === 'loading') {
       const timer = window.setTimeout(() => {
         setExhibitionState({ phase: 'gallery' });
-      }, 240);
+      }, 180);
       return () => window.clearTimeout(timer);
     }
   }, [pct, phase]);
@@ -163,8 +178,15 @@ function HeroAmbienceCanvas() {
     let raf = 0;
     let width = 0;
     let height = 0;
+    let isAwake = false;
 
-    const particles = Array.from({ length: 42 }, (_, i) => ({
+    const nav = typeof navigator !== 'undefined' ? (navigator as Navigator & { deviceMemory?: number }) : null;
+    const lowSpec =
+      Boolean(window.matchMedia?.('(pointer: coarse)').matches) ||
+      Boolean(nav?.hardwareConcurrency && nav.hardwareConcurrency <= 4) ||
+      Boolean(nav?.deviceMemory && nav.deviceMemory <= 4);
+
+    const particles = Array.from({ length: lowSpec ? 22 : 38 }, (_, i) => ({
       x: Math.random(),
       y: Math.random(),
       r: 0.9 + (i % 3) * 0.7,
@@ -177,7 +199,7 @@ function HeroAmbienceCanvas() {
       if (!parent) return;
       width = parent.clientWidth;
       height = parent.clientHeight;
-      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      const dpr = lowSpec ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
       canvas.width = Math.max(1, Math.floor(width * dpr));
       canvas.height = Math.max(1, Math.floor(height * dpr));
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -188,48 +210,61 @@ function HeroAmbienceCanvas() {
 
     const start = performance.now();
     const draw = (now: number) => {
-      if (motionRefs.progress < 0.045) {
-        const t = (now - start) * 0.001;
-        ctx.clearRect(0, 0, width, height);
-
-        // Sweeping nostalgic golden threads across curtain backdrop
-        for (let i = 0; i < 3; i++) {
-          ctx.beginPath();
-          const baseY = height * (0.28 + i * 0.22);
-          for (let x = 0; x <= width; x += 36) {
-            const y =
-              baseY +
-              Math.sin(x * 0.0045 + t * (0.55 + i * 0.15) + i * 1.4) * 34 +
-              Math.cos(x * 0.009 - t * 0.4) * 14;
-            if (x === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-          }
-          ctx.strokeStyle =
-            i === 1 ? 'rgba(255, 207, 138, 0.11)' : 'rgba(212, 175, 55, 0.07)';
-          ctx.lineWidth = i === 1 ? 1.5 : 1;
-          ctx.stroke();
-        }
-
-        // Drifting warm dust motes
-        particles.forEach((p) => {
-          p.y -= p.vy * 0.016;
-          if (p.y < -0.05) p.y = 1.05;
-          const px = (p.x + Math.sin(t * 0.6 + p.phase) * 0.015) * width;
-          const py = p.y * height;
-          const alpha = 0.25 + 0.35 * (0.5 + 0.5 * Math.sin(t * 1.6 + p.phase));
-          ctx.beginPath();
-          ctx.arc(px, py, p.r, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(255, 212, 148, ${alpha.toFixed(3)})`;
-          ctx.fill();
-        });
+      raf = 0;
+      if (window.scrollY > CURTAIN_REVEAL_SCROLL_PX + 80) {
+        isAwake = false;
+        return;
       }
+
+      const t = (now - start) * 0.001;
+      ctx.clearRect(0, 0, width, height);
+
+      // Sweeping nostalgic golden threads across curtain backdrop
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        const baseY = height * (0.28 + i * 0.22);
+        for (let x = 0; x <= width; x += 40) {
+          const y =
+            baseY +
+            Math.sin(x * 0.0045 + t * (0.55 + i * 0.15) + i * 1.4) * 34 +
+            Math.cos(x * 0.009 - t * 0.4) * 14;
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle =
+          i === 1 ? 'rgba(255, 207, 138, 0.11)' : 'rgba(212, 175, 55, 0.07)';
+        ctx.lineWidth = i === 1 ? 1.5 : 1;
+        ctx.stroke();
+      }
+
+      // Drifting warm dust motes
+      particles.forEach((p) => {
+        p.y -= p.vy * 0.016;
+        if (p.y < -0.05) p.y = 1.05;
+        const px = (p.x + Math.sin(t * 0.6 + p.phase) * 0.015) * width;
+        const py = p.y * height;
+        const alpha = 0.25 + 0.35 * (0.5 + 0.5 * Math.sin(t * 1.6 + p.phase));
+        ctx.beginPath();
+        ctx.arc(px, py, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 212, 148, ${alpha.toFixed(3)})`;
+        ctx.fill();
+      });
 
       raf = requestAnimationFrame(draw);
     };
 
-    raf = requestAnimationFrame(draw);
+    const ensureRunning = () => {
+      if (window.scrollY <= CURTAIN_REVEAL_SCROLL_PX + 80 && !isAwake) {
+        isAwake = true;
+        raf = requestAnimationFrame(draw);
+      }
+    };
+
+    ensureRunning();
+    window.addEventListener('scroll', ensureRunning, { passive: true });
     return () => {
       cancelAnimationFrame(raf);
+      window.removeEventListener('scroll', ensureRunning);
       window.removeEventListener('resize', resize);
     };
   }, []);
@@ -255,33 +290,60 @@ export function HeroCurtain({ scrollTrackHeight }: { scrollTrackHeight?: number 
   const focus = useExhibitionStore((s) => s.focus);
   const bench = useExhibitionStore((s) => s.bench);
   const curtainRef = useRef<HTMLDivElement>(null);
+  const focusOrBenchRef = useRef(Boolean(focus || bench));
+  focusOrBenchRef.current = Boolean(focus || bench);
 
   useEffect(() => {
     let raf = 0;
-    let lastT = -1;
-    const syncCurtain = () => {
+    let currentT = computeCurtainRevealFraction(window.scrollY);
+    let targetT = currentT;
+
+    const applyTransform = (t: number) => {
       const el = curtainRef.current;
-      if (el) {
-        const raw = motionRefs.progress;
-        const t = Math.min(1, Math.max(0, raw / 0.03));
-        if (Math.abs(t - lastT) > 0.0005 || lastT < 0) {
-          lastT = t;
-          const eased = t * t * (3 - 2 * t);
-          el.style.transform = `translate3d(${-105 * eased}%, 0, 0)`;
-          el.style.opacity = t >= 0.99 ? '0' : '1';
-          el.style.pointerEvents = t >= 0.85 || focus || bench ? 'none' : 'auto';
-        }
-      }
-      raf = requestAnimationFrame(syncCurtain);
+      if (!el) return;
+      const eased = smoothstep01(t);
+      el.style.transform = `translate3d(${-105 * eased}%, 0, 0)`;
+      el.style.opacity = t >= 0.99 ? '0' : '1';
+      el.style.visibility = t >= 0.995 ? 'hidden' : 'visible';
+      el.style.pointerEvents = t >= 0.85 || focusOrBenchRef.current ? 'none' : 'auto';
     };
-    raf = requestAnimationFrame(syncCurtain);
-    return () => cancelAnimationFrame(raf);
+
+    applyTransform(currentT);
+
+    const step = () => {
+      raf = 0;
+      targetT = computeCurtainRevealFraction(window.scrollY);
+      const diff = targetT - currentT;
+      if (Math.abs(diff) <= 0.001) {
+        currentT = targetT;
+        applyTransform(currentT);
+        return;
+      }
+      currentT += diff * 0.24;
+      applyTransform(currentT);
+      raf = requestAnimationFrame(step);
+    };
+
+    const wake = () => {
+      targetT = computeCurtainRevealFraction(window.scrollY);
+      if (!raf) {
+        raf = requestAnimationFrame(step);
+      }
+    };
+
+    window.addEventListener('scroll', wake, { passive: true });
+    window.addEventListener('resize', wake, { passive: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('scroll', wake);
+      window.removeEventListener('resize', wake);
+    };
   }, [focus, bench, scrollTrackHeight]);
 
   return (
     <div
       ref={curtainRef}
-      className={`fixed inset-y-0 left-0 z-30 w-full md:w-[84%] lg:w-[80%] overflow-hidden border-r border-[#d4af37]/25 shadow-[24px_0_80px_rgba(0,0,0,0.75)] transition-opacity duration-500 ${
+      className={`fixed inset-y-0 left-0 z-30 w-full overflow-hidden shadow-[24px_0_80px_rgba(0,0,0,0.75)] transition-opacity duration-500 ${
         phase === 'loading' ? 'opacity-0 pointer-events-none' : ''
       }`}
       style={{
@@ -377,7 +439,7 @@ export function HeroCurtain({ scrollTrackHeight }: { scrollTrackHeight?: number 
               <MagneticButton
                 tone="amber"
                 label="Walk The Campus"
-                onClick={() => scrollToProgress(0.042)}
+                onClick={() => scrollPastHeroCurtain()}
               />
               <Link
                 to="/auth?mode=signup"
@@ -389,19 +451,19 @@ export function HeroCurtain({ scrollTrackHeight }: { scrollTrackHeight?: number 
             </div>
           </div>
 
-          {/* Right Layered Campus Memory Collage (Real Photos + Twinkling Memory Nodes) */}
+          {/* Right Layered Campus Memory Collage (Real Grizzly Vidyalaya Campus Photos, Zero Text Overlap) */}
           <div className="hidden md:block lg:col-span-5">
             <div className="relative mx-auto max-w-md">
-              {/* Primary Framed Photo: /campus/campus-fire-drill.jpg */}
+              {/* Primary Framed Campus Photo: /innerview.png */}
               <div className="relative overflow-hidden rounded-xl border border-[#d4af37]/35 bg-[#120409] p-2 shadow-[0_24px_60px_rgba(0,0,0,0.65)]">
-                <div className="relative aspect-[4/3] overflow-hidden rounded-lg">
+                <div className="relative aspect-[16/10] overflow-hidden rounded-lg">
                   <img
-                    src="/campus/campus-fire-drill.jpg"
-                    alt="Grizzly Vidyalaya Yellow Campus Facade & Courtyard"
+                    src="/innerview.png"
+                    alt="Grizzly Vidyalaya Campus Courtyard & Academic Wings"
                     className="h-full w-full object-cover"
                     referrerPolicy="no-referrer"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#14040a]/85 via-transparent to-[#14040a]/20" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#14040a]/30 via-transparent to-[#14040a]/15" />
 
                   {/* Twinkling memory nodes */}
                   {MEMORY_NODES.map((node, idx) => (
@@ -416,32 +478,34 @@ export function HeroCurtain({ scrollTrackHeight }: { scrollTrackHeight?: number 
                       }}
                     />
                   ))}
-
-                  <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between">
-                    <div>
-                      <p className="text-[10px] font-mono-tabular uppercase tracking-[0.26em] text-[#ffcf8a]">
-                        Campus I · Telaiya Dam
-                      </p>
-                      <p className="font-display text-base font-semibold text-white">
-                        Grizzly Vidyalaya Heritage
-                      </p>
-                    </div>
-                  </div>
                 </div>
               </div>
 
-              {/* Overlapping Secondary Frame: /campus/campus-robotics-workshop.png */}
-              <div className="absolute -bottom-8 -left-6 w-48 overflow-hidden rounded-lg border border-[#d4af37]/40 bg-[#140409] p-1.5 shadow-2xl">
-                <div className="relative aspect-[16/10] overflow-hidden rounded">
-                  <img
-                    src="/campus/campus-robotics-workshop.png"
-                    alt="Grizzly Vidyalaya STEM & Robotics Lab"
-                    className="h-full w-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent" />
-                  <p className="absolute bottom-1.5 left-2 text-[10px] font-medium uppercase tracking-[0.18em] text-[#ffcf8a]">
-                    STEM Innovation
+              {/* Clean Non-Overlapping Secondary Campus Card & Heritage Placard Row */}
+              <div className="mt-3.5 grid grid-cols-12 gap-3.5 items-stretch">
+                <div className="col-span-5 overflow-hidden rounded-lg border border-[#d4af37]/35 bg-[#140409] p-1.5 shadow-xl flex flex-col">
+                  <div className="relative aspect-[16/10] overflow-hidden rounded">
+                    <img
+                      src="/gate.png"
+                      alt="Grizzly Vidyalaya Main Entrance Gate"
+                      className="h-full w-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                  <p className="mt-1.5 px-1 text-[10px] font-mono-tabular uppercase tracking-[0.18em] text-[#ffcf8a]">
+                    Campus Main Gate
+                  </p>
+                </div>
+
+                <div className="col-span-7 rounded-lg border border-[#d4af37]/30 bg-[#14040a]/95 px-4 py-3 shadow-xl flex flex-col justify-center">
+                  <p className="text-[10px] font-mono-tabular uppercase tracking-[0.24em] text-[#ffcf8a]">
+                    Main Campus · Telaiya Dam
+                  </p>
+                  <p className="font-display mt-1 text-base font-semibold leading-snug text-white">
+                    Grizzly Vidyalaya Campus
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-white/65">
+                    Sunlit quadrangles, academic wings &amp; alumni roots.
                   </p>
                 </div>
               </div>
@@ -454,7 +518,7 @@ export function HeroCurtain({ scrollTrackHeight }: { scrollTrackHeight?: number 
           <span className="hidden sm:inline">4 Interactive 3D Campus Wings</span>
           <button
             type="button"
-            onClick={() => scrollToProgress(0.042)}
+            onClick={() => scrollPastHeroCurtain()}
             className="ml-auto flex items-center gap-3 text-[#ffcf8a]/90 hover:text-white transition-colors cursor-pointer"
           >
             <span>Scroll to walk</span>
@@ -525,6 +589,12 @@ export function ExhibitionCursor() {
     resize();
     window.addEventListener('resize', resize);
 
+    const scheduleTick = () => {
+      if (!raf) {
+        raf = requestAnimationFrame(tick);
+      }
+    };
+
     const onMove = (e: PointerEvent) => {
       if (e.pointerType === 'touch') return;
       visible = true;
@@ -538,20 +608,25 @@ export function ExhibitionCursor() {
 
       if (!motionRefs.scrolledPastGallery && !focus && !bench) {
         trail.push({ x: e.clientX, y: e.clientY, life: 1 });
-        if (trail.length > 18) trail.shift();
+        if (trail.length > 14) trail.shift();
       }
+      scheduleTick();
     };
 
     const onLeave = () => {
       visible = false;
+      scheduleTick();
     };
 
     window.addEventListener('pointermove', onMove, { passive: true });
     document.addEventListener('mouseleave', onLeave);
 
     const tick = () => {
-      smoothPos.x += (targetPos.x - smoothPos.x) * 0.28;
-      smoothPos.y += (targetPos.y - smoothPos.y) * 0.28;
+      raf = 0;
+      const dx = targetPos.x - smoothPos.x;
+      const dy = targetPos.y - smoothPos.y;
+      smoothPos.x += dx * 0.3;
+      smoothPos.y += dy * 0.3;
 
       if (cursorEl) {
         cursorEl.style.transform = `translate3d(${smoothPos.x}px, ${smoothPos.y}px, 0)`;
@@ -562,42 +637,50 @@ export function ExhibitionCursor() {
         dotEl.style.transform = uiInteractive ? 'scale(1.65)' : 'scale(1)';
       }
 
-      if (ctx && canvas && trail.length > 0) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        const accent = ROOM_META[room]?.accent || '#ffcf8a';
-        for (let i = trail.length - 1; i >= 0; i--) {
-          trail[i].life -= 0.065;
-          if (trail[i].life <= 0) {
-            trail.splice(i, 1);
+      if (ctx && canvas) {
+        if (trail.length > 0) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          const accent = ROOM_META[room]?.accent || '#ffcf8a';
+          for (let i = trail.length - 1; i >= 0; i--) {
+            trail[i].life -= 0.08;
+            if (trail[i].life <= 0) {
+              trail.splice(i, 1);
+            }
           }
-        }
-        if (
-          trail.length > 1 &&
-          phase === 'gallery' &&
-          !focus &&
-          !bench &&
-          !motionRefs.scrolledPastGallery
-        ) {
-          for (let i = 1; i < trail.length; i++) {
-            const p0 = trail[i - 1];
-            const p1 = trail[i];
-            ctx.beginPath();
-            ctx.moveTo(p0.x, p0.y);
-            ctx.lineTo(p1.x, p1.y);
-            ctx.strokeStyle = accent;
-            ctx.globalAlpha = Math.max(0, p1.life * 0.36);
-            ctx.lineWidth = Math.max(0.8, p1.life * 3.0);
-            ctx.lineCap = 'round';
-            ctx.stroke();
+          if (
+            trail.length > 1 &&
+            phase === 'gallery' &&
+            !focus &&
+            !bench &&
+            !motionRefs.scrolledPastGallery
+          ) {
+            for (let i = 1; i < trail.length; i++) {
+              const p0 = trail[i - 1];
+              const p1 = trail[i];
+              ctx.beginPath();
+              ctx.moveTo(p0.x, p0.y);
+              ctx.lineTo(p1.x, p1.y);
+              ctx.strokeStyle = accent;
+              ctx.globalAlpha = Math.max(0, p1.life * 0.34);
+              ctx.lineWidth = Math.max(0.8, p1.life * 2.8);
+              ctx.lineCap = 'round';
+              ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
           }
-          ctx.globalAlpha = 1;
         }
       }
 
-      raf = requestAnimationFrame(tick);
+      if (
+        Math.abs(targetPos.x - smoothPos.x) >= 0.15 ||
+        Math.abs(targetPos.y - smoothPos.y) >= 0.15 ||
+        trail.length > 0
+      ) {
+        scheduleTick();
+      }
     };
 
-    raf = requestAnimationFrame(tick);
+    scheduleTick();
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', resize);
@@ -614,6 +697,8 @@ export function ExhibitionCursor() {
       ? 'SIT DOWN'
       : hover === 'chapter-join'
       ? 'JOIN NOW'
+      : hover?.startsWith('holo-')
+      ? 'OPEN'
       : 'ZOOM IN';
 
   return (
@@ -770,7 +855,7 @@ export function ExhibitDetailModal() {
       />
 
       {detail && (
-        <article className="hud-card pointer-events-auto relative z-10 w-full max-w-md border border-white/15 bg-[#120409]/88 p-6 sm:p-7 text-white backdrop-blur-xl shadow-[0_24px_80px_rgba(0,0,0,0.75)]">
+        <article className="hud-card pointer-events-auto relative z-10 w-full max-w-md border border-white/15 bg-[#120409]/96 p-6 sm:p-7 text-white shadow-[0_24px_80px_rgba(0,0,0,0.75)]">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p
@@ -880,17 +965,11 @@ export function BenchModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-[#0c0a14]">
-      <img
-        src="/campus/campus-gallery-4.jpg"
-        alt="Students reading in the Grizzly Vidyalya Library"
-        className="absolute inset-0 h-full w-full object-cover opacity-50 scale-105"
-        referrerPolicy="no-referrer"
-      />
       <div
         className="absolute inset-0"
         style={{
           background:
-            'linear-gradient(180deg, rgba(16, 12, 24, 0.72) 0%, rgba(48, 12, 24, 0.55) 50%, rgba(12, 4, 8, 0.92) 100%)',
+            'radial-gradient(circle at 50% 30%, rgba(128, 0, 32, 0.45), rgba(16, 12, 24, 0.92) 55%, rgba(8, 3, 6, 0.98) 100%)',
         }}
       />
 
@@ -907,15 +986,18 @@ export function BenchModal() {
           to mind.
         </p>
 
-        <div className="mt-8 mx-auto max-w-sm overflow-hidden rounded-xl border border-[#d4af37]/30 bg-black/40 p-2 backdrop-blur-md">
+        <div className="mt-8 mx-auto max-w-sm overflow-hidden rounded-xl border border-[#d4af37]/30 bg-[#14050b]/96 px-6 py-6">
           <img
-            src="/campus/campus-robotics-workshop.png"
-            alt="STEM Robotics Workshop and Mentors at Grizzly Vidyalaya"
-            className="h-44 w-full rounded-lg object-cover"
+            src="/gvlogo.png"
+            alt="Grizzly Vidyalaya Crest"
+            className="mx-auto h-20 w-20 object-contain"
             referrerPolicy="no-referrer"
           />
-          <p className="mt-2 pb-1 text-xs uppercase tracking-[0.22em] text-[#ffcf8a]">
-            Campus Mentors · Shared Roots
+          <p className="mt-4 text-xs font-mono-tabular uppercase tracking-[0.24em] text-[#ffcf8a]">
+            Grizzly Vidyalaya · Telaiya Dam, Koderma
+          </p>
+          <p className="mt-1 text-xs text-white/60">
+            Success Through Hard Work · Forever Connected
           </p>
         </div>
 
@@ -1035,12 +1117,10 @@ export function WebGLFallbackShowcase({
             </button>
           ))}
         </div>
-
-        <CampusMasonryGallery show3DJumps={false} />
       </div>
 
       {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/82 p-4">
           <div className="hud-card relative w-full max-w-lg border border-white/15 bg-[#120409] p-6 text-white">
             <button
               type="button"

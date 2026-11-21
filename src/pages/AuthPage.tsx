@@ -471,10 +471,17 @@ export function AuthPage() {
       setVerifiedEmail(result.email);
       setVerifiedUsername(result.username);
 
-      setEmailVerifiedConfirmed(false);
-      setVerificationLinkSent(true);
-      setResendTimer(30);
-      setDemoVerifyUrl(result.demoVerifyUrl || '');
+      if (result.emailVerified && !result.needsEmailVerification) {
+        await refreshAuth();
+        setEmailVerifiedConfirmed(true);
+        setSignupStep('onboarding');
+        setInfoMessage('Account created! Complete your Profile & Batch compliance below.');
+      } else {
+        setEmailVerifiedConfirmed(false);
+        setVerificationLinkSent(true);
+        setResendTimer(30);
+        setDemoVerifyUrl(result.demoVerifyUrl || '');
+      }
     } catch (err: any) {
       setError(err.message || 'Could not send verification link.');
     } finally {

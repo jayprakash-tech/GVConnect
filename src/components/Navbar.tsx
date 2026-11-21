@@ -192,7 +192,7 @@ export function Navbar({ variant = 'default' }: NavbarProps) {
                     initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
-                    className="absolute right-0 top-full mt-2 w-60 rounded-xl border border-white/15 bg-[#14040a]/95 backdrop-blur-md shadow-2xl overflow-hidden text-white"
+                    className="absolute right-0 top-full mt-2 w-60 rounded-xl border border-white/15 bg-[#14040a]/96 shadow-2xl overflow-hidden text-white"
                   >
                     <div className="p-4 border-b border-white/10">
                       <p className="font-semibold text-white text-sm truncate">
@@ -265,7 +265,7 @@ export function Navbar({ variant = 'default' }: NavbarProps) {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="pointer-events-auto md:hidden mx-4 mt-1 mb-3 rounded-2xl border border-white/15 bg-[#14040a]/95 p-4 backdrop-blur-xl shadow-2xl"
+            className="pointer-events-auto md:hidden mx-4 mt-1 mb-3 rounded-2xl border border-white/15 bg-[#14040a]/96 p-4 shadow-2xl"
           >
             <div className="flex flex-col gap-1.5">
               {navLinks.map((link) => (
