@@ -127,8 +127,9 @@ html.dark body {
 }
 
 .gallery-cursor {
+  mix-blend-mode: difference;
   opacity: 0;
-  transition: opacity 0.16s ease;
+  transition: opacity 0.2s ease;
 }
 
 .gallery-cursor.is-on {

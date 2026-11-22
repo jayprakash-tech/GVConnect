@@ -99,7 +99,7 @@ export function MagneticButton({
       {/* Pulsing ambient aura */}
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute -inset-2 rounded-full transition-opacity duration-500"
+        className="pointer-events-none absolute -inset-2 rounded-full blur-xl transition-opacity duration-500"
         style={{
           background: `radial-gradient(circle, rgba(${palette.glow}, 0.42), transparent 70%)`,
           animation: 'hall-core 3.2s ease-in-out infinite',

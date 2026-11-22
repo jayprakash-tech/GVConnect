@@ -242,17 +242,12 @@ export function resolveSessionRouteAction(params: {
 export interface SignupVerificationOutcome {
   emailVerified: boolean;
   needsEmailVerification: boolean;
-  autoConfirmedByServer: boolean;
   dispatchOtpFallback: false;
 }
 
 /**
- * Pure rule ensuring new-user Sign Up strictly requires email link verification
- * BEFORE profile onboarding unlocks, and NEVER falls back to signInWithOtp (6-digit OTP).
- * If the auth server auto-confirmed the user during signUp() without sending a link
- * (e.g. Confirm Email disabled in Supabase), mark autoConfirmedByServer=true so the
- * caller signs out the unverified session and surfaces a clear configuration error
- * instead of silently skipping email verification.
+ * Pure rule ensuring new-user Sign Up strictly relies on email verification links
+ * (Supabase Confirm Signup template) and NEVER falls back to signInWithOtp (6-digit OTP).
  */
 export function resolveSignupVerificationOutcome(params: {
   hasSession: boolean;
@@ -260,61 +255,16 @@ export function resolveSignupVerificationOutcome(params: {
   confirmedAt?: string | null;
 }): SignupVerificationOutcome {
   const confirmed = Boolean(params.emailConfirmedAt || params.confirmedAt);
-  if (params.hasSession || confirmed) {
+  if (params.hasSession && confirmed) {
     return {
-      emailVerified: false,
-      needsEmailVerification: true,
-      autoConfirmedByServer: true,
+      emailVerified: true,
+      needsEmailVerification: false,
       dispatchOtpFallback: false,
     };
   }
   return {
     emailVerified: false,
     needsEmailVerification: true,
-    autoConfirmedByServer: false,
     dispatchOtpFallback: false,
   };
-}
-
-export function validateLoginCredentialsInput(
-  identifier: string,
-  password: string
-): { valid: boolean; message?: string } {
-  if (!identifier.trim()) {
-    return { valid: false, message: 'Please enter your username or email address.' };
-  }
-  if (!password) {
-    return { valid: false, message: 'Please enter your password.' };
-  }
-  return { valid: true };
-}
-
-export type LoginNextAction =
-  | 'require_puzzle'
-  | 'signup_verify_email'
-  | 'signup_onboarding'
-  | 'login_device_otp'
-  | 'redirect_dashboard';
-
-/**
- * Pure login state transition enforcing that the Security Puzzle MUST be solved
- * before dispatching a new-device 6-digit OTP or navigating to /dashboard.
- */
-export function resolvePostPuzzleLoginAction(params: {
-  puzzleSolved: boolean;
-  status: 'authenticated' | 'otp_required' | 'needs_onboarding' | 'email_verification_required';
-}): LoginNextAction {
-  if (!params.puzzleSolved) {
-    return 'require_puzzle';
-  }
-  switch (params.status) {
-    case 'email_verification_required':
-      return 'signup_verify_email';
-    case 'needs_onboarding':
-      return 'signup_onboarding';
-    case 'otp_required':
-      return 'login_device_otp';
-    case 'authenticated':
-      return 'redirect_dashboard';
-  }
 }

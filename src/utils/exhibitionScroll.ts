@@ -1,13 +1,6 @@
 export const CURTAIN_REVEAL_SCROLL_PX = 760;
 export const SCROLL_PX_PER_PATH_UNIT = 148;
 
-export const EXHIBITION_MOTION_TUNING = {
-  progressDampSpeed: 8.5,
-  walkCameraDampSpeed: 12.0,
-  focusCameraDampSpeed: 5.2,
-  scrollUploadCooldownMs: 90,
-} as const;
-
 export interface DeviceCapabilitySignals {
   isSoftwareWebGL: boolean;
   isCoarsePointer: boolean;
@@ -102,7 +95,7 @@ export function resolveExhibitionPerfProfile(
       moteCount: 240,
       ribbonSamples: 240,
       foldStep: 1.15,
-      maxMotionDt: 0.08,
+      maxMotionDt: 0.16,
       maxAnimDt: 0.05,
       batchConcurrency: 2,
     };
@@ -118,7 +111,7 @@ export function resolveExhibitionPerfProfile(
     moteCount: 680,
     ribbonSamples: 420,
     foldStep: 0.65,
-    maxMotionDt: 0.08,
+    maxMotionDt: 0.14,
     maxAnimDt: 0.05,
     batchConcurrency: 3,
   };

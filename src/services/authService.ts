@@ -440,9 +440,8 @@ export async function getAuthSessionState(): Promise<{
         }
         const provider = sbUser.app_metadata?.provider || 'email';
         const isOAuthProvider = provider !== 'email';
-        const signupLinkPending = sbUser.user_metadata?.gv_signup_link_pending === true;
         const emailVerified = Boolean(
-          !signupLinkPending && (sbUser.email_confirmed_at || sbUser.confirmed_at || isOAuthProvider)
+          sbUser.email_confirmed_at || sbUser.confirmed_at || isOAuthProvider
         );
         const trusted = await isCurrentDeviceTrusted(sbUser.id);
         const pendingDeviceCheck =
@@ -583,7 +582,6 @@ export async function registerWithEmail(params: {
   username: string;
   emailVerified: boolean;
   needsEmailVerification: boolean;
-  autoConfirmedByServer?: boolean;
   demoVerifyUrl?: string;
 }> {
   const email = normalizeEmail(params.email);
@@ -643,19 +641,8 @@ export async function registerWithEmail(params: {
         });
 
         // Never call signInWithOtp during Sign Up (signInWithOtp sends a 6-digit login OTP).
-        // signUp() automatically dispatches Supabase's "Confirm signup" verification link email
-        // ONLY when Confirm Email is enabled in Supabase. If the server auto-confirmed the account
-        // without emailing a link, mark it pending and sign out so profile onboarding stays locked.
-        if (outcome.autoConfirmedByServer && data.session) {
-          await supabase.auth
-            .updateUser({
-              data: {
-                gv_signup_link_pending: true,
-              },
-            })
-            .catch(() => null);
-          await supabase.auth.signOut().catch(() => null);
-        } else if (outcome.needsEmailVerification && data.session) {
+        // signUp() automatically dispatches Supabase's "Confirm signup" verification link email.
+        if (outcome.needsEmailVerification && data.session) {
           await supabase.auth.signOut().catch(() => null);
         }
 
@@ -663,9 +650,8 @@ export async function registerWithEmail(params: {
           userId: data.user.id,
           email,
           username,
-          emailVerified: false,
-          needsEmailVerification: true,
-          autoConfirmedByServer: outcome.autoConfirmedByServer,
+          emailVerified: outcome.emailVerified,
+          needsEmailVerification: outcome.needsEmailVerification,
         };
       });
     } catch (err) {
@@ -712,7 +698,6 @@ export async function registerWithEmail(params: {
     username,
     emailVerified: false,
     needsEmailVerification: true,
-    autoConfirmedByServer: false,
     demoVerifyUrl,
   };
 }
@@ -761,21 +746,8 @@ export async function checkLiveEmailVerification(
 
     const provider = sbUser.app_metadata?.provider || 'email';
     const isOAuthProvider = provider !== 'email';
-    let isSignupLinkPending = sbUser.user_metadata?.gv_signup_link_pending === true;
-
-    if (isSignupLinkPending && fromLinkCallback && (pkceCode || accessToken)) {
-      await supabase.auth
-        .updateUser({
-          data: {
-            gv_signup_link_pending: false,
-          },
-        })
-        .catch(() => null);
-      isSignupLinkPending = false;
-    }
-
     const verified = Boolean(
-      !isSignupLinkPending && (sbUser.email_confirmed_at || sbUser.confirmed_at || isOAuthProvider)
+      sbUser.email_confirmed_at || sbUser.confirmed_at || isOAuthProvider
     );
     return {
       verified,
@@ -1118,9 +1090,8 @@ export async function loginWithPassword(params: {
 
         const userId = data.user.id;
         const username = data.user.user_metadata?.username;
-        const isSignupLinkPending = data.user.user_metadata?.gv_signup_link_pending === true;
         const emailVerified = Boolean(
-          !isSignupLinkPending && (data.user.email_confirmed_at || data.user.confirmed_at)
+          data.user.email_confirmed_at || data.user.confirmed_at
         );
 
         if (!emailVerified) {

@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   CURTAIN_REVEAL_SCROLL_PX,
-  EXHIBITION_MOTION_TUNING,
   SCROLL_PX_PER_PATH_UNIT,
   computeCurtainRevealFraction,
   computeTrackHeightPx,
@@ -109,11 +108,4 @@ test('resolvePostExhibitionUiState stabilizes navbar and restores native pointer
       useGalleryCursor: false,
     }
   );
-});
-
-test('EXHIBITION_MOTION_TUNING stays responsive without double-damped scroll lag', () => {
-  assert.ok(EXHIBITION_MOTION_TUNING.progressDampSpeed >= 7);
-  assert.ok(EXHIBITION_MOTION_TUNING.walkCameraDampSpeed >= 10);
-  assert.ok(EXHIBITION_MOTION_TUNING.focusCameraDampSpeed >= 4);
-  assert.ok(EXHIBITION_MOTION_TUNING.scrollUploadCooldownMs >= 60);
 });

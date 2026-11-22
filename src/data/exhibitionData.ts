@@ -1599,14 +1599,12 @@ export function setExhibitionState(patch: Partial<ExhibitionUIState>) {
   listeners.forEach((fn) => fn());
 }
 
-export function subscribeExhibitionStore(cb: () => void): () => void {
-  listeners.add(cb);
-  return () => listeners.delete(cb);
-}
-
 export function useExhibitionStore<T>(selector: (s: ExhibitionUIState) => T): T {
   return useSyncExternalStore(
-    subscribeExhibitionStore,
+    (cb) => {
+      listeners.add(cb);
+      return () => listeners.delete(cb);
+    },
     () => selector(state),
     () => selector(state)
   );
